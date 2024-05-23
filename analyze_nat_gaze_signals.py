@@ -19,7 +19,7 @@ import load_data
 params = {}
 params.update({
     'is_cluster': True,
-    'use_parallel': False,
+    'use_parallel': True,
     'extract_postime_from_mat_files': True,
     'compute_fixations': True})
 
@@ -27,11 +27,11 @@ root_data_dir = util.get_root_data_dir(params)
 params.update({'root_data_dir': root_data_dir})
 
 if params.get('extract_postime_from_mat_files', False):
-    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions = \
-        filter_behav.get_gaze_positions_across_sessions(params)
+    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions, sorted_time_path_list, time_vecs = \
+        filter_behav.get_gaze_timepos_across_sessions(params)
 else:
-    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions = \
-        load_data.get_combined_gaze_pos_lists(params)
+    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions, sorted_time_path_list, time_vecs = \
+        load_data.get_combined_gaze_pos_and_time_lists(params)
 
 params.update({'sorted_position_path_list': sorted_position_path_list,
                'm1_gaze_positions': m1_gaze_positions,
