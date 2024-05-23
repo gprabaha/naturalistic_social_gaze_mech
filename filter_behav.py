@@ -79,3 +79,11 @@ def get_gaze_positions_across_sessions(params):
             f.write('\n'.join(sorted_position_path_list))
         # Step 7: Return the sorted file paths and extracted positions
         return sorted_position_path_list, m1_positions, m2_positions
+
+
+
+
+
+
+
+

@@ -20,13 +20,25 @@ params = {}
 params.update({
     'is_cluster': True,
     'use_parallel': False,
+    'extract_postime_from_mat_files': False,
     'compute_fixations': True})
 
 root_data_dir = util.get_root_data_dir(params)
 params.update({'root_data_dir': root_data_dir})
 
-sorted_position_path_list, m1_gaze_positions, m2_gaze_positions = \
-    filter_behav.get_gaze_positions_across_sessions(params)
+if params.get('extract_postime_from_mat_files', False):
+    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions = \
+        filter_behav.get_gaze_positions_across_sessions(params)
+else:
+    sorted_position_path_list, m1_gaze_positions, m2_gaze_positions = \
+        load_data.get_combined_gaze_pos_lists(params)
 
-#if params.get('compute_fixations', False):
-    
+params.update({'sorted_position_path_list': sorted_position_path_list,
+               'm1_gaze_positions': m1_gaze_positions,
+               'm2_gaze_positions': m2_gaze_positions})
+
+if params.get('compute_fixations', False):
+    x=1
+    fixations_m1, fixations_m2 = filter_behav.extract_fixations_for_both_monkeys(params)
+else:
+    x=2
