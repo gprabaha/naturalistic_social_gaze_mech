@@ -20,7 +20,7 @@ params = {}
 params.update({
     'is_cluster': True,
     'use_parallel': False,
-    'extract_postime_from_mat_files': False,
+    'extract_postime_from_mat_files': True,
     'compute_fixations': True})
 
 root_data_dir = util.get_root_data_dir(params)
@@ -39,6 +39,6 @@ params.update({'sorted_position_path_list': sorted_position_path_list,
 
 if params.get('compute_fixations', False):
     x=1
-    fixations_m1, fixations_m2 = filter_behav.extract_fixations_for_both_monkeys(params)
+    #fixations_m1, fixations_m2 = filter_behav.extract_fixations_for_both_monkeys(params)
 else:
     x=2
