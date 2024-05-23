@@ -12,6 +12,7 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
+
 def get_root_data_dir(params):
     """
     Returns the root data directory based on whether it's running on a cluster or not.
@@ -63,21 +64,39 @@ def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, ti
     Returns:
     - (list, list, list, list): Synchronized time_files, pos_files, m1_positions, m2_positions, time_vectors.
     """
+    # Debug prints to check the input types
+    for i, path in enumerate(pos_files):
+        if not isinstance(path, (str, bytes, os.PathLike)):
+            print(f"Error in pos_files at index {i}: {path} is of type {type(path)}")
+
+    for i, path in enumerate(time_files):
+        if not isinstance(path, (str, bytes, os.PathLike)):
+            print(f"Error in time_files at index {i}: {path} is of type {type(path)}")
+
+    # Creating dictionaries with filenames as keys
     pos_dict = {os.path.basename(path): (path, m1_pos, m2_pos) for path, m1_pos, m2_pos in zip(pos_files, m1_positions, m2_positions)}
     time_dict = {os.path.basename(path): (path, t) for path, t in zip(time_files, time_vectors)}
+
+    # Identifying common filenames
     common_filenames = set(pos_dict.keys()).intersection(time_dict.keys())
+
+    # Initializing synchronized lists
     synchronized_time_files = []
     synchronized_pos_files = []
     synchronized_m1_positions = []
     synchronized_m2_positions = []
     synchronized_time_vectors = []
+
+    # Collecting synchronized data
     for filename in common_filenames:
         synchronized_time_files.append(time_dict[filename][0])
         synchronized_pos_files.append(pos_dict[filename][0])
         synchronized_m1_positions.append(pos_dict[filename][1])
         synchronized_m2_positions.append(pos_dict[filename][2])
         synchronized_time_vectors.append(time_dict[filename][1])
+
     return synchronized_time_files, synchronized_pos_files, synchronized_m1_positions, synchronized_m2_positions, synchronized_time_vectors
+
 
 
 
