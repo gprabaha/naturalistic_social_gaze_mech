@@ -16,7 +16,7 @@ def load_mat_from_path(path):
     return scipy.io.loadmat(path)
 
 
-def get_combined_gaze_pos_lists(root_data_dir):
+def get_combined_gaze_pos_lists(params):
     """
     Load combined gaze position lists.
 
@@ -29,7 +29,7 @@ def get_combined_gaze_pos_lists(root_data_dir):
     - m2_positions (list): List of m2 gaze positions.
     """
     # Load sorted_position_path_list from the text file
-    root_data_dir
+    root_data_dir = params.get('root_data_dir')
     intermediates_dir = os.path.join(root_data_dir, 'intermediates')
     path_list_file = os.path.join(intermediates_dir, 'sorted_position_path_list.txt')
     with open(path_list_file, 'r') as f:
