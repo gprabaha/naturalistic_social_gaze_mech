@@ -6,6 +6,9 @@ Created on Wed May 22 14:19:31 2024
 @author: pg496
 """
 
+import os
+import re
+
 import util
 import filter_behav
 import load_data
@@ -35,10 +38,8 @@ print(sorted_position_path_list)
 sorted_position_path_list, m1_gaze_positions, m2_gaze_positions, sorted_time_path_list, time_vecs = \
     filter_behav.get_gaze_timepos_across_sessions(params)
 
-# Prepare session data for fixation extraction
-session_infos = [{'session_name': f[:8], 'run_number': int(f.split('_')[2].split('.')[0])} for f in sorted_position_path_list]
+pos_pattern = r"(\d{8})_position_(\d+).mat"
+session_infos = [{'session_name': re.match(pos_pattern, os.path.basename(f)).group(1), 'run_number': int(re.match(pos_pattern, os.path.basename(f)).group(2))} for f in sorted_position_path_list]
 
 # Extract fixations and saccades for both monkeys
 fixations_m1, saccades_m1, fixations_m2, saccades_m2 = fix_and_saccades.extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, session_infos)
-
-

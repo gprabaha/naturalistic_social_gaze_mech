@@ -10,9 +10,10 @@ import os
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
-
+import re
 import load_data
 import util
+
 
 def get_gaze_timepos_across_sessions(params):
     root_data_dir = params.get('root_data_dir')
@@ -33,8 +34,8 @@ def get_gaze_timepos_across_sessions(params):
     valid_pos_files = [None] * len(sorted_position_path_list)
     valid_time_files = [None] * len(sorted_time_path_list)
 
-    session_infos = [{'session_name': f[:8], 'run_number': int(f.split('_')[2].split('.')[0])} for f in pos_mat_files_sorted]
-    
+    session_infos = [{'session_name': re.match(pos_pattern, os.path.basename(f)).group(1), 'run_number': int(re.match(pos_pattern, os.path.basename(f)).group(2))} for f in sorted_position_path_list]
+
     if use_parallel:
         print('Loading pos-time files in parallel')
         m1_positions, m2_positions, valid_pos_files, \
@@ -154,6 +155,7 @@ def process_time_file(index, mat_file, session_info):
         t = mat_data['var'][0][0]['t']
         return (index, t, mat_file, session_info)
     return (index, None, None, session_info)
+
 
 
 
