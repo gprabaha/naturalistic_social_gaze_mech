@@ -11,6 +11,17 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 
+import pdb
+
+import load_data
+import util
+
+
+import os
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
+
 import load_data
 import util
 
@@ -30,8 +41,8 @@ def get_gaze_timepos_across_sessions(params):
     use_parallel = params.get('use_parallel', False)
     intermediates_dir = os.path.join(root_data_dir, 'intermediates')
     os.makedirs(intermediates_dir, exist_ok=True)
-    pos_pattern = r"(\d{8})_positions_(\d+).mat"
-    time_pattern = r"(\d{8})_positions_(\d+).mat"  # Assuming the pattern is the same; adjust if different
+    pos_pattern = r"(\d{8})_position_(\d+).mat"
+    time_pattern = r"(\d{8})_position_(\d+).mat"  # Assuming the pattern is the same; adjust if different
     path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
     path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
     pos_mat_files_sorted = util.get_sorted_files(path_to_positions, pos_pattern)
@@ -95,6 +106,8 @@ def get_gaze_timepos_across_sessions(params):
     with open(time_list_file, 'w') as f:
         f.write('\n'.join(sorted_time_path_list))
     return sorted_position_path_list, m1_positions_list, m2_positions_list, sorted_time_path_list, time_vectors_list
+
+
 
 
 def process_postime_files_concurrently(sorted_position_path_list,

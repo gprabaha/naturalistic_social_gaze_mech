@@ -6,14 +6,8 @@ Created on Wed May 22 14:19:31 2024
 @author: pg496
 """
 
-import numpy as np
-import os
-import scipy
-
 import util
 import filter_behav
-import filter_ephys
-import plotter
 import load_data
 
 params = {}
@@ -21,7 +15,7 @@ params.update({
     'is_cluster': True,
     'use_parallel': False,
     'extract_postime_from_mat_files': True,
-    'compute_fixations': True})
+    'compute_fixations': False})
 
 root_data_dir = util.get_root_data_dir(params)
 params.update({'root_data_dir': root_data_dir})
@@ -32,7 +26,9 @@ if params.get('extract_postime_from_mat_files', False):
 else:
     sorted_position_path_list, m1_gaze_positions, m2_gaze_positions, sorted_time_path_list, time_vecs = \
         load_data.get_combined_gaze_pos_and_time_lists(params)
-        
+
+print(sorted_position_path_list)
+
 params.update({'sorted_position_path_list': sorted_position_path_list,
                'sorted_time_path_list': sorted_time_path_list,
                'm1_gaze_positions': m1_gaze_positions,
