@@ -9,8 +9,6 @@ Created on Wed May 22 14:23:31 2024
 import os
 import re
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
-from tqdm import tqdm
 
 
 def get_root_data_dir(params):
@@ -26,17 +24,55 @@ def get_root_data_dir(params):
         else "/Volumes/Stash/changlab/social_gaze"
 
 
+import os
+import re
+
+
 def get_sorted_files(directory, pattern):
-    files = [f for f in os.listdir(directory) if f.endswith('.mat')]
-    def sort_key(filename):
-        match = re.match(pattern, filename)
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.mat')]
+
+    def sort_key(filepath):
+        basename = os.path.basename(filepath)  # Extract the filename from the path
+        match = re.match(pattern, basename)
         if match:
             date_str, run_str = match.groups()
             date_key = date_str
             run_key = int(run_str)
             return (date_key, run_key)
-        return (filename, 0)
-    return sorted(files, key=sort_key)
+        return None
+
+    # Create a list of tuples (file, sort_key) where sort_key is not None
+    files_with_keys = [(f, sort_key(f)) for f in files]
+    files_with_keys = [item for item in files_with_keys if item[1] is not None]
+
+    # Sort the list of tuples by the sort_key
+    sorted_files_with_keys = sorted(files_with_keys, key=lambda item: item[1])
+
+    # Extract the sorted files from the sorted list of tuples
+    sorted_files = [item[0] for item in sorted_files_with_keys]
+
+    return sorted_files
+
+# Example usage
+if __name__ == "__main__":
+    directory = "/path/to/your/directory"
+    pattern = r"(\d{8})_positions_(\d+).mat"
+    sorted_files = get_sorted_files(directory, pattern)
+    print("Sorted files:")
+    for f in sorted_files:
+        print(f)
+
+
+# Example usage
+if __name__ == "__main__":
+    directory = "/path/to/your/directory"
+    pattern = r"(\d{8})_positions_(\d+).mat"
+    sorted_files = get_sorted_files(directory, pattern)
+    print("Sorted files:")
+    for f in sorted_files:
+        print(f)
+
+
 
 
 def save_arrays_as_npy(directory, arrays, filename_prefix):
