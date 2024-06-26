@@ -13,6 +13,7 @@ import util
 from scipy import signal
 from scipy.interpolate import interp1d
 
+
 class EyeMVMFixationDetector:
     def __init__(self, sampling_rate):
         self.sampling_rate = sampling_rate

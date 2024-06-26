@@ -10,6 +10,8 @@ import os
 import re
 import numpy as np
 
+import pdb
+
 
 def get_root_data_dir(params):
     """
@@ -22,10 +24,6 @@ def get_root_data_dir(params):
     is_cluster = params['is_cluster']
     return "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/" if is_cluster \
         else "/Volumes/Stash/changlab/social_gaze"
-
-
-import os
-import re
 
 
 def get_sorted_files(directory, pattern):
@@ -53,25 +51,6 @@ def get_sorted_files(directory, pattern):
 
     return sorted_files
 
-# Example usage
-if __name__ == "__main__":
-    directory = "/path/to/your/directory"
-    pattern = r"(\d{8})_positions_(\d+).mat"
-    sorted_files = get_sorted_files(directory, pattern)
-    print("Sorted files:")
-    for f in sorted_files:
-        print(f)
-
-
-# Example usage
-if __name__ == "__main__":
-    directory = "/path/to/your/directory"
-    pattern = r"(\d{8})_positions_(\d+).mat"
-    sorted_files = get_sorted_files(directory, pattern)
-    print("Sorted files:")
-    for f in sorted_files:
-        print(f)
-
 
 
 
@@ -88,7 +67,7 @@ def filter_none_entries(*lists):
     return filtered_lists
 
 
-def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, time_vectors):
+def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, time_vectors, pattern):
     """
     Ensure the list of position files matches the list of time files.
     Args:
@@ -112,9 +91,26 @@ def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, ti
     # Creating dictionaries with filenames as keys
     pos_dict = {os.path.basename(path): (path, m1_pos, m2_pos) for path, m1_pos, m2_pos in zip(pos_files, m1_positions, m2_positions)}
     time_dict = {os.path.basename(path): (path, t) for path, t in zip(time_files, time_vectors)}
-
+    
+    def sort_key(filepath):
+        basename = os.path.basename(filepath)  # Extract the filename from the path
+        match = re.match(pattern, basename)
+        if match:
+            date_str, run_str = match.groups()
+            date_key = date_str
+            run_key = int(run_str)
+            return (date_key, run_key)
+        return None
+    
     # Identifying common filenames
     common_filenames = set(pos_dict.keys()).intersection(time_dict.keys())
+    # Create a list of tuples (file, sort_key) where sort_key is not None
+    files_with_keys = [(f, sort_key(f)) for f in common_filenames]
+    files_with_keys = [item for item in files_with_keys if item[1] is not None]
+    # Sort the list of tuples by the sort_key
+    sorted_files_with_keys = sorted(files_with_keys, key=lambda item: item[1])
+    # Extract the sorted files from the sorted list of tuples
+    common_filenames_sorted = [item[0] for item in sorted_files_with_keys]
 
     # Initializing synchronized lists
     synchronized_time_files = []
@@ -124,7 +120,7 @@ def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, ti
     synchronized_time_vectors = []
 
     # Collecting synchronized data
-    for filename in common_filenames:
+    for filename in common_filenames_sorted:
         synchronized_time_files.append(time_dict[filename][0])
         synchronized_pos_files.append(pos_dict[filename][0])
         synchronized_m1_positions.append(pos_dict[filename][1])

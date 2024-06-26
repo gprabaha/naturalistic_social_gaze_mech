@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr 30 15:34:44 2024
+
+@author: pg496
+"""
+
+
+import os
+import pandas as pd
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
+import logging
+import util
+from fix_saccade_detectors import ClusterFixationDetector, EyeMVMFixationDetector, EyeMVMSaccadeDetector
+
+def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, session_infos):
+    """
+    Extracts fixations and saccades for both monkeys.
+    Parameters:
+    - params (dict): Dictionary containing parameters.
+    - m1_gaze_positions (list): List of m1 gaze positions arrays.
+    - m2_gaze_positions (list): List of m2 gaze positions arrays.
+    - session_infos (list): List of session info dictionaries.
+    Returns:
+    - fixations_m1 (list): List of m1 fixations.
+    - saccades_m1 (list): List of m1 saccades.
+    - fixations_m2 (list): List of m2 fixations.
+    - saccades_m2 (list): List of m2 saccades.
+    """
+    sessions_data_m1 = [(positions, info, params) for positions, info in zip(m1_gaze_positions, session_infos)]
+    sessions_data_m2 = [(positions, info, params) for positions, info in zip(m2_gaze_positions, session_infos)]
+
+    fixations_m1, saccades_m1 = extract_fixations_and_saccades(sessions_data_m1, params['use_parallel'])
+    fixations_m2, saccades_m2 = extract_fixations_and_saccades(sessions_data_m2, params['use_parallel'])
+
+    all_fix_timepos_m1 = process_fixation_results(fixations_m1)
+    all_fix_timepos_m2 = process_fixation_results(fixations_m2)
+
+    save_fixation_and_saccade_results(params['intermediates'], all_fix_timepos_m1, fixations_m1, saccades_m1, params, 'm1')
+    save_fixation_and_saccade_results(params['intermediates'], all_fix_timepos_m2, fixations_m2, saccades_m2, params, 'm2')
+
+    return fixations_m1, saccades_m1, fixations_m2, saccades_m2
+
+def extract_fixations_and_saccades(sessions_data, use_parallel):
+    """
+    Extracts fixations and saccades from session data.
+    Parameters:
+    - sessions_data (list): List of session data tuples.
+    - use_parallel (bool): Flag to determine if parallel processing should be used.
+    Returns:
+    - fix_detection_results (list): List of fixation detection results.
+    - saccade_detection_results (list): List of saccade detection results.
+    """
+    if use_parallel:
+        print("\nExtracting fixations and saccades in parallel")
+        num_cores = multiprocessing.cpu_count()
+        num_processes = min(num_cores, len(sessions_data))
+        
+        with ProcessPoolExecutor(max_workers=num_processes) as executor:
+            futures = {executor.submit(get_session_fixations_and_saccades, session_data): session_data for session_data in sessions_data}
+            results = []
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    logging.error(f"Error processing session data: {e}")
+                    continue
+    else:
+        print("\nExtracting fixations and saccades serially")
+        results = [get_session_fixations_and_saccades(session_data) for session_data in sessions_data]
+
+    fix_detection_results, saccade_detection_results = zip(*results)
+    return fix_detection_results, saccade_detection_results
+
+def get_session_fixations_and_saccades(session_data):
+    """
+    Extracts fixations and saccades for a session.
+    Parameters:
+    - session_data (tuple): Tuple containing session identifier, positions, and metadata.
+    Returns:
+    - fix_timepos_df (pd.DataFrame): DataFrame of fixation time positions.
+    - info (dict): Metadata information for the session.
+    - session_saccades (list): List of saccades for the session.
+    """
+    positions, info, params = session_data
+    session_name = info['session_name']
+    sampling_rate = params.get('sampling_rate', 1000)
+    n_samples = positions.shape[0]
+    time_vec = util.create_timevec(n_samples, sampling_rate)
+
+    if params.get('fixation_detection_method', 'default') == 'cluster_fix':
+        detector = ClusterFixationDetector(samprate=sampling_rate)
+        x_coords = positions[:, 0]
+        y_coords = positions[:, 1]
+        # Transform into the expected format
+        eyedat = [(x_coords, y_coords)]
+        fix_stats = detector.detect_fixations(eyedat)
+        fixationtimes = fix_stats[0]['fixationtimes']
+        fixations = fix_stats[0]['fixations']
+        saccadetimes = fix_stats[0]['saccadetimes']
+        saccades = format_saccades(saccadetimes, positions, info)
+    else:
+        fix_detector = EyeMVMFixationDetector(sampling_rate=sampling_rate)
+        fixationtimes, fixations = fix_detector.detect_fixations(positions, time_vec, session_name)
+        saccade_detector = EyeMVMSaccadeDetector(params['vel_thresh'], params['min_samples'], params['smooth_func'])
+        saccades = saccade_detector.extract_saccades_for_session((positions, info))
+
+    fix_timepos_df = pd.DataFrame({
+        'start_time': fixationtimes[0],
+        'end_time': fixationtimes[1],
+        'fix_x': fixations[0],
+        'fix_y': fixations[1]
+    })
+    return fix_timepos_df, info, saccades
+
+def process_fixation_results(fix_detection_results):
+    """
+    Processes the results from fixation detection.
+    Parameters:
+    - fix_detection_results (list): List of fixation detection results.
+    Returns:
+    - all_fix_timepos (pd.DataFrame): DataFrame of fixation time positions.
+    """
+    all_fix_timepos = pd.DataFrame()
+    for session_timepos_df, _ in fix_detection_results:
+        all_fix_timepos = pd.concat([all_fix_timepos, session_timepos_df], ignore_index=True)
+    return all_fix_timepos
+
+def save_fixation_and_saccade_results(processed_data_dir, all_fix_timepos, fix_detection_results, saccade_detection_results, params, monkey):
+    """
+    Saves fixation and saccade results to files.
+    Parameters:
+    - processed_data_dir (str): Directory to save processed data.
+    - all_fix_timepos (pd.DataFrame): DataFrame of fixation time positions.
+    - fix_detection_results (list): List of fixation detection results.
+    - saccade_detection_results (list): List of saccade detection results.
+    - params (dict): Dictionary of parameters.
+    - monkey (str): 'm1' or 'm2' to specify monkey data.
+    """
+    flag_info = util.get_filename_flag_info(params)
+    timepos_file_name = f'fix_timepos_{monkey}{flag_info}.csv'
+    all_fix_timepos.to_csv(os.path.join(processed_data_dir, timepos_file_name), index=False)
+    # Save the fixation and saccade detection results using pickle or similar method
+    fix_detection_file_name = f'fix_detection_{monkey}{flag_info}.pkl'
+    saccade_detection_file_name = f'saccade_detection_{monkey}{flag_info}.pkl'
+    util.save_to_pickle(os.path.join(processed_data_dir, fix_detection_file_name), fix_detection_results)
+    util.save_to_pickle(os.path.join(processed_data_dir, saccade_detection_file_name), saccade_detection_results)
+
+def format_saccades(saccadetimes, positions, info):
+    """
+    Formats the saccade times into a list of saccade details.
+    Parameters:
+    - saccadetimes (array): Array of saccade times.
+    - positions (array): Array of gaze positions.
+    - info (dict): Dictionary of session information.
+    Returns:
+    - saccades (list): List of saccade details.
+    """
+    # Placeholder function
+    return []
+
+def determine_roi_of_coord(position, bbox_corners):
+    # Placeholder for ROI determination logic
+    return 'roi_placeholder'
+
+def determine_block(start_time, end_time, startS, stopS):
+    # Placeholder for run and block determining logic based on the new dataset structure
+    return 'block_placeholder'
+

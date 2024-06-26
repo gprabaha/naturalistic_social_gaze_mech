@@ -11,32 +11,10 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 
-import pdb
-
-import load_data
-import util
-
-
-import os
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
-import concurrent.futures
-
 import load_data
 import util
 
 def get_gaze_timepos_across_sessions(params):
-    """
-    Get gaze positions across sessions.
-    Args:
-    - params (dict): Dictionary containing parameters.
-    Returns:
-    - sorted_position_path_list (list): List of sorted file paths.
-    - m1_positions (list): List of m1 gaze positions.
-    - m2_positions (list): List of m2 gaze positions.
-    - sorted_time_path_list (list): List of sorted time file paths.
-    - time_vectors (list): List of time vectors.
-    """
     root_data_dir = params.get('root_data_dir')
     use_parallel = params.get('use_parallel', False)
     intermediates_dir = os.path.join(root_data_dir, 'intermediates')
@@ -54,19 +32,21 @@ def get_gaze_timepos_across_sessions(params):
     time_vectors = [None] * len(sorted_time_path_list)
     valid_pos_files = [None] * len(sorted_position_path_list)
     valid_time_files = [None] * len(sorted_time_path_list)
+
+    session_infos = [{'session_name': f[:8], 'run_number': int(f.split('_')[2].split('.')[0])} for f in pos_mat_files_sorted]
     
     if use_parallel:
         print('Loading pos-time files in parallel')
         m1_positions, m2_positions, valid_pos_files, \
             time_vectors, valid_time_files = process_postime_files_concurrently(
                 sorted_position_path_list, sorted_time_path_list,
-                process_pos_file, process_time_file)
+                process_pos_file, process_time_file, session_infos)
     else:
         print('Loading pos-time files in serial')
         m1_positions, m2_positions, valid_pos_files, \
             time_vectors, valid_time_files = process_postime_files_sequentially(
                 sorted_position_path_list, sorted_time_path_list,
-                process_pos_file, process_time_file)
+                process_pos_file, process_time_file, session_infos)
 
     # Convert dictionaries to lists based on sorted indices
     m1_positions_list = [m1_positions[i] for i in sorted(m1_positions.keys()) if m1_positions[i] is not None]
@@ -107,41 +87,39 @@ def get_gaze_timepos_across_sessions(params):
         f.write('\n'.join(sorted_time_path_list))
     return sorted_position_path_list, m1_positions_list, m2_positions_list, sorted_time_path_list, time_vectors_list
 
-
-
-
 def process_postime_files_concurrently(sorted_position_path_list,
                                        sorted_time_path_list,
-                                       process_pos_file, process_time_file):
+                                       process_pos_file, process_time_file,
+                                       session_infos):
     m1_positions = {}
     m2_positions = {}
     valid_pos_files = {}
     time_vectors = {}
     valid_time_files = {}
     with ThreadPoolExecutor() as executor:
-        pos_futures = [executor.submit(process_pos_file, i, mat_file)
+        pos_futures = [executor.submit(process_pos_file, i, mat_file, session_infos[i])
                        for i, mat_file in enumerate(sorted_position_path_list)]
-        time_futures = [executor.submit(process_time_file, i, mat_file)
+        time_futures = [executor.submit(process_time_file, i, mat_file, session_infos[i])
                         for i, mat_file in enumerate(sorted_time_path_list)]
         for future in tqdm(concurrent.futures.as_completed(pos_futures),
                            total=len(pos_futures), desc='n files loaded'):
-            index, m1_pos, m2_pos, valid_file = future.result()
+            index, m1_pos, m2_pos, valid_file, session_info = future.result()
             if m1_pos is not None and m2_pos is not None:
                 m1_positions[index] = m1_pos
                 m2_positions[index] = m2_pos
                 valid_pos_files[index] = valid_file
         for future in tqdm(concurrent.futures.as_completed(time_futures),
                            total=len(time_futures), desc='n time files loaded'):
-            index, t, valid_file = future.result()
+            index, t, valid_file, session_info = future.result()
             if t is not None:
                 time_vectors[index] = t
                 valid_time_files[index] = valid_file
     return m1_positions, m2_positions, valid_pos_files, time_vectors, valid_time_files
 
-
 def process_postime_files_sequentially(sorted_position_path_list,
                                        sorted_time_path_list,
-                                       process_pos_file, process_time_file):
+                                       process_pos_file, process_time_file,
+                                       session_infos):
     m1_positions = {}
     m2_positions = {}
     valid_pos_files = {}
@@ -149,35 +127,33 @@ def process_postime_files_sequentially(sorted_position_path_list,
     valid_time_files = {}
     for i, mat_file in tqdm(enumerate(sorted_position_path_list),
                             total=len(sorted_position_path_list), desc='n files loaded'):
-        index, m1_pos, m2_pos, valid_file = process_pos_file(i, mat_file)
+        index, m1_pos, m2_pos, valid_file, session_info = process_pos_file(i, mat_file, session_infos[i])
         if m1_pos is not None and m2_pos is not None:
             m1_positions[index] = m1_pos
             m2_positions[index] = m2_pos
             valid_pos_files[index] = valid_file
     for i, mat_file in tqdm(enumerate(sorted_time_path_list),
                             total=len(sorted_time_path_list), desc='n time files loaded'):
-        index, t, valid_file = process_time_file(i, mat_file)
+        index, t, valid_file, session_info = process_time_file(i, mat_file, session_infos[i])
         if t is not None:
             time_vectors[index] = t
             valid_time_files[index] = valid_file
     return m1_positions, m2_positions, valid_pos_files, time_vectors, valid_time_files
 
-
-def process_pos_file(index, mat_file):
+def process_pos_file(index, mat_file, session_info):
     mat_data = load_data.load_mat_from_path(mat_file)
     if 'var' in mat_data:
         aligned_positions = mat_data['var'][0][0]
         if 'm1' in aligned_positions.dtype.names and 'm2' in aligned_positions.dtype.names:
-            return (index, tuple(aligned_positions['m1'].T), tuple(aligned_positions['m2'].T), mat_file)
-    return (index, None, None, None)
+            return (index, tuple(aligned_positions['m1'].T), tuple(aligned_positions['m2'].T), mat_file, session_info)
+    return (index, None, None, None, session_info)
 
-
-def process_time_file(index, mat_file):
+def process_time_file(index, mat_file, session_info):
     mat_data = load_data.load_mat_from_path(mat_file)
     if 'var' in mat_data:
         t = mat_data['var'][0][0]['t']
-        return (index, t, mat_file)
-    return (index, None, None)
+        return (index, t, mat_file, session_info)
+    return (index, None, None, session_info)
 
 
 
