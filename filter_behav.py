@@ -14,7 +14,6 @@ import re
 import load_data
 import util
 
-
 def get_gaze_timepos_across_sessions(params):
     root_data_dir = params.get('root_data_dir')
     use_parallel = params.get('use_parallel', False)
@@ -155,6 +154,7 @@ def process_time_file(index, mat_file, session_info):
         t = mat_data['var'][0][0]['t']
         return (index, t, mat_file, session_info)
     return (index, None, None, session_info)
+
 
 
 

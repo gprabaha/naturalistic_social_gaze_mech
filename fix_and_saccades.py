@@ -15,7 +15,7 @@ import logging
 import util
 from fix_saccade_detectors import ClusterFixationDetector, EyeMVMFixationDetector, EyeMVMSaccadeDetector
 
-def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, session_infos):
+def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, time_vecs, session_infos):
     """
     Extracts fixations and saccades for both monkeys.
     Parameters:
@@ -29,8 +29,8 @@ def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positi
     - fixations_m2 (list): List of m2 fixations.
     - saccades_m2 (list): List of m2 saccades.
     """
-    sessions_data_m1 = [(positions, info, params) for positions, info in zip(m1_gaze_positions, session_infos)]
-    sessions_data_m2 = [(positions, info, params) for positions, info in zip(m2_gaze_positions, session_infos)]
+    sessions_data_m1 = [(positions, info, time_vec, params) for positions, time_vec, info in zip(m1_gaze_positions, time_vecs, session_infos)]
+    sessions_data_m2 = [(positions, info, time_vec, params) for positions, time_vec, info in zip(m2_gaze_positions, time_vecs, session_infos)]
 
     fixations_m1, saccades_m1 = extract_fixations_and_saccades(sessions_data_m1, params['use_parallel'])
     fixations_m2, saccades_m2 = extract_fixations_and_saccades(sessions_data_m2, params['use_parallel'])
@@ -42,6 +42,13 @@ def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positi
     save_fixation_and_saccade_results(params['intermediates'], all_fix_timepos_m2, fixations_m2, saccades_m2, params, 'm2')
 
     return fixations_m1, saccades_m1, fixations_m2, saccades_m2
+
+
+'''
+Edit here. We are trying to create a timevec like we did for OTNAL, but for this 
+dataset a corresponding timevec already exists. we might have to do some NaN
+removal from both position and time before fixations or saccades can be detected
+'''
 
 def extract_fixations_and_saccades(sessions_data, use_parallel):
     """
@@ -85,26 +92,26 @@ def get_session_fixations_and_saccades(session_data):
     - info (dict): Metadata information for the session.
     - session_saccades (list): List of saccades for the session.
     """
-    positions, info, params = session_data
+    positions, info, time_vec, params = session_data
     session_name = info['session_name']
     sampling_rate = params.get('sampling_rate', 1000)
     n_samples = positions.shape[0]
-    time_vec = util.create_timevec(n_samples, sampling_rate)
+    nan_removed_positions, nan_removed_time_vec = util.remove_nans(positions, time_vec)
 
     if params.get('fixation_detection_method', 'default') == 'cluster_fix':
         detector = ClusterFixationDetector(samprate=sampling_rate)
-        x_coords = positions[:, 0]
-        y_coords = positions[:, 1]
+        x_coords = nan_removed_positions[:, 0]
+        y_coords = nan_removed_positions[:, 1]
         # Transform into the expected format
         eyedat = [(x_coords, y_coords)]
         fix_stats = detector.detect_fixations(eyedat)
         fixationtimes = fix_stats[0]['fixationtimes']
         fixations = fix_stats[0]['fixations']
         saccadetimes = fix_stats[0]['saccadetimes']
-        saccades = format_saccades(saccadetimes, positions, info)
+        saccades = format_saccades(saccadetimes, nan_removed_positions, info)
     else:
         fix_detector = EyeMVMFixationDetector(sampling_rate=sampling_rate)
-        fixationtimes, fixations = fix_detector.detect_fixations(positions, time_vec, session_name)
+        fixationtimes, fixations = fix_detector.detect_fixations(nan_removed_positions, nan_removed_time_vec, session_name)
         saccade_detector = EyeMVMSaccadeDetector(params['vel_thresh'], params['min_samples'], params['smooth_func'])
         saccades = saccade_detector.extract_saccades_for_session((positions, info))
 
@@ -169,5 +176,6 @@ def determine_roi_of_coord(position, bbox_corners):
 def determine_block(start_time, end_time, startS, stopS):
     # Placeholder for run and block determining logic based on the new dataset structure
     return 'block_placeholder'
+
 
 
