@@ -131,7 +131,15 @@ def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, ti
 
 
 
+def remove_nans(positions, time_vec):
+    # Create a boolean mask where time_vec is not NaN
+    mask = ~np.isnan(time_vec).flatten()
 
+    # Apply the mask to both positions and time_vec
+    nan_removed_positions = positions[mask]
+    nan_removed_time_vec = time_vec[mask]
+
+    return nan_removed_positions, nan_removed_time_vec
 
 
 
