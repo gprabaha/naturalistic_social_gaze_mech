@@ -9,11 +9,12 @@ Created on Wed Jun 26 11:54:12 2024
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import util
 from scipy import signal
 from scipy.interpolate import interp1d
 from sklearn.cluster import KMeans
 from multiprocessing import Pool, cpu_count
+
+import util
 
 
 class EyeMVMFixationDetector:
@@ -105,7 +106,7 @@ class EyeMVMFixationDetector:
             else:
                 mx = np.mean(x[fixpointer:i + 1])
                 my = np.mean(y[fixpointer:i + 1])
-                d = util.distance2p(mx, my, x[i], y[i])
+                d = util.distance2p((mx, my), (x[i], y[i]))
                 if d > t1:
                     fixid += 1
                     fixpointer = i
@@ -124,7 +125,7 @@ class EyeMVMFixationDetector:
         number_t1 = len(fixations_id)
         fixx, fixy = np.nanmean(fixations_id[:, :2], axis=0)
         for i in range(number_t1):
-            d = util.distance2p(fixx, fixy, fixations_id[i, 0], fixations_id[i, 1])
+            d = util.distance2p((fixx, fixy), (fixations_id[i, 0], fixations_id[i, 1]))
             if d > t2:
                 fixations_id[i, 3] = 0
         fixations_list_t2 = np.empty((0, 4))
@@ -165,10 +166,7 @@ class EyeMVMSaccadeDetector:
         self.num_cpus = cpu_count()
 
     def extract_saccades_for_session(self, session_data):
-        positions, info = session_data
-        sampling_rate = info['sampling_rate']
-        n_samples = positions.shape[0]
-        time_vec = util.create_timevec(n_samples, sampling_rate)
+        positions, time_vec, info = session_data
         positions = self.preprocess_data(positions)
         session_saccades = self.extract_saccades(positions, time_vec, info)
         return session_saccades

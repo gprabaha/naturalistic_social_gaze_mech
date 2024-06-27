@@ -10,6 +10,8 @@ import os
 import re
 import numpy as np
 
+from math import sqrt
+
 import pdb
 
 
@@ -130,7 +132,6 @@ def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, ti
     return synchronized_time_files, synchronized_pos_files, synchronized_m1_positions, synchronized_m2_positions, synchronized_time_vectors
 
 
-
 def remove_nans(positions, time_vec):
     # Create a boolean mask where time_vec is not NaN
     mask = ~np.isnan(time_vec).flatten()
@@ -142,6 +143,16 @@ def remove_nans(positions, time_vec):
     return nan_removed_positions, nan_removed_time_vec
 
 
-
-
+def distance2p(point1, point2):
+    """
+    Calculates the Euclidean distance between two points.
+    Parameters:
+    - point1 (tuple): First point coordinates.
+    - point2 (tuple): Second point coordinates.
+    Returns:
+    - dist (float): Euclidean distance.
+    """
+    x1, y1 = point1
+    x2, y2 = point2
+    return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
