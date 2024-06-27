@@ -12,6 +12,9 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 import logging
+
+import pdb
+
 import util
 from fix_saccade_detectors import ClusterFixationDetector, EyeMVMFixationDetector, EyeMVMSaccadeDetector
 
@@ -94,10 +97,9 @@ def get_session_fixations_and_saccades(session_data):
     """
     positions, info, time_vec, params = session_data
     session_name = info['session_name']
-    sampling_rate = params.get('sampling_rate', 1000)
+    sampling_rate = params.get('sampling_rate', 0.001)
     n_samples = positions.shape[0]
     nan_removed_positions, nan_removed_time_vec = util.remove_nans(positions, time_vec)
-
     if params.get('fixation_detection_method', 'default') == 'cluster_fix':
         detector = ClusterFixationDetector(samprate=sampling_rate)
         x_coords = nan_removed_positions[:, 0]
@@ -113,7 +115,7 @@ def get_session_fixations_and_saccades(session_data):
         fix_detector = EyeMVMFixationDetector(sampling_rate=sampling_rate)
         fixationtimes, fixations = fix_detector.detect_fixations(nan_removed_positions, nan_removed_time_vec, session_name)
         saccade_detector = EyeMVMSaccadeDetector(params['vel_thresh'], params['min_samples'], params['smooth_func'])
-        saccades = saccade_detector.extract_saccades_for_session((positions, info))
+        saccades = saccade_detector.extract_saccades_for_session((nan_removed_positions, nan_removed_time_vec, info))
 
     fix_timepos_df = pd.DataFrame({
         'start_time': fixationtimes[0],

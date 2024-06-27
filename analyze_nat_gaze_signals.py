@@ -19,7 +19,10 @@ params.update({
     'is_cluster': True,
     'use_parallel': True,
     'extract_postime_from_mat_files': False,
-    'compute_fixations': False})
+    'compute_fixations': False,
+    'fixation_detection_method': 'eye_mvm',
+    'sampling_rate': 0.001
+    })
 
 root_data_dir = util.get_root_data_dir(params)
 params.update({'root_data_dir': root_data_dir})
