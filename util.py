@@ -15,17 +15,30 @@ from math import sqrt
 import pdb
 
 
-def get_root_data_dir(params):
+def fetch_root_data_dir(params):
     """
-    Returns the root data directory based on whether it's running on a cluster or not.
+    Returns the root data directory based on the cluster and Grace settings.
     Parameters:
     - params (dict): Dictionary containing parameters.
     Returns:
     - root_data_dir (str): Root data directory path.
     """
-    is_cluster = params['is_cluster']
-    return "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/" if is_cluster \
-        else "/Volumes/Stash/changlab/social_gaze"
+    if params.get('is_cluster', True):
+        root_data_dir = "/gpfs/gibbs/project/chang/pg496/data_dir/social_gaze/" if params.get('is_grace', False) \
+                        else "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/"
+    else:
+        root_data_dir = "/Volumes/Stash/changlab/sorted_neural_data/social_gaze/"
+    params['root_data_dir'] = root_data_dir
+    return root_data_dir, params
+
+
+
+def fetch_processed_data_dir(params):
+    root_data_dir = params.get('root_data_dir')
+    processed_data_dir = os.path.join(root_data_dir, 'intermediates')
+    params.update({'processed_data_dir': processed_data_dir})
+    return processed_data_dir, params
+
 
 
 def get_sorted_files(directory, pattern):
