@@ -16,16 +16,17 @@ import fix_and_saccades
 
 params = {}
 params.update({
+    'processed_data_dir': 'intermediates',
     'is_cluster': True,
     'use_parallel': True,
     'extract_postime_from_mat_files': False,
     'compute_fixations': False,
     'fixation_detection_method': 'eye_mvm',
-    'sampling_rate': 0.001
+    'sampling_rate': 0.001,
+    'vel_thresh': 10
     })
 
-root_data_dir = util.get_root_data_dir(params)
-params.update({'root_data_dir': root_data_dir})
+_, params = util.get_root_data_dir(params)
 
 if params.get('extract_postime_from_mat_files', False):
     sorted_position_path_list, m1_gaze_positions, m2_gaze_positions, sorted_time_path_list, time_vecs = \
