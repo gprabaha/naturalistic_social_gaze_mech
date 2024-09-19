@@ -17,11 +17,11 @@ import pdb
 
 def add_root_data_to_params(params):
     """
-    Returns the root data directory based on the cluster and Grace settings.
+    Sets the root data directory based on cluster and Grace settings.
     Parameters:
-    - params (dict): Dictionary containing parameters.
+    - params (dict): Dictionary containing configuration parameters, including flags for cluster and Grace.
     Returns:
-    - root_data_dir (str): Root data directory path.
+    - params (dict): Updated dictionary with the 'root_data_dir' field added.
     """
     if params.get('is_cluster', True):
         root_data_dir = "/gpfs/gibbs/project/chang/pg496/data_dir/social_gaze/" if params.get('is_grace', False) \
@@ -33,6 +33,13 @@ def add_root_data_to_params(params):
 
 
 def add_processed_data_to_params(params):
+    """
+    Adds the processed data directory path to the parameters.
+    Parameters:
+    - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
+    Returns:
+    - params (dict): Updated dictionary with 'processed_data_dir' field added.
+    """
     root_data_dir = params.get('root_data_dir')
     processed_data_dir = os.path.join(root_data_dir, 'intermediates')
     params.update({'processed_data_dir': processed_data_dir})
@@ -40,9 +47,14 @@ def add_processed_data_to_params(params):
 
 
 def add_raw_data_dir_to_params(params):
+    """
+    Adds paths to raw data directories for positions, neural timeline, and pupil size.
+    Parameters:
+    - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
+    Returns:
+    - params (dict): Updated dictionary with 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir' fields added.
+    """
     root_data_dir = params.get('root_data_dir')
-    processed_data_dir = os.path.join(root_data_dir, 'intermediates')
-    params.update({'processed_data_dir': processed_data_dir})
     path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
     path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
     path_to_pupil_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/pupil_size')
@@ -53,6 +65,14 @@ def add_raw_data_dir_to_params(params):
 
 
 def add_paths_to_all_data_files_to_params(params):
+    """
+    Populates the paths to data files categorized by session, interaction type, and run number.
+    Parameters:
+    - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
+    Returns:
+    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
+      and interaction type.
+    """
     # Define directories
     directories = {
         'positions': params['positions_dir'],
@@ -97,6 +117,16 @@ def add_paths_to_all_data_files_to_params(params):
 
 
 def prune_data_file_paths(params):
+    """
+    Prunes the data file paths to ensure that positions, neural timeline, and pupil size all have the same set
+    of file names. Files present in one folder but not the others are discarded and recorded.
+    Parameters:
+    - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
+      and run number.
+    Returns:
+    - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
+      that records paths of discarded files.
+    """
     # Extract the data paths dictionary from params
     paths_dict = params.get('data_file_paths', {})
     discarded_paths = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
