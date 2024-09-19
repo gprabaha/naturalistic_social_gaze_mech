@@ -15,7 +15,7 @@ from math import sqrt
 import pdb
 
 
-def fetch_root_data_dir(params):
+def add_root_data_to_params(params):
     """
     Returns the root data directory based on the cluster and Grace settings.
     Parameters:
@@ -29,15 +29,27 @@ def fetch_root_data_dir(params):
     else:
         root_data_dir = "/Volumes/Stash/changlab/sorted_neural_data/social_gaze/"
     params['root_data_dir'] = root_data_dir
-    return root_data_dir, params
+    return params
 
 
-
-def fetch_processed_data_dir(params):
+def add_processed_data_to_params(params):
     root_data_dir = params.get('root_data_dir')
     processed_data_dir = os.path.join(root_data_dir, 'intermediates')
     params.update({'processed_data_dir': processed_data_dir})
-    return processed_data_dir, params
+    return params
+
+
+def add_raw_data_dir_to_params(params):
+    root_data_dir = params.get('root_data_dir')
+    processed_data_dir = os.path.join(root_data_dir, 'intermediates')
+    params.update({'processed_data_dir': processed_data_dir})
+    path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
+    path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
+    path_to_pupil_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/pupil_size')
+    params['positions_dir'] = path_to_positions
+    params['neural_timeline_dir'] = path_to_time_vecs
+    params['pupil_size_dir'] = path_to_pupil_vecs
+    return params
 
 
 

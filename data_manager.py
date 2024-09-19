@@ -14,14 +14,21 @@ class DataManager:
     def __init__(self, params):
         self.params = params
         self.setup_logger()
+        self.initialize_params()
     
     def setup_logger(self):
         """Setup the logger for the DataManager."""
         self.logger = logging.getLogger(__name__)
 
     def initialize_params(self):
-        _, params = util.get_root_data_dir(params)
-        _, params = util.fetch_processed_data_dir(params)
+        self.params = util.add_root_data_to_params(self.params)
+        self.params = util.add_processed_data_to_params(self.params)
+        self.params = util.add_raw_data_dir_to_params(self.params)
+        # get_all_datafile_paths: should get paths to position files, time files, and pupil files (files same for m1 and m2). then ensure that the names and order matches
+        # 
+
+    # a method to load data that assumes that the filepaths are already there in the params
+    # -> this should create some sort of a dictionary of positions with corresponding labels
 
     def get_data(self):
         return 0
