@@ -28,7 +28,7 @@ def main():
             logging.StreamHandler()
         ]
     )
-    params = util.get_params()
+    params = {}
     params.update({
         'is_cluster': True,
         'is_grace': False,

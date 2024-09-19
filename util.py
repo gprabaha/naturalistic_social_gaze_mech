@@ -166,6 +166,7 @@ def prune_data_file_paths(params):
     return params
 
 
+
 def get_sorted_files(directory, pattern):
     files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.mat')]
 
