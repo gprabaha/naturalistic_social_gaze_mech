@@ -6,6 +6,7 @@ Created on Wed May 22 14:23:31 2024
 @author: pg496
 """
 
+import logging
 import os
 import re
 import numpy as np
@@ -15,42 +16,54 @@ from math import sqrt
 import pdb
 
 
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
+
 def add_root_data_to_params(params):
     """
     Sets the root data directory based on cluster and Grace settings.
+
     Parameters:
     - params (dict): Dictionary containing configuration parameters, including flags for cluster and Grace.
+
     Returns:
     - params (dict): Updated dictionary with the 'root_data_dir' field added.
     """
+    logger.info("Setting root data directory based on cluster and Grace settings.")
     if params.get('is_cluster', True):
         root_data_dir = "/gpfs/gibbs/project/chang/pg496/data_dir/social_gaze/" if params.get('is_grace', False) \
                         else "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/"
     else:
         root_data_dir = "/Volumes/Stash/changlab/sorted_neural_data/social_gaze/"
     params['root_data_dir'] = root_data_dir
+    logger.info(f"Root data directory set to: {root_data_dir}")
     return params
 
 
 def add_processed_data_to_params(params):
     """
     Adds the processed data directory path to the parameters.
+
     Parameters:
     - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
+
     Returns:
     - params (dict): Updated dictionary with 'processed_data_dir' field added.
     """
     root_data_dir = params.get('root_data_dir')
     processed_data_dir = os.path.join(root_data_dir, 'intermediates')
     params.update({'processed_data_dir': processed_data_dir})
+    logger.info(f"Processed data directory set to: {processed_data_dir}")
     return params
 
 
 def add_raw_data_dir_to_params(params):
     """
     Adds paths to raw data directories for positions, neural timeline, and pupil size.
+
     Parameters:
     - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
+
     Returns:
     - params (dict): Updated dictionary with 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir' fields added.
     """
@@ -61,14 +74,17 @@ def add_raw_data_dir_to_params(params):
     params['positions_dir'] = path_to_positions
     params['neural_timeline_dir'] = path_to_time_vecs
     params['pupil_size_dir'] = path_to_pupil_vecs
+    logger.info("Raw data directories added to params.")
     return params
 
 
 def add_paths_to_all_data_files_to_params(params):
     """
     Populates the paths to data files categorized by session, interaction type, and run number.
+
     Parameters:
     - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
+
     Returns:
     - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
       and interaction type.
@@ -83,25 +99,32 @@ def add_paths_to_all_data_files_to_params(params):
     paths_dict = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
     # Define regex to extract session name (date) and run number
     file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
+    
+    logger.info("Populating paths to data files.")
+
     # Iterate over each directory
     for key, dir_path in directories.items():
-        # Iterate through each file in the directory
-        for filename in os.listdir(dir_path):
-            match = file_pattern.match(filename)
-            if match:
-                session_name, file_type, run_number = match.groups()
-                run_number = int(run_number)
-                # Initialize session dictionary if not already
-                if session_name not in paths_dict[key]:
-                    paths_dict[key][session_name] = {
-                        'interactive': {},
-                        'non_interactive': {}
-                    }
-                # Determine file category and assign path
-                if file_type == 'position':
-                    paths_dict[key][session_name]['interactive'][run_number] = os.path.join(dir_path, filename)
-                elif file_type == 'dot':
-                    paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
+        logger.info(f"Processing directory: {dir_path}")
+        try:
+            for filename in os.listdir(dir_path):
+                match = file_pattern.match(filename)
+                if match:
+                    session_name, file_type, run_number = match.groups()
+                    run_number = int(run_number)
+                    # Initialize session dictionary if not already
+                    if session_name not in paths_dict[key]:
+                        paths_dict[key][session_name] = {
+                            'interactive': {},
+                            'non_interactive': {}
+                        }
+                    # Determine file category and assign path
+                    if file_type == 'position':
+                        paths_dict[key][session_name]['interactive'][run_number] = os.path.join(dir_path, filename)
+                    elif file_type == 'dot':
+                        paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
+        except Exception as e:
+            logger.error(f"Error processing directory {dir_path}: {e}")
+
     # Add legend explaining the dictionary structure
     paths_dict['legend'] = {
         'positions': 'Paths for positions data, categorized by session, then by interactive/non_interactive.',
@@ -111,6 +134,7 @@ def add_paths_to_all_data_files_to_params(params):
         'interactive': 'Files with "position" in the name, grouped under run number keys.',
         'non_interactive': 'Files with "dot" in the name, grouped under run number keys.'
     }
+    logger.info("Paths to all data files populated successfully.")
     # Update params with the generated paths dictionary
     params['data_file_paths'] = paths_dict
     return params
@@ -120,13 +144,16 @@ def prune_data_file_paths(params):
     """
     Prunes the data file paths to ensure that positions, neural timeline, and pupil size all have the same set
     of file names. Files present in one folder but not the others are discarded and recorded.
+
     Parameters:
     - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
       and run number.
+
     Returns:
     - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
       that records paths of discarded files.
     """
+    logger.info("Pruning data file paths to ensure consistency across data types.")
     # Extract the data paths dictionary from params
     paths_dict = params.get('data_file_paths', {})
     discarded_paths = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
@@ -155,15 +182,41 @@ def prune_data_file_paths(params):
                 if session not in discarded_paths[key]:
                     discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
                 discarded_paths[key][session]['interactive'][run] = paths_dict[key][session]['interactive'].pop(run)
+                logger.info(f"Discarded interactive run {run} for session {session} in {key}.")
             # Move discarded non-interactive runs to discarded paths
             for run in discard_non_interactive:
                 if session not in discarded_paths[key]:
                     discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
                 discarded_paths[key][session]['non_interactive'][run] = paths_dict[key][session]['non_interactive'].pop(run)
+                logger.info(f"Discarded non-interactive run {run} for session {session} in {key}.")
     # Update params with the pruned paths and the discarded paths
     params['data_file_paths'] = paths_dict
     params['discarded_paths'] = discarded_paths
+    logger.info("Data file paths pruned successfully.")
     return params
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

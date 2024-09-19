@@ -19,10 +19,12 @@ class DataManager:
         self.params = params
         self.setup_logger()
         self.initialize_params()
-    
+
+
     def setup_logger(self):
         """Setup the logger for the DataManager."""
         self.logger = logging.getLogger(__name__)
+
 
     def initialize_params(self):
         self.params = util.add_root_data_to_params(self.params)
@@ -30,19 +32,18 @@ class DataManager:
         self.params = util.add_raw_data_dir_to_params(self.params)
         self.params = util.add_paths_to_all_data_files_to_params(self.params)
         self.params = util.prune_data_file_paths(self.params)
-        pdb.set_trace()
-        
-        # get_all_datafile_paths: should get paths to position files, time files, and pupil files (files same for m1 and m2). then ensure that the names and order matches
-        # 
 
-    # a method to load data that assumes that the filepaths are already there in the params
-    # -> this should create some sort of a dictionary of positions with corresponding labels
+        self.gaze_data_dict = None
+
 
     def get_data(self):
         """
         Loads gaze data into a dictionary format from the available position, time, and pupil size files.q
         """
         self.gaze_data_dict = curate_data.get_gaze_data_dict(self.params['data_file_paths'])
+        pdb.set_trace()
+
+        return 0
 
 
     def run(self):

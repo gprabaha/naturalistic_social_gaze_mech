@@ -6,9 +6,15 @@ Created on Wed Sep 19 17::48:42 2024
 @author: pg496
 """
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 import load_data
+
+
+# Set up a logger for this script
+logger = logging.getLogger(__name__)
 
 
 def get_gaze_data_dict(data_file_paths):
@@ -21,8 +27,18 @@ def get_gaze_data_dict(data_file_paths):
     Returns:
     - gaze_data_dict (dict): Dictionary structured as {session: {run: {'positions': {'m1': m1, 'm2': m2}, 'time': t, 'pupil_size': {'m1': m1, 'm2': m2}}}}.
     """
+    logger.info("Starting to load gaze data from specified paths.")
     gaze_data_dict = {}
     temp_results = []  # Temporary storage for parallel results
+    # Prepare a list of tasks for tqdm progress bar
+    total_tasks = sum(
+        len(runs) 
+        for data_type, sessions in data_file_paths.items() 
+        if data_type != 'legend' 
+        for interaction_types in sessions.values() 
+        for runs in interaction_types.values()
+    )
+    logger.info(f"Total tasks to process: {total_tasks}")
     # Using ThreadPoolExecutor for parallel data loading
     with ThreadPoolExecutor() as executor:
         # Submit tasks for each run in parallel
@@ -33,20 +49,26 @@ def get_gaze_data_dict(data_file_paths):
             for session, interaction_types in sessions.items():
                 for interaction_type, runs in interaction_types.items():
                     for run, file_path in runs.items():
+                        logger.debug(f"Submitting task for session: {session}, run: {run}, data type: {data_type}")
                         futures.append(executor.submit(load_run_data, data_type, session, run, file_path))
-        # Collect the results as they complete
-        for future in as_completed(futures):
-            temp_results.append(future.result())
+        # Collect the results as they complete with tqdm progress bar
+        for future in tqdm(as_completed(futures), total=total_tasks, desc="Loading Data", unit="file"):
+            try:
+                temp_results.append(future.result())
+                logger.debug("Successfully loaded data for a run.")
+            except Exception as e:
+                logger.error(f"Error loading data: {e}")
     # Assign the results to the gaze_data_dict
     for session, run, data_key, data_value in temp_results:
-        # Initialize nested structure in the dictionary if not present
         if session not in gaze_data_dict:
             gaze_data_dict[session] = {}
         if run not in gaze_data_dict[session]:
             gaze_data_dict[session][run] = {}
-        # Assign the loaded data to the appropriate key
         gaze_data_dict[session][run][data_key] = data_value
+        logger.debug(f"Assigned data to gaze_data_dict for session: {session}, run: {run}, data key: {data_key}")
+    logger.info("Completed loading gaze data.")
     return gaze_data_dict
+
 
 def load_run_data(data_type, session, run, file_path):
     """
