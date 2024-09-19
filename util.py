@@ -52,6 +52,89 @@ def add_raw_data_dir_to_params(params):
     return params
 
 
+def add_paths_to_all_data_files_to_params(params):
+    # Define directories
+    directories = {
+        'positions': params['positions_dir'],
+        'neural_timeline': params['neural_timeline_dir'],
+        'pupil_size': params['pupil_size_dir']
+    }
+    # Initialize data structure to store file paths
+    paths_dict = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
+    # Define regex to extract session name (date) and run number
+    file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
+    # Iterate over each directory
+    for key, dir_path in directories.items():
+        # Iterate through each file in the directory
+        for filename in os.listdir(dir_path):
+            match = file_pattern.match(filename)
+            if match:
+                session_name, file_type, run_number = match.groups()
+                run_number = int(run_number)
+                # Initialize session dictionary if not already
+                if session_name not in paths_dict[key]:
+                    paths_dict[key][session_name] = {
+                        'interactive': {},
+                        'non_interactive': {}
+                    }
+                # Determine file category and assign path
+                if file_type == 'position':
+                    paths_dict[key][session_name]['interactive'][run_number] = os.path.join(dir_path, filename)
+                elif file_type == 'dot':
+                    paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
+    # Add legend explaining the dictionary structure
+    paths_dict['legend'] = {
+        'positions': 'Paths for positions data, categorized by session, then by interactive/non_interactive.',
+        'neural_timeline': 'Paths for neural timeline data, categorized by session, then by interactive/non_interactive.',
+        'pupil_size': 'Paths for pupil size data, categorized by session, then by interactive/non_interactive.',
+        'session_name': 'Top-level keys representing session dates (8 digits).',
+        'interactive': 'Files with "position" in the name, grouped under run number keys.',
+        'non_interactive': 'Files with "dot" in the name, grouped under run number keys.'
+    }
+    # Update params with the generated paths dictionary
+    params['data_file_paths'] = paths_dict
+    return params
+
+
+def prune_data_file_paths(params):
+    # Extract the data paths dictionary from params
+    paths_dict = params.get('data_file_paths', {})
+    discarded_paths = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
+    # Get the keys (positions, neural_timeline, pupil_size) for processing
+    data_keys = ['positions', 'neural_timeline', 'pupil_size']
+    # Find common sessions across all data types
+    common_sessions = set(paths_dict['positions'].keys())
+    for key in data_keys[1:]:
+        common_sessions.intersection_update(paths_dict[key].keys())
+    # Iterate through common sessions to find common runs and prune mismatches
+    for session in common_sessions:
+        # Gather all run numbers present in each data type for this session
+        runs_per_type = {key: set(paths_dict[key][session]['interactive'].keys()) | set(paths_dict[key][session]['non_interactive'].keys()) for key in data_keys}
+        # Find the intersection of runs that exist in all data types
+        common_runs = set.intersection(*runs_per_type.values())
+        # Prune files not in the common runs for each data type
+        for key in data_keys:
+            # Check interactive runs
+            interactive_runs = set(paths_dict[key][session]['interactive'].keys())
+            non_interactive_runs = set(paths_dict[key][session]['non_interactive'].keys())
+            # Identify runs to discard
+            discard_interactive = interactive_runs - common_runs
+            discard_non_interactive = non_interactive_runs - common_runs
+            # Move discarded interactive runs to discarded paths
+            for run in discard_interactive:
+                if session not in discarded_paths[key]:
+                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
+                discarded_paths[key][session]['interactive'][run] = paths_dict[key][session]['interactive'].pop(run)
+            # Move discarded non-interactive runs to discarded paths
+            for run in discard_non_interactive:
+                if session not in discarded_paths[key]:
+                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
+                discarded_paths[key][session]['non_interactive'][run] = paths_dict[key][session]['non_interactive'].pop(run)
+    # Update params with the pruned paths and the discarded paths
+    params['data_file_paths'] = paths_dict
+    params['discarded_paths'] = discarded_paths
+    return params
+
 
 def get_sorted_files(directory, pattern):
     files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.mat')]

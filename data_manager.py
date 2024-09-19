@@ -24,6 +24,9 @@ class DataManager:
         self.params = util.add_root_data_to_params(self.params)
         self.params = util.add_processed_data_to_params(self.params)
         self.params = util.add_raw_data_dir_to_params(self.params)
+        self.params = util.add_paths_to_all_data_files_to_params(self.params)
+        self.params = util.prune_data_file_paths(self.params)
+        
         # get_all_datafile_paths: should get paths to position files, time files, and pupil files (files same for m1 and m2). then ensure that the names and order matches
         # 
 
@@ -31,6 +34,7 @@ class DataManager:
     # -> this should create some sort of a dictionary of positions with corresponding labels
 
     def get_data(self):
+        # add_raw_data_dict_to_params
         return 0
 
     def run(self):
