@@ -9,6 +9,8 @@ Created on Wed Sep 19 17::48:42 2024
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import os
+import pickle
 
 import load_data
 
@@ -18,19 +20,23 @@ import pdb
 # Set up a logger for this script
 logger = logging.getLogger(__name__)
 
-def get_gaze_data_dict(data_file_paths, use_parallel):
+
+def get_gaze_data_dict(params):
     """
     Loads position, time, and pupil size data from the specified paths into a structured dictionary
-    with optional parallel processing based on `use_parallel`.
+    with optional parallel processing based on `use_parallel`. Saves the resulting dictionary as a pickle file.
     Parameters:
-    - data_file_paths (dict): A dictionary containing paths to position, time, and pupil size files
-      categorized by session, interaction type, and run number.
-    - use_parallel (bool): If True, uses parallel processing; if False, processes sequentially.
+    - params (dict): A dictionary containing configuration parameters, including 'data_file_paths', 
+      'use_parallel', and 'processed_data_dir'.
     Returns:
     - gaze_data_dict (dict): Dictionary structured as {session: {interaction_type: {run: {'positions': {'m1': m1, 'm2': m2}, 
       'time': t, 'pupil_size': {'m1': m1, 'm2': m2}}}}}.
+    - missing_data_paths (list): List of paths where data is missing or empty.
     """
     logger.info("Starting to load gaze data from specified paths.")
+    data_file_paths = params['data_file_paths']
+    use_parallel = params.get('use_parallel', False)
+    processed_data_dir = params['processed_data_dir']
     gaze_data_dict = {}
     temp_results = []  # Temporary storage for results
     # Prepare a list of tasks for tqdm progress bar
@@ -83,7 +89,14 @@ def get_gaze_data_dict(data_file_paths, use_parallel):
         logger.warning(f"Missing or empty data found at {len(missing_data_paths)} data dict paths out of {total_data_paths} total paths.")
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
-
+    # Save the gaze data dictionary as a pickle file in the processed data directory
+    pickle_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
+    try:
+        with open(pickle_file_path, 'wb') as f:
+            pickle.dump(gaze_data_dict, f)
+        logger.info(f"Gaze data dictionary saved to {pickle_file_path}")
+    except Exception as e:
+        logger.error(f"Failed to save gaze data dictionary to {pickle_file_path}: {e}")
     return gaze_data_dict, missing_data_paths
 
 
