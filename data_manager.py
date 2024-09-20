@@ -40,7 +40,6 @@ class DataManager:
         self.empty_gaze_dict_paths = None
 
 
-
     def compute_or_load_variables(self, compute_func, load_func, file_paths, remake_flag_key, *args, **kwargs):
         """
         Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
@@ -55,17 +54,28 @@ class DataManager:
         """
         remake_flag = self.params.get(remake_flag_key, True)  # Check the corresponding remake flag
         if remake_flag:
+            self.logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
             # Compute the data
             computed_vars = compute_func(*args, **kwargs)
             # Save each computed variable to its corresponding file path
             for file_path, var in zip(file_paths, computed_vars):
-                with open(file_path, 'wb') as f:
-                    pickle.dump(var, f)
+                try:
+                    with open(file_path, 'wb') as f:
+                        pickle.dump(var, f)
+                    self.logger.info(f"Saved computed data to {file_path}.")
+                except Exception as e:
+                    self.logger.error(f"Failed to save computed data to {file_path}: {e}")
             return computed_vars
         else:
-            # Load the data using the provided load function
-            loaded_vars = load_func(*file_paths)
-            return loaded_vars
+            self.logger.info(f"Remake flag '{remake_flag_key}' is set to False. Loading data using {load_func.__name__}.")
+            try:
+                # Load the data using the provided load function
+                loaded_vars = load_func(*file_paths)
+                self.logger.info(f"Successfully loaded data from {file_paths}.")
+                return loaded_vars
+            except Exception as e:
+                self.logger.error(f"Failed to load data from {file_paths}: {e}")
+                raise
 
 
     def get_data(self):
@@ -78,16 +88,60 @@ class DataManager:
         missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
         # Use the manage_data method to compute or load the gaze data
         self.gaze_data_dict, self.empty_gaze_dict_paths = self.compute_or_load_variables(
-            compute_func = curate_data.get_gaze_data_dict,
-            load_func = load_data.load_gaze_data_dict,  # Function to load the data, to be implemented next
+            compute_func = curate_data.make_gaze_data_dict,
+            load_func = load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
             file_paths = [gaze_data_file_path, missing_data_file_path],
             remake_flag_key = 'remake_gaze_data_dict',
             params = self.params  # Pass additional required parameters
         )
+        pdb.set_trace()
+        return 0
+
+
+    def prune_nan_values_in_timeseries(self):
+        """
+        Prunes NaN values from the time series in the gaze data dictionary and 
+        adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
+        The pruned dictionary is stored in `self.nan_removed_gaze_data_dict`.
+        """
+        # Create a copy of the gaze data dictionary to store the pruned version
+        self.nan_removed_gaze_data_dict = {}
+        # Iterate over the original gaze data dictionary
+        for session, session_dict in self.gaze_data_dict.items():
+            pruned_session_dict = {}
+            for interaction_type, interaction_dict in session_dict.items():
+                pruned_interaction_dict = {}
+                for run, run_dict in interaction_dict.items():
+                    # Extract the time series
+                    time_series = run_dict.get('time')
+                    if time_series is not None:
+                        # Prune NaN values and adjust corresponding timeseries using the helper function
+                        pruned_positions, pruned_pupil_size, pruned_time_series = util.prune_nans_in_specific_timeseries(
+                            time_series,
+                            run_dict.get('positions', {}),
+                            run_dict.get('pupil_size', {})
+                        )
+                        # Create a new run dictionary with pruned data
+                        pruned_run_dict = {
+                            'positions': pruned_positions,
+                            'pupil_size': pruned_pupil_size,
+                            'time': pruned_time_series
+                        }
+                        pruned_interaction_dict[run] = pruned_run_dict
+                pruned_session_dict[interaction_type] = pruned_interaction_dict
+            self.nan_removed_gaze_data_dict[session] = pruned_session_dict
+
+
+    def analyze_behavior(self):
+        self.prune_nan_values_in_timeseries()
+        pdb.set_trace()
+        return 0
 
 
     def run(self):
         self.get_data()
+        self.analyze_behavior()
+        
 
 
 

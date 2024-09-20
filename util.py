@@ -22,10 +22,8 @@ logger = logging.getLogger(__name__)
 def add_root_data_to_params(params):
     """
     Sets the root data directory based on cluster and Grace settings.
-
     Parameters:
     - params (dict): Dictionary containing configuration parameters, including flags for cluster and Grace.
-
     Returns:
     - params (dict): Updated dictionary with the 'root_data_dir' field added.
     """
@@ -43,10 +41,8 @@ def add_root_data_to_params(params):
 def add_processed_data_to_params(params):
     """
     Adds the processed data directory path to the parameters.
-
     Parameters:
     - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
-
     Returns:
     - params (dict): Updated dictionary with 'processed_data_dir' field added.
     """
@@ -60,10 +56,8 @@ def add_processed_data_to_params(params):
 def add_raw_data_dir_to_params(params):
     """
     Adds paths to raw data directories for positions, neural timeline, and pupil size.
-
     Parameters:
     - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
-
     Returns:
     - params (dict): Updated dictionary with 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir' fields added.
     """
@@ -81,10 +75,8 @@ def add_raw_data_dir_to_params(params):
 def add_paths_to_all_data_files_to_params(params):
     """
     Populates the paths to data files categorized by session, interaction type, and run number.
-
     Parameters:
     - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
-
     Returns:
     - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
       and interaction type.
@@ -99,9 +91,7 @@ def add_paths_to_all_data_files_to_params(params):
     paths_dict = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
     # Define regex to extract session name (date) and run number
     file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
-    
     logger.info("Populating paths to data files.")
-
     # Iterate over each directory
     for key, dir_path in directories.items():
         logger.info(f"Processing directory: {dir_path}")
@@ -124,7 +114,6 @@ def add_paths_to_all_data_files_to_params(params):
                         paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
-
     # Add legend explaining the dictionary structure
     paths_dict['legend'] = {
         'positions': 'Paths for positions data, categorized by session, then by interactive/non_interactive.',
@@ -144,11 +133,9 @@ def prune_data_file_paths(params):
     """
     Prunes the data file paths to ensure that positions, neural timeline, and pupil size all have the same set
     of file names. Files present in one folder but not the others are discarded and recorded.
-
     Parameters:
     - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
       and run number.
-
     Returns:
     - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
       that records paths of discarded files.
@@ -196,6 +183,33 @@ def prune_data_file_paths(params):
     return params
 
 
+def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
+    """
+    Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
+    Parameters:
+    - time_series (np.ndarray): The time series array.
+    - positions (dict): A dictionary containing position data with keys 'm1' and optionally 'm2'.
+    - pupil_size (dict): A dictionary containing pupil size data with keys 'm1' and optionally 'm2'.
+    Returns:
+    - pruned_positions (dict): The positions dictionary with NaN values pruned.
+    - pruned_pupil_size (dict): The pupil size dictionary with NaN values pruned.
+    - pruned_time_series (np.ndarray): The pruned time series array.
+    """
+    # Find indices where time series values are not NaN
+    valid_indices = ~np.isnan(time_series)
+    # Prune the time series
+    pruned_time_series = time_series[valid_indices]
+    # Prune positions for m1 and m2 (if present)
+    pruned_positions = {}
+    for key in ['m1', 'm2']:
+        if key in positions:
+            pruned_positions[key] = positions[key][valid_indices]
+    # Prune pupil size for m1 and m2 (if present)
+    pruned_pupil_size = {}
+    for key in ['m1', 'm2']:
+        if key in pupil_size:
+            pruned_pupil_size[key] = pupil_size[key][valid_indices]
+    return pruned_positions, pruned_pupil_size, pruned_time_series
 
 
 
