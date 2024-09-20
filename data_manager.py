@@ -7,9 +7,12 @@ Created on Wed Sep 18 14::51:42 2024
 """
 
 import logging
+import os
+import pickle
 
 import util
 import curate_data
+import load_data
 
 import pdb
 
@@ -37,13 +40,51 @@ class DataManager:
         self.empty_gaze_dict_paths = None
 
 
+
+    def compute_or_load_variables(self, compute_func, load_func, file_paths, remake_flag_key, *args, **kwargs):
+        """
+        Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
+        Parameters:
+        - compute_func (function): The function that computes the data.
+        - load_func (function): The function that loads the data from saved files.
+        - file_paths (list): List of file paths where each variable will be saved or loaded from.
+        - remake_flag_key (str): The key in self.params to check whether to compute or load (e.g., 'remake_gaze_data_dict').
+        - args, kwargs: Additional arguments to pass to the compute_func.
+        Returns:
+        - A list of variables, either loaded from files or computed.
+        """
+        remake_flag = self.params.get(remake_flag_key, True)  # Check the corresponding remake flag
+        if remake_flag:
+            # Compute the data
+            computed_vars = compute_func(*args, **kwargs)
+            # Save each computed variable to its corresponding file path
+            for file_path, var in zip(file_paths, computed_vars):
+                with open(file_path, 'wb') as f:
+                    pickle.dump(var, f)
+            return computed_vars
+        else:
+            # Load the data using the provided load function
+            loaded_vars = load_func(*file_paths)
+            return loaded_vars
+
+
     def get_data(self):
         """
-        Loads gaze data into a dictionary format from the available position, time, and pupil size files.q
+        Loads gaze data into a dictionary format from the available position, time, and pupil size files.
         """
-        self.gaze_data_dict, self.empty_gaze_dict_paths = curate_data.get_gaze_data_dict(self.params)
-        pdb.set_trace()
-        return 0
+        # Define paths to save/load the variables
+        processed_data_dir = self.params['processed_data_dir']
+        gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
+        missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
+        # Use the manage_data method to compute or load the gaze data
+        self.gaze_data_dict, self.empty_gaze_dict_paths = self.compute_or_load_variables(
+            compute_func = curate_data.get_gaze_data_dict,
+            load_func = load_data.load_gaze_data_dict,  # Function to load the data, to be implemented next
+            file_paths = [gaze_data_file_path, missing_data_file_path],
+            remake_flag_key = 'remake_gaze_data_dict',
+            params = self.params  # Pass additional required parameters
+        )
+
 
     def run(self):
         self.get_data()

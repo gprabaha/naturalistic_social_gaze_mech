@@ -21,16 +21,14 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
-def get_gaze_data_dict(params):
+def make_gaze_data_dict(params):
     """
     Loads position, time, and pupil size data from the specified paths into a structured dictionary
     with optional parallel processing based on `use_parallel`. Saves the resulting dictionary and 
     missing data paths as separate pickle files.
-    
     Parameters:
     - params (dict): A dictionary containing configuration parameters, including 'data_file_paths', 
       'use_parallel', and 'processed_data_dir'.
-      
     Returns:
     - gaze_data_dict (dict): Dictionary structured as {session: {interaction_type: {run: {'positions': {'m1': m1, 'm2': m2}, 
       'time': t, 'pupil_size': {'m1': m1, 'm2': m2}}}}}.
@@ -42,7 +40,6 @@ def get_gaze_data_dict(params):
     processed_data_dir = params['processed_data_dir']
     gaze_data_dict = {}
     temp_results = []  # Temporary storage for results
-    
     # Prepare a list of tasks for tqdm progress bar
     total_tasks = sum(
         len(runs) 
@@ -52,7 +49,6 @@ def get_gaze_data_dict(params):
         for runs in interaction_types.values()
     )
     logger.info(f"Total tasks to process: {total_tasks}")
-    
     # Choose between parallel and serial processing
     if use_parallel:
         logger.info("Using parallel processing to load data.")
@@ -81,23 +77,19 @@ def get_gaze_data_dict(params):
                             result = load_run_data(data_type, session, interaction_type, run, file_path)
                             temp_results.append(result)
                             pbar.update(1)  # Manually update the progress bar
-    
     # Assign the results to the gaze_data_dict
     for session, interaction_type, run, data_key, data_value in temp_results:
         session_dict = gaze_data_dict.setdefault(session, {})
         interaction_dict = session_dict.setdefault(interaction_type, {})
         run_dict = interaction_dict.setdefault(run, {})
         run_dict[data_key] = data_value
-    
     logger.info("Completed loading gaze data.")
-    
     # Check the final structure and report any missing data
     missing_data_dict_paths, total_data_paths = check_dict_leaves(gaze_data_dict)
     if missing_data_dict_paths:
         logger.warning(f"Missing or empty data found at {len(missing_data_dict_paths)} data dict paths out of {total_data_paths} total paths.")
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
-    
     # Save the gaze data dictionary and missing data paths as separate pickle files
     gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
     missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
@@ -105,13 +97,11 @@ def get_gaze_data_dict(params):
         with open(gaze_data_file_path, 'wb') as f:
             pickle.dump(gaze_data_dict, f)
         logger.info(f"Gaze data dictionary saved to {gaze_data_file_path}")
-        
         with open(missing_data_file_path, 'wb') as f:
             pickle.dump(missing_data_dict_paths, f)
         logger.info(f"Missing data paths saved to {missing_data_file_path}")
     except Exception as e:
         logger.error(f"Failed to save data: {e}")
-    
     return gaze_data_dict, missing_data_dict_paths
 
 

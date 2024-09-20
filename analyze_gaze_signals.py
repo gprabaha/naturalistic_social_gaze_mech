@@ -39,6 +39,8 @@ def main():
         'num_cpus': None,
         'do_local_reclustering_in_parallel': False,
 
+        'remake_gaze_data_dict': False,
+
 
         'remake_gaze_position_dict_m1': False,
         'remake_gaze_position_dict_m2': False,
