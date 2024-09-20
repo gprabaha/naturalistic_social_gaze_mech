@@ -40,6 +40,10 @@ class DataManager:
         """
         Loads gaze data into a dictionary format from the available position, time, and pupil size files.q
         """
+
+        ### MANY GAZE FILES ARE NOT LOADING PROPERLY. CHECK IF SOMETHING IS LOADING AS EMPTY
+        ## Some seems to be loading though. Check out what's going on
+
         use_parallel = self.params.get('use_parallel', False)
         self.gaze_data_dict = curate_data.get_gaze_data_dict(self.params['data_file_paths'], use_parallel)
         pdb.set_trace()
