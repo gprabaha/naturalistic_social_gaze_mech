@@ -83,6 +83,7 @@ def get_gaze_data_dict(data_file_paths, use_parallel):
         logger.warning(f"Missing or empty data found at {len(missing_data_paths)} data dict paths out of {total_data_paths} total paths.")
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
+
     return gaze_data_dict, missing_data_paths
 
 
