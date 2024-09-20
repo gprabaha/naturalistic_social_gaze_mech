@@ -7,16 +7,21 @@ Created on Wed May 22 14:56:31 2024
 """
 
 import os
-import re
+import pickle
+import logging
 import scipy.io
 import numpy as np
+
+
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
 
 
 def load_mat_from_path(path):
     return scipy.io.loadmat(path)
 
 
-def load_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
+def get_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
     Parameters:

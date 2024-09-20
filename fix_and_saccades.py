@@ -81,7 +81,6 @@ def extract_fixations_and_saccades(sessions_data, use_parallel):
     else:
         print("\nExtracting fixations and saccades serially")
         results = [get_session_fixations_and_saccades(session_data) for session_data in sessions_data]
-
     fix_detection_results, saccade_detection_results = zip(*results)
     return fix_detection_results, saccade_detection_results
 

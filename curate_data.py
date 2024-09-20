@@ -90,18 +90,6 @@ def make_gaze_data_dict(params):
         logger.warning(f"Missing or empty data found at {len(missing_data_dict_paths)} data dict paths out of {total_data_paths} total paths.")
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
-    # Save the gaze data dictionary and missing data paths as separate pickle files
-    gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
-    missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
-    try:
-        with open(gaze_data_file_path, 'wb') as f:
-            pickle.dump(gaze_data_dict, f)
-        logger.info(f"Gaze data dictionary saved to {gaze_data_file_path}")
-        with open(missing_data_file_path, 'wb') as f:
-            pickle.dump(missing_data_dict_paths, f)
-        logger.info(f"Missing data paths saved to {missing_data_file_path}")
-    except Exception as e:
-        logger.error(f"Failed to save data: {e}")
     return gaze_data_dict, missing_data_dict_paths
 
 
