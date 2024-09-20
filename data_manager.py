@@ -38,6 +38,7 @@ class DataManager:
 
         self.gaze_data_dict = None
         self.empty_gaze_dict_paths = None
+        self.nan_removed_gaze_data_dict = None
 
 
     def compute_or_load_variables(self, compute_func, load_func, file_paths, remake_flag_key, *args, **kwargs):
@@ -94,7 +95,6 @@ class DataManager:
             remake_flag_key = 'remake_gaze_data_dict',
             params = self.params  # Pass additional required parameters
         )
-        pdb.set_trace()
         return 0
 
 
@@ -130,10 +130,11 @@ class DataManager:
                         pruned_interaction_dict[run] = pruned_run_dict
                 pruned_session_dict[interaction_type] = pruned_interaction_dict
             self.nan_removed_gaze_data_dict[session] = pruned_session_dict
+        return self.nan_removed_gaze_data_dict
 
 
     def analyze_behavior(self):
-        self.prune_nan_values_in_timeseries()
+        self.nan_removed_gaze_data_dict = self.prune_nan_values_in_timeseries()
         pdb.set_trace()
         return 0
 
@@ -141,7 +142,6 @@ class DataManager:
     def run(self):
         self.get_data()
         self.analyze_behavior()
-        
 
 
 
