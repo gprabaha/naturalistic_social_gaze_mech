@@ -17,6 +17,23 @@ import load_data
 import pdb
 
 
+def print_dict_structure(d, indent=0):
+    """
+    Recursively prints the structure of a nested dictionary without printing the values.
+
+    :param d: The dictionary to explore.
+    :param indent: The current level of indentation (used for nested dictionaries).
+    """
+    if isinstance(d, dict):
+        for key, value in d.items():
+            print('  ' * indent + str(key) + ':')
+            print_dict_structure(value, indent + 1)
+    elif isinstance(d, list):
+        print('  ' * indent + '[List]')
+    else:
+        print('  ' * indent + '[Value]')
+
+
 class DataManager:
     def __init__(self, params):
         self.params = params
@@ -135,13 +152,15 @@ class DataManager:
 
     def analyze_behavior(self):
         self.nan_removed_gaze_data_dict = self.prune_nan_values_in_timeseries()
-        pdb.set_trace()
-        return 0
+        # pdb.set_trace()
+        # return 0
 
 
     def run(self):
         self.get_data()
         self.analyze_behavior()
+        # Use the function on your dictionary
+        print_dict_structure(self.nan_removed_gaze_data_dict)
 
 
 
