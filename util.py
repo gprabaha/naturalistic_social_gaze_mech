@@ -20,7 +20,7 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
-def generate_dict_legend(data_dict, max_examples=5):
+def generate_behav_dict_legend(data_dict, max_examples=5):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
     Parameters:
@@ -104,20 +104,23 @@ def check_dict_leaves(data_dict):
     """
     missing_paths = []
     total_paths = 0
-
-    def recursive_check(d, path=""):
-        nonlocal total_paths
-        for key, value in d.items():
-            current_path = f"{path}/{key}" if path else str(key)
-            if isinstance(value, dict):
-                recursive_check(value, current_path)
-            else:
-                total_paths += 1
-                if value is None or (hasattr(value, "size") and value.size == 0):
-                    missing_paths.append(current_path)
-
-    recursive_check(data_dict)
+    total_paths, missing_paths = recursive_dict_path_check(data_dict, total_paths, missing_paths)
     return missing_paths, total_paths
+
+
+def recursive_dict_path_check(d, total_paths=0, missing_paths=None, path=""):
+    if missing_paths is None:
+        missing_paths = []
+    for key, value in d.items():
+        current_path = f"{path}/{key}" if path else str(key)
+        if isinstance(value, dict):
+            total_paths, missing_paths = recursive_check(value, total_paths, missing_paths, current_path)
+        else:
+            total_paths += 1
+            if value is None or (hasattr(value, "size") and value.size == 0):
+                missing_paths.append(current_path)
+    return total_paths, missing_paths
+
 
 
 def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
