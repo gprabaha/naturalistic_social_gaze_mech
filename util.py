@@ -37,23 +37,29 @@ def generate_behav_dict_legend(data_dict, max_examples=2):
         "This legend summarizes the structure of the data. The dictionary contains several levels, each representing "
         "different aspects of the data."
     )
-    # Add descriptions for each level with examples
+    # Fetch example keys for each level to ensure they match the intended descriptions
+    # Level 1 should be the root keys, i.e., session numbers
+    level_1_examples = list(data_dict.keys())[:max_examples]  # Direct access to root keys
+    level_2_examples = fetch_dict_keys_at_level(data_dict, max_examples, target_level=1)
+    level_3_examples = fetch_dict_keys_at_level(data_dict, max_examples, target_level=2)
+    level_4_examples = fetch_dict_keys_at_level(data_dict, max_examples, target_level=3)
+    # Add descriptions for each level with properly fetched examples
     legend['levels'] = {
         'level_1': {
             'description': "Top-level keys are session dates (8 digits).",
-            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=0)
+            'examples': [key for key in level_1_examples if isinstance(key, str) and key.isdigit()]
         },
         'level_2': {
             'description': "Second-level keys represent interaction types (e.g., interactive, non_interactive).",
-            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=1)
+            'examples': [key for key in level_2_examples if key in ['interactive', 'non_interactive']]
         },
         'level_3': {
             'description': "Third-level keys represent runs (integer values).",
-            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=2)
+            'examples': [key for key in level_3_examples if isinstance(key, int)]
         },
         'level_4': {
             'description': "Fourth-level keys represent data types (positions, neural timeline, pupil size).",
-            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=3)
+            'examples': [key for key in level_4_examples if key in ['positions', 'neural_timeline', 'pupil_size']]
         },
         'level_5': {
             'description': "Fifth-level keys contain m1 and m2 data under positions and pupil size.",
@@ -76,13 +82,15 @@ def fetch_dict_keys_at_level(current_dict, max_examples, current_level=0, target
     """
     keys = []
     if current_level == target_level and isinstance(current_dict, dict):
-        return list(current_dict.keys())[:max_examples]
+        keys.extend(list(current_dict.keys())[:max_examples])
+        return keys
     for key, value in current_dict.items():
         if isinstance(value, dict):
             keys.extend(fetch_dict_keys_at_level(value, max_examples, current_level + 1, target_level))
         if len(keys) >= max_examples:
             break
     return keys[:max_examples]
+
 
 
 def check_dict_leaves(data_dict):

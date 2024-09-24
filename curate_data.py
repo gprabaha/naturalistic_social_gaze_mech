@@ -78,12 +78,12 @@ def add_raw_data_dir_to_params(params):
 
 def add_paths_to_all_data_files_to_params(params):
     """
-    Populates the paths to data files categorized by session, interaction type, and run number.
+    Populates the paths to data files categorized by session, interaction type, run number, and data type.
     Parameters:
     - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
     Returns:
-    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
-      and interaction type, along with a dynamic legend describing the structure.
+    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session,
+      interaction type, and run number, along with a dynamic legend describing the structure.
     """
     # Define directories
     directories = {
@@ -91,13 +91,13 @@ def add_paths_to_all_data_files_to_params(params):
         'neural_timeline': params['neural_timeline_dir'],
         'pupil_size': params['pupil_size_dir']
     }
-    # Initialize data structure to store file paths
-    paths_dict = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
-    # Define regex to extract session name (date) and run number
+    # Initialize data structure to store file paths organized by session
+    paths_dict = {}
+    # Define regex to extract session name (date), file type, and run number
     file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
     logger.info("Populating paths to data files.")
     # Iterate over each directory
-    for key, dir_path in directories.items():
+    for data_type, dir_path in directories.items():
         logger.info(f"Processing directory: {dir_path}")
         try:
             for filename in os.listdir(dir_path):
@@ -105,23 +105,34 @@ def add_paths_to_all_data_files_to_params(params):
                 if match:
                     session_name, file_type, run_number = match.groups()
                     run_number = int(run_number)
-                    # Initialize session dictionary if not already
-                    if session_name not in paths_dict[key]:
-                        paths_dict[key][session_name] = {
+                    # Initialize session structure if not already present
+                    if session_name not in paths_dict:
+                        paths_dict[session_name] = {
                             'interactive': {},
                             'non_interactive': {}
                         }
-                    # Determine file category and assign path
-                    if file_type == 'position':
-                        paths_dict[key][session_name]['interactive'][run_number] = os.path.join(dir_path, filename)
-                    elif file_type == 'dot':
-                        paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
+                    # Determine interaction type based on file type
+                    interaction_type = 'interactive' if file_type == 'position' else 'non_interactive'
+                    # Initialize run structure if not already present
+                    if run_number not in paths_dict[session_name][interaction_type]:
+                        paths_dict[session_name][interaction_type][run_number] = {
+                            'positions': None,
+                            'neural_timeline': None,
+                            'pupil_size': None
+                        }
+                    # Assign the file path to the appropriate data type
+                    if data_type == 'positions' and file_type == 'position':
+                        paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                    elif data_type == 'neural_timeline':
+                        paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
+                    elif data_type == 'pupil_size':
+                        paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
-    # Generate a dynamic legend based on the populated paths dictionary
+    # Generate a dynamic legend based on the newly structured paths dictionary
     paths_dict['legend'] = util.generate_behav_dict_legend(paths_dict)
     logger.info("Paths to all data files populated successfully.")
-    # Update params with the generated paths dictionary
+    # Update params with the structured paths dictionary
     params['data_file_paths'] = paths_dict
     return params
 
@@ -129,7 +140,7 @@ def add_paths_to_all_data_files_to_params(params):
 def prune_data_file_paths(params):
     """
     Prunes the data file paths to ensure that positions, neural timeline, and pupil size all have the same set
-    of file names. Files present in one folder but not the others are discarded and recorded.
+    of run numbers. Files present in one folder but not the others are discarded and recorded.
     Parameters:
     - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
       and run number.
@@ -140,39 +151,32 @@ def prune_data_file_paths(params):
     logger.info("Pruning data file paths to ensure consistency across data types.")
     # Extract the data paths dictionary from params
     paths_dict = params.get('data_file_paths', {})
-    discarded_paths = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
-    # Get the keys (positions, neural_timeline, pupil_size) for processing
-    data_keys = ['positions', 'neural_timeline', 'pupil_size']
-    # Find common sessions across all data types
-    common_sessions = set(paths_dict['positions'].keys())
-    for key in data_keys[1:]:
-        common_sessions.intersection_update(paths_dict[key].keys())
-    # Iterate through common sessions to find common runs and prune mismatches
-    for session in common_sessions:
-        # Gather all run numbers present in each data type for this session
-        runs_per_type = {key: set(paths_dict[key][session]['interactive'].keys()) | set(paths_dict[key][session]['non_interactive'].keys()) for key in data_keys}
-        # Find the intersection of runs that exist in all data types
-        common_runs = set.intersection(*runs_per_type.values())
-        # Prune files not in the common runs for each data type
-        for key in data_keys:
-            # Check interactive runs
-            interactive_runs = set(paths_dict[key][session]['interactive'].keys())
-            non_interactive_runs = set(paths_dict[key][session]['non_interactive'].keys())
-            # Identify runs to discard
-            discard_interactive = interactive_runs - common_runs
-            discard_non_interactive = non_interactive_runs - common_runs
-            # Move discarded interactive runs to discarded paths
-            for run in discard_interactive:
-                if session not in discarded_paths[key]:
-                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
-                discarded_paths[key][session]['interactive'][run] = paths_dict[key][session]['interactive'].pop(run)
-                logger.info(f"Discarded interactive run {run} for session {session} in {key}.")
-            # Move discarded non-interactive runs to discarded paths
-            for run in discard_non_interactive:
-                if session not in discarded_paths[key]:
-                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
-                discarded_paths[key][session]['non_interactive'][run] = paths_dict[key][session]['non_interactive'].pop(run)
-                logger.info(f"Discarded non-interactive run {run} for session {session} in {key}.")
+    discarded_paths = {}
+    # Iterate over sessions
+    for session, interaction_types in paths_dict.items():
+        if session == 'legend':  # Skip the legend key
+            continue
+        # Initialize discarded paths for the session if not already present
+        discarded_paths[session] = {'interactive': {}, 'non_interactive': {}}
+        # Iterate over interaction types (interactive, non_interactive)
+        for interaction_type, runs in interaction_types.items():
+            # Initialize lists to track runs across all data types
+            runs_per_type = {'positions': set(), 'neural_timeline': set(), 'pupil_size': set()}
+            # Gather run numbers present for each data type
+            for run, data_types in runs.items():
+                for data_key in runs_per_type.keys():
+                    if data_types.get(data_key) is not None:
+                        runs_per_type[data_key].add(run)
+            # Find the common runs across all data types
+            common_runs = set.intersection(*runs_per_type.values())
+            # Identify runs to discard and update the paths and discarded paths accordingly
+            for run in list(runs.keys()):
+                if run not in common_runs:
+                    if run not in discarded_paths[session][interaction_type]:
+                        discarded_paths[session][interaction_type][run] = {}
+                    # Move the run to discarded paths and remove from the main paths
+                    discarded_paths[session][interaction_type][run] = paths_dict[session][interaction_type].pop(run)
+                    logger.info(f"Discarded {interaction_type} run {run} for session {session}.")
     # Update params with the pruned paths and the discarded paths
     params['data_file_paths'] = paths_dict
     params['discarded_paths'] = discarded_paths
