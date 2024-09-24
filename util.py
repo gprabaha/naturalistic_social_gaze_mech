@@ -122,7 +122,6 @@ def add_paths_to_all_data_files_to_params(params):
     return params
 
 
-
 def generate_legend(data_dict, max_examples=5):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
@@ -135,7 +134,6 @@ def generate_legend(data_dict, max_examples=5):
     legend = {}
     if not isinstance(data_dict, dict) or not data_dict:
         return {'error': 'Empty or invalid data structure provided.'}
-
     legend['root'] = "Top-level keys are session dates (8 digits)."
     # Describe the structure with example paths
     describe_nested_dict_structure(data_dict, legend)
@@ -144,7 +142,7 @@ def generate_legend(data_dict, max_examples=5):
     collect_example_dict_paths(data_dict, legend, max_examples)
     legend['description'] = (
         "This legend summarizes the structure of the data. Top-level keys are session dates, followed by interaction "
-        "types, runs, and data types like positions, neural timeline, and pupil size. "
+        "types, runs (noted as integers), and data types like positions, neural timeline, and pupil size. "
         "Positions and pupil size contain m1 and m2 data, while neural timeline data is shared."
     )
     return legend
@@ -165,7 +163,7 @@ def describe_nested_dict_structure(current_dict, legend, level=0, max_depth=5):
         if level == 0:
             legend[key] = "Nested structure with keys representing interaction types (e.g., interactive, non_interactive)."
         elif level == 1:
-            legend[key] = "Keys represent runs, with nested data types (positions, neural timeline, pupil size)."
+            legend[key] = "Keys represent runs (integer values), with nested data types (positions, neural timeline, pupil size)."
         elif level == 2:
             if key == 'positions' or key == 'pupil_size':
                 legend[key] = "Data contains m1 and m2 entries."
@@ -178,6 +176,7 @@ def describe_nested_dict_structure(current_dict, legend, level=0, max_depth=5):
 def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
     """
     Collects example paths to illustrate the structure of the data dictionary.
+
     Parameters:
     - current_dict (dict): The current level of the dictionary.
     - legend (dict): The legend dictionary to append example paths to.
@@ -187,12 +186,15 @@ def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
     if len(legend['example_paths']) >= max_examples:
         return
     for key, value in current_dict.items():
+        # Convert integer keys to strings for path representation
+        str_key = str(key) if isinstance(key, int) else key
         if isinstance(value, dict):
-            collect_example_dict_paths(value, legend, max_examples, path + [key])
+            collect_example_dict_paths(value, legend, max_examples, path + [str_key])
         else:
-            legend['example_paths'].append(" -> ".join(path + [key]))
+            legend['example_paths'].append(" -> ".join(path + [str_key]))
             if len(legend['example_paths']) >= max_examples:
                 break
+
 
 
 
