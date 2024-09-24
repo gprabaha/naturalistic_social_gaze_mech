@@ -126,13 +126,15 @@ def recursive_dict_path_check(d, total_paths=0, missing_paths=None, path=""):
 def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
     """
     Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
+    
     Parameters:
     - compute_func (function): The function that computes the data.
     - load_func (function): The function that loads the data from saved files.
     - file_paths (list): List of file paths where each variable will be saved or loaded from.
-    - remake_flag_key (str): The key in params to check whether to compute or load (e.g., 'remake_gaze_data_dict').
-    - params (dict): Dictionary of parameters, including the remake flag.
+    - remake_flag_key (str): The key in params to check whether to compute or load.
+    - params (dict): The dictionary containing configuration parameters.
     - args, kwargs: Additional arguments to pass to the compute_func.
+    
     Returns:
     - A list of variables, either loaded from files or computed.
     """
@@ -140,7 +142,7 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
     if remake_flag:
         logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
         # Compute the data
-        computed_vars = compute_func(*args, **kwargs)
+        computed_vars = compute_func(params, *args, **kwargs)  # Pass params explicitly
         # Save each computed variable to its corresponding file path
         for file_path, var in zip(file_paths, computed_vars):
             try:
@@ -160,6 +162,7 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
         except Exception as e:
             logger.error(f"Failed to load data from {file_paths}: {e}")
             raise
+
 
 
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
