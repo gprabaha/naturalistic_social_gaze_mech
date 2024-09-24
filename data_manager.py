@@ -13,25 +13,9 @@ import pickle
 import util
 import curate_data
 import load_data
+import fix_and_saccades
 
 import pdb
-
-
-def print_dict_structure(d, indent=0):
-    """
-    Recursively prints the structure of a nested dictionary without printing the values.
-
-    :param d: The dictionary to explore.
-    :param indent: The current level of indentation (used for nested dictionaries).
-    """
-    if isinstance(d, dict):
-        for key, value in d.items():
-            print('  ' * indent + str(key) + ':')
-            print_dict_structure(value, indent + 1)
-    elif isinstance(d, list):
-        print('  ' * indent + '[List]')
-    else:
-        print('  ' * indent + '[Value]')
 
 
 class DataManager:
@@ -50,6 +34,13 @@ class DataManager:
         self.gaze_data_dict = None
         self.empty_gaze_dict_paths = None
         self.nan_removed_gaze_data_dict = None
+
+        self.fixation_df_m1 = None
+        self.fixation_df_m2 = None
+        self.saccade_df_m1 = None
+        self.saccade_df_m2 = None
+        self.microsaccade_df_m1 = None
+        self.microsaccade_df_m2 = None
 
 
     def populate_params_with_data_paths(self):
@@ -80,30 +71,21 @@ class DataManager:
 
     def analyze_behavior(self):
         self.nan_removed_gaze_data_dict = util.prune_nan_values_in_timeseries(self.gaze_data_dict)
-        pdb.set_trace()
-        return 0
+        # Detect fixations and saccades for m1
+        self.fixation_dict_m1, self.saccade_dict_m1 = fix_and_saccades.detect_fixations_and_saccades(
+            self.nan_removed_gaze_data_dict, agent='m1', params=self.params
+        )
+        # Detect fixations and saccades for m2
+        self.fixation_dict_m2, self.saccade_dict_m2 = fix_and_saccades.detect_fixations_and_saccades(
+            self.nan_removed_gaze_data_dict, agent='m2', params=self.params
+        )
 
 
     def run(self):
         self.populate_params_with_data_paths()
         self.get_data()
         self.analyze_behavior()
-        # Use the function on your dictionary
-        print_dict_structure(self.nan_removed_gaze_data_dict)
 
-
-
-params = {}
-params.update({
-    'processed_data_dir': 'intermediates',
-    'is_cluster': True,
-    'use_parallel': True,
-    'extract_postime_from_mat_files': False,
-    'compute_fixations': False,
-    'fixation_detection_method': 'eye_mvm',
-    'sampling_rate': 0.001,
-    'vel_thresh': 10
-    })
 
 
 
