@@ -209,10 +209,12 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     """
     Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
     Ensures m1 and m2 data are synchronized with the time series, having no NaNs and the same number of points.
+
     Parameters:
     - time_series (np.ndarray): The time series array.
     - positions (dict): A dictionary containing position data with keys 'm1' and optionally 'm2'.
     - pupil_size (dict): A dictionary containing pupil size data with keys 'm1' and optionally 'm2'.
+
     Returns:
     - pruned_positions (dict): The positions dictionary with NaN values pruned.
     - pruned_pupil_size (dict): The pupil size dictionary with NaN values pruned.
@@ -220,27 +222,37 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     """
     # Find valid indices in the time series where there are no NaNs
     valid_time_indices = ~np.isnan(time_series).flatten()
-    # Initialize valid indices to the time indices
-    valid_indices = valid_time_indices
-    # Check and combine valid indices from positions and pupil size for both m1 and m2
+    valid_indices = valid_time_indices.copy()  # Initialize valid indices with time series indices
+
+    # Adjust valid indices based on positions and pupil sizes for m1 and m2
     for key in ['m1', 'm2']:
-        # Check positions[key] if present, not None, and non-empty
+        # Adjust for positions[key] if present, not None, and non-empty
         if key in positions and positions[key] is not None and positions[key].size > 0:
-            # Ensure positions[key] is 2D, and prune based on valid indices
-            valid_indices &= ~np.isnan(positions[key]).any(axis=0)
-        # Check pupil_size[key] if present, not None, and non-empty
+            # Ensure positions[key] is 2D; adjust valid_indices accordingly
+            position_valid_indices = ~np.isnan(positions[key]).any(axis=0)
+            valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
+
+        # Adjust for pupil_size[key] if present, not None, and non-empty
         if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0:
-            # Ensure pupil_size[key] is 1D, and prune based on valid indices
-            valid_indices &= ~np.isnan(pupil_size[key]).flatten()
+            # Ensure pupil_size[key] is correctly indexed along its second axis
+            pupil_valid_indices = ~np.isnan(pupil_size[key][0, :])  # Index columns correctly
+            valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
+
     # Prune the time series based on combined valid indices
     pruned_time_series = time_series[valid_indices]
+
     # Prune positions for m1 and m2 based on the combined valid indices
-    pruned_positions = {key: positions[key][:, valid_indices] if key in positions and positions[key] is not None and positions[key].size > 0 else np.array([])
+    pruned_positions = {key: positions[key][:, valid_indices[:positions[key].shape[1]]] if key in positions and positions[key] is not None and positions[key].size > 0 else np.array([])
                         for key in ['m1', 'm2']}
+    
     # Prune pupil size for m1 and m2 based on the combined valid indices
-    pruned_pupil_size = {key: pupil_size[key][valid_indices] if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 else np.array([])
+    pruned_pupil_size = {key: pupil_size[key][:, valid_indices] if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 else np.array([])
                          for key in ['m1', 'm2']}
+
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
+
+
 
 
 

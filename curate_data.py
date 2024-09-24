@@ -241,21 +241,24 @@ def make_gaze_data_dict(params):
                                 result = load_run_data(data_key, session, interaction_type, run, file_path)
                                 temp_results.append(result)
                         pbar.update(1)  # Manually update the progress bar
-    # Assign the results to the gaze_data_dict
-    for session, interaction_type, run, data_key, data_value in temp_results:
-        session_dict = gaze_data_dict.setdefault(session, {})
-        interaction_dict = session_dict.setdefault(interaction_type, {})
-        run_dict = interaction_dict.setdefault(run, {})
-        if data_key in ['positions', 'pupil_size']:
-            # Handle m1 and m2 under positions and pupil size
-            data_subdict = run_dict.setdefault(data_key, {})
-            if 'm1' in data_value:
-                data_subdict['m1'] = data_value['m1']
-            if 'm2' in data_value:
-                data_subdict['m2'] = data_value['m2']
-        elif data_key == 'neural_timeline':
-            # Directly assign neural_timeline data
-            run_dict['neural_timeline'] = data_value
+    # Assignment of results into the gaze_data_dict with a progress bar
+    logger.info("Assigning loaded data to the gaze data dictionary.")
+    with tqdm(total=len(temp_results), desc="Assigning Data", unit="assignment") as pbar:
+        for session, interaction_type, run, data_key, data_value in temp_results:
+            session_dict = gaze_data_dict.setdefault(session, {})
+            interaction_dict = session_dict.setdefault(interaction_type, {})
+            run_dict = interaction_dict.setdefault(run, {})
+            if data_key in ['positions', 'pupil_size']:
+                # Handle m1 and m2 under positions and pupil size
+                data_subdict = run_dict.setdefault(data_key, {})
+                if 'm1' in data_value:
+                    data_subdict['m1'] = data_value['m1']
+                if 'm2' in data_value:
+                    data_subdict['m2'] = data_value['m2']
+            elif data_key == 'neural_timeline':
+                # Directly assign neural_timeline data
+                run_dict['neural_timeline'] = data_value
+            pbar.update(1)
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
     gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
@@ -266,6 +269,7 @@ def make_gaze_data_dict(params):
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
     return gaze_data_dict, missing_data_dict_paths
+
 
 
 def load_run_data(data_type, session, interaction_type, run, file_path):
