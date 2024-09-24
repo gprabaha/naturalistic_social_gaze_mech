@@ -119,7 +119,7 @@ def add_paths_to_all_data_files_to_params(params):
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
     # Generate a dynamic legend based on the populated paths dictionary
-    paths_dict['legend'] = util.generate_dict_legend(paths_dict)
+    paths_dict['legend'] = util.generate_behav_dict_legend(paths_dict)
     logger.info("Paths to all data files populated successfully.")
     # Update params with the generated paths dictionary
     params['data_file_paths'] = paths_dict
@@ -253,7 +253,7 @@ def make_gaze_data_dict(params):
             run_dict['neural_timeline'] = data_value
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
-    gaze_data_dict['legend'] = util.generate_dict_legend(gaze_data_dict)
+    gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
     # Check the final structure and report any missing data
     missing_data_dict_paths, total_data_paths = util.check_dict_leaves(gaze_data_dict)
     if missing_data_dict_paths:
