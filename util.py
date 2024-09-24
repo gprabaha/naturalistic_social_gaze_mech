@@ -10,7 +10,7 @@ import logging
 import os
 import re
 import numpy as np
-
+import pickle
 from math import sqrt
 
 import pdb
@@ -181,6 +181,45 @@ def prune_data_file_paths(params):
     params['discarded_paths'] = discarded_paths
     logger.info("Data file paths pruned successfully.")
     return params
+
+
+def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
+    """
+    Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
+    Parameters:
+    - compute_func (function): The function that computes the data.
+    - load_func (function): The function that loads the data from saved files.
+    - file_paths (list): List of file paths where each variable will be saved or loaded from.
+    - remake_flag_key (str): The key in params to check whether to compute or load (e.g., 'remake_gaze_data_dict').
+    - params (dict): Dictionary of parameters, including the remake flag.
+    - args, kwargs: Additional arguments to pass to the compute_func.
+    Returns:
+    - A list of variables, either loaded from files or computed.
+    """
+    remake_flag = params.get(remake_flag_key, True)  # Check the corresponding remake flag
+    if remake_flag:
+        logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
+        # Compute the data
+        computed_vars = compute_func(*args, **kwargs)
+        # Save each computed variable to its corresponding file path
+        for file_path, var in zip(file_paths, computed_vars):
+            try:
+                with open(file_path, 'wb') as f:
+                    pickle.dump(var, f)
+                logger.info(f"Saved computed data to {file_path}.")
+            except Exception as e:
+                logger.error(f"Failed to save computed data to {file_path}: {e}")
+        return computed_vars
+    else:
+        logger.info(f"Remake flag '{remake_flag_key}' is set to False. Loading data using {load_func.__name__}.")
+        try:
+            # Load the data using the provided load function
+            loaded_vars = load_func(*file_paths)
+            logger.info(f"Successfully loaded data from {file_paths}.")
+            return loaded_vars
+        except Exception as e:
+            logger.error(f"Failed to load data from {file_paths}: {e}")
+            raise
 
 
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
