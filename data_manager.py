@@ -59,9 +59,6 @@ class DataManager:
         self.params = curate_data.add_paths_to_all_data_files_to_params(self.params)
         self.params = curate_data.prune_data_file_paths(self.params)
 
-        pdb.set_trace()
-        return 0
-
 
     def get_data(self):
         """
@@ -79,6 +76,8 @@ class DataManager:
             remake_flag_key='remake_gaze_data_dict',
             params=self.params  # Pass the params dictionary
         )
+        pdb.set_trace()
+        return 0
 
 
     def prune_nan_values_in_timeseries(self):
