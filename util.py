@@ -114,7 +114,7 @@ def recursive_dict_path_check(d, total_paths=0, missing_paths=None, path=""):
     for key, value in d.items():
         current_path = f"{path}/{key}" if path else str(key)
         if isinstance(value, dict):
-            total_paths, missing_paths = recursive_check(value, total_paths, missing_paths, current_path)
+            total_paths, missing_paths = recursive_dict_path_check(value, total_paths, missing_paths, current_path)
         else:
             total_paths += 1
             if value is None or (hasattr(value, "size") and value.size == 0):
