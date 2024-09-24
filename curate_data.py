@@ -13,6 +13,7 @@ import os
 import pickle
 
 import load_data
+import util
 
 import pdb
 
@@ -23,15 +24,15 @@ logger = logging.getLogger(__name__)
 
 def make_gaze_data_dict(params):
     """
-    Loads position, time, and pupil size data from the specified paths into a structured dictionary
+    Loads position, neural timeline, and pupil size data from the specified paths into a structured dictionary
     with optional parallel processing based on `use_parallel`. Saves the resulting dictionary and 
     missing data paths as separate pickle files.
     Parameters:
     - params (dict): A dictionary containing configuration parameters, including 'data_file_paths', 
       'use_parallel', and 'processed_data_dir'.
     Returns:
-    - gaze_data_dict (dict): Dictionary structured as {session: {interaction_type: {run: {'positions': {'m1': m1, 'm2': m2}, 
-      'time': t, 'pupil_size': {'m1': m1, 'm2': m2}}}}}.
+    - gaze_data_dict (dict): Dictionary structured as {session: {interaction_type: {run: {'positions': {'m1': m1_data, 'm2': m2_data}, 
+      'neural_timeline': neural_timeline_data, 'pupil_size': {'m1': m1_data, 'm2': m2_data}}}}}.
     - missing_data_paths (list): List of paths where data is missing or empty.
     """
     logger.info("Starting to load gaze data from specified paths.")
@@ -82,8 +83,19 @@ def make_gaze_data_dict(params):
         session_dict = gaze_data_dict.setdefault(session, {})
         interaction_dict = session_dict.setdefault(interaction_type, {})
         run_dict = interaction_dict.setdefault(run, {})
-        run_dict[data_key] = data_value
+        if data_key in ['positions', 'pupil_size']:
+            # Handle m1 and m2 under positions and pupil size
+            data_subdict = run_dict.setdefault(data_key, {})
+            if 'm1' in data_value:
+                data_subdict['m1'] = data_value['m1']
+            if 'm2' in data_value:
+                data_subdict['m2'] = data_value['m2']
+        elif data_key == 'neural_timeline':
+            # Directly assign neural_timeline data
+            run_dict['neural_timeline'] = data_value
     logger.info("Completed loading gaze data.")
+    # Add a concise legend to the gaze_data_dict
+    gaze_data_dict['legend'] = util.generate_legend(gaze_data_dict)
     # Check the final structure and report any missing data
     missing_data_dict_paths, total_data_paths = check_dict_leaves(gaze_data_dict)
     if missing_data_dict_paths:
@@ -91,6 +103,7 @@ def make_gaze_data_dict(params):
     else:
         logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
     return gaze_data_dict, missing_data_dict_paths
+
 
 
 
