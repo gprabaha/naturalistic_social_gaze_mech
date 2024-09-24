@@ -164,6 +164,46 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
             raise
 
 
+def prune_nan_values_in_timeseries(gaze_data_dict):
+    """
+    Prunes NaN values from the time series in the gaze data dictionary and 
+    adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
+    The pruned dictionary is returned as `nan_removed_gaze_data_dict`.
+    Parameters:
+    - gaze_data_dict (dict): The gaze data dictionary containing session, interaction type, and run data.
+    Returns:
+    - nan_removed_gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
+    """
+    # Create a copy of the gaze data dictionary to store the pruned version
+    nan_removed_gaze_data_dict = {}
+    # Iterate over the original gaze data dictionary
+    for session, session_dict in gaze_data_dict.items():
+        if session == 'legend':  # Skip the legend entry
+            continue
+        pruned_session_dict = {}
+        for interaction_type, interaction_dict in session_dict.items():
+            pruned_interaction_dict = {}
+            for run, run_dict in interaction_dict.items():
+                # Extract the neural timeline (time series)
+                time_series = run_dict.get('neural_timeline')
+                if time_series is not None:
+                    # Prune NaN values and adjust corresponding time series using the helper function
+                    pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
+                        time_series,
+                        run_dict.get('positions', {}),
+                        run_dict.get('pupil_size', {})
+                    )
+                    # Create a new run dictionary with pruned data
+                    pruned_run_dict = {
+                        'positions': pruned_positions,
+                        'pupil_size': pruned_pupil_size,
+                        'neural_timeline': pruned_time_series
+                    }
+                    pruned_interaction_dict[run] = pruned_run_dict
+            pruned_session_dict[interaction_type] = pruned_interaction_dict
+        nan_removed_gaze_data_dict[session] = pruned_session_dict
+    return nan_removed_gaze_data_dict
+
 
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     """
@@ -187,28 +227,21 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
         # Check positions[key] if present, not None, and non-empty
         if key in positions and positions[key] is not None and positions[key].size > 0:
             # Ensure positions[key] is 2D, and prune based on valid indices
-            valid_indices = valid_indices & ~np.isnan(positions[key]).any(axis=0)
+            valid_indices &= ~np.isnan(positions[key]).any(axis=0)
         # Check pupil_size[key] if present, not None, and non-empty
         if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0:
             # Ensure pupil_size[key] is 1D, and prune based on valid indices
-            valid_indices = valid_indices & ~np.isnan(pupil_size[key]).flatten()
+            valid_indices &= ~np.isnan(pupil_size[key]).flatten()
     # Prune the time series based on combined valid indices
     pruned_time_series = time_series[valid_indices]
     # Prune positions for m1 and m2 based on the combined valid indices
-    pruned_positions = {}
-    for key in ['m1', 'm2']:
-        if key in positions and positions[key] is not None and positions[key].size > 0:
-            pruned_positions[key] = positions[key][:, valid_indices]
-        else:
-            pruned_positions[key] = np.array([])
+    pruned_positions = {key: positions[key][:, valid_indices] if key in positions and positions[key] is not None and positions[key].size > 0 else np.array([])
+                        for key in ['m1', 'm2']}
     # Prune pupil size for m1 and m2 based on the combined valid indices
-    pruned_pupil_size = {}
-    for key in ['m1', 'm2']:
-        if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0:
-            pruned_pupil_size[key] = pupil_size[key][:, valid_indices]
-        else:
-            pruned_pupil_size[key] = np.array([])
+    pruned_pupil_size = {key: pupil_size[key][valid_indices] if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 else np.array([])
+                         for key in ['m1', 'm2']}
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
 
 
 
