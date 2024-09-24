@@ -205,11 +205,10 @@ def make_gaze_data_dict(params):
     temp_results = []  # Temporary storage for results
     # Prepare a list of tasks for tqdm progress bar
     total_tasks = sum(
-        len(runs) 
-        for data_type, sessions in data_file_paths.items() 
-        if data_type != 'legend' 
-        for interaction_types in sessions.values() 
-        for runs in interaction_types.values()
+        len(runs)
+        for session, interaction_types in data_file_paths.items()
+        if session != 'legend'
+        for interaction_type, runs in interaction_types.items()
     )
     logger.info(f"Total tasks to process: {total_tasks}")
     # Choose between parallel and serial processing
@@ -217,13 +216,14 @@ def make_gaze_data_dict(params):
         logger.info("Using parallel processing to load data.")
         with ThreadPoolExecutor() as executor:
             futures = []
-            for data_type, sessions in data_file_paths.items():
-                if data_type == 'legend':  # Skip legend if present
+            for session, interaction_types in data_file_paths.items():
+                if session == 'legend':  # Skip legend if present
                     continue
-                for session, interaction_types in sessions.items():
-                    for interaction_type, runs in interaction_types.items():
-                        for run, file_path in runs.items():
-                            futures.append(executor.submit(load_run_data, data_type, session, interaction_type, run, file_path))
+                for interaction_type, runs in interaction_types.items():
+                    for run, data_types in runs.items():
+                        for data_key, file_path in data_types.items():
+                            if file_path:  # Ensure the file path exists
+                                futures.append(executor.submit(load_run_data, data_key, session, interaction_type, run, file_path))
             # Collect the results as they complete with tqdm progress bar
             for future in tqdm(as_completed(futures), total=total_tasks, desc="Loading Data", unit="file"):
                 temp_results.append(future.result())
@@ -231,15 +231,16 @@ def make_gaze_data_dict(params):
         logger.info("Using serial processing to load data.")
         # Serial processing with a tqdm progress bar
         with tqdm(total=total_tasks, desc="Loading Data", unit="file") as pbar:
-            for data_type, sessions in data_file_paths.items():
-                if data_type == 'legend':  # Skip legend if present
+            for session, interaction_types in data_file_paths.items():
+                if session == 'legend':  # Skip legend if present
                     continue
-                for session, interaction_types in sessions.items():
-                    for interaction_type, runs in interaction_types.items():
-                        for run, file_path in runs.items():
-                            result = load_run_data(data_type, session, interaction_type, run, file_path)
-                            temp_results.append(result)
-                            pbar.update(1)  # Manually update the progress bar
+                for interaction_type, runs in interaction_types.items():
+                    for run, data_types in runs.items():
+                        for data_key, file_path in data_types.items():
+                            if file_path:  # Ensure the file path exists
+                                result = load_run_data(data_key, session, interaction_type, run, file_path)
+                                temp_results.append(result)
+                        pbar.update(1)  # Manually update the progress bar
     # Assign the results to the gaze_data_dict
     for session, interaction_type, run, data_key, data_value in temp_results:
         session_dict = gaze_data_dict.setdefault(session, {})
@@ -268,15 +269,28 @@ def make_gaze_data_dict(params):
 
 
 def load_run_data(data_type, session, interaction_type, run, file_path):
+    """
+    Loads data based on the data type and file path provided.
+    Parameters:
+    - data_type (str): The type of data to load ('positions', 'neural_timeline', 'pupil_size').
+    - session (str): The session identifier.
+    - interaction_type (str): The type of interaction ('interactive' or 'non_interactive').
+    - run (int): The run number.
+    - file_path (str): The path to the data file.
+    Returns:
+    - tuple: A tuple containing the session, interaction type, run, data key, and the loaded data.
+    """
     if data_type == 'positions':
         m1_data, m2_data = process_position_file(file_path)
         return session, interaction_type, run, 'positions', {'m1': m1_data, 'm2': m2_data}
     elif data_type == 'neural_timeline':
         t_data = process_time_file(file_path)
-        return session, interaction_type, run, 'time', t_data
+        return session, interaction_type, run, 'neural_timeline', t_data  # Updated key to match the correct naming
     elif data_type == 'pupil_size':
         m1_data, m2_data = process_pupil_file(file_path)
         return session, interaction_type, run, 'pupil_size', {'m1': m1_data, 'm2': m2_data}
+    # Fallback if the data type does not match expected values
+    logger.warning(f"Unexpected data type '{data_type}' for session {session}, interaction {interaction_type}, run {run}.")
     return session, interaction_type, run, data_type, None
 
 
