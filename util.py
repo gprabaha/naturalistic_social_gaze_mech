@@ -20,7 +20,7 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
-def generate_behav_dict_legend(data_dict, max_examples=5):
+def generate_behav_dict_legend(data_dict, max_examples=2):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
     Parameters:
@@ -32,65 +32,57 @@ def generate_behav_dict_legend(data_dict, max_examples=5):
     legend = {}
     if not isinstance(data_dict, dict) or not data_dict:
         return {'error': 'Empty or invalid data structure provided.'}
-    legend['root'] = "Top-level keys are session dates (8 digits)."
-    # Describe the structure with example paths
-    describe_nested_dict_structure(data_dict, legend)
-    # Add example paths to illustrate the structure
-    legend['example_paths'] = []
-    collect_example_dict_paths(data_dict, legend, max_examples)
+    # Summarize the structure at each level with a few examples
     legend['description'] = (
-        "This legend summarizes the structure of the data. Top-level keys are session dates, followed by interaction "
-        "types, runs (noted as integers), and data types like positions, neural timeline, and pupil size. "
-        "Positions and pupil size contain m1 and m2 data, while neural timeline data is shared."
+        "This legend summarizes the structure of the data. The dictionary contains several levels, each representing "
+        "different aspects of the data."
     )
+    # Add descriptions for each level with examples
+    legend['levels'] = {
+        'level_1': {
+            'description': "Top-level keys are session dates (8 digits).",
+            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=0)
+        },
+        'level_2': {
+            'description': "Second-level keys represent interaction types (e.g., interactive, non_interactive).",
+            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=1)
+        },
+        'level_3': {
+            'description': "Third-level keys represent runs (integer values).",
+            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=2)
+        },
+        'level_4': {
+            'description': "Fourth-level keys represent data types (positions, neural timeline, pupil size).",
+            'examples': fetch_dict_keys_at_level(data_dict, max_examples, target_level=3)
+        },
+        'level_5': {
+            'description': "Fifth-level keys contain m1 and m2 data under positions and pupil size.",
+            'examples': ['m1', 'm2']
+        }
+    }
     return legend
 
 
-def describe_nested_dict_structure(current_dict, legend, level=0, max_depth=5):
+def fetch_dict_keys_at_level(current_dict, max_examples, current_level=0, target_level=0):
     """
-    Recursively describes the nested structure of the data dictionary.
-    Parameters:
-    - current_dict (dict): The current level of the dictionary being described.
-    - legend (dict): The legend dictionary to append descriptions to.
-    - level (int): The current level of nesting.
-    - max_depth (int): The maximum depth to describe.
-    """
-    if not isinstance(current_dict, dict):
-        return
-    for key, value in current_dict.items():
-        if level == 0:
-            legend[key] = "Nested structure with keys representing interaction types (e.g., interactive, non_interactive)."
-        elif level == 1:
-            legend[key] = "Keys represent runs (integer values), with nested data types (positions, neural timeline, pupil size)."
-        elif level == 2:
-            if key == 'positions' or key == 'pupil_size':
-                legend[key] = "Data contains m1 and m2 entries."
-            elif key == 'neural_timeline':
-                legend[key] = "Data contains neural timeline entries common for both m1 and m2."
-        if level < max_depth - 1:
-            describe_nested_dict_structure(value, legend, level + 1)
-
-
-def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
-    """
-    Collects example paths to illustrate the structure of the data dictionary.
+    Recursively fetches keys at a specified level within a nested dictionary.
     Parameters:
     - current_dict (dict): The current level of the dictionary.
-    - legend (dict): The legend dictionary to append example paths to.
-    - max_examples (int): Maximum number of example paths to collect.
-    - path (list): The current path being constructed.
+    - max_examples (int): Maximum number of keys to collect.
+    - current_level (int): Current level of recursion.
+    - target_level (int): The target level to fetch keys from.
+    Returns:
+    - list: A list of example keys at the specified level.
     """
-    if len(legend['example_paths']) >= max_examples:
-        return
+    keys = []
+    if current_level == target_level and isinstance(current_dict, dict):
+        return list(current_dict.keys())[:max_examples]
     for key, value in current_dict.items():
-        # Convert integer keys to strings for path representation
-        str_key = str(key) if isinstance(key, int) else key
         if isinstance(value, dict):
-            collect_example_dict_paths(value, legend, max_examples, path + [str_key])
-        else:
-            legend['example_paths'].append(" -> ".join(path + [str_key]))
-            if len(legend['example_paths']) >= max_examples:
-                break
+            keys.extend(fetch_dict_keys_at_level(value, max_examples, current_level + 1, target_level))
+        if len(keys) >= max_examples:
+            break
+    return keys[:max_examples]
 
 
 def check_dict_leaves(data_dict):
