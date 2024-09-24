@@ -58,6 +58,8 @@ class DataManager:
         self.params = util.add_raw_data_dir_to_params(self.params)
         self.params = util.add_paths_to_all_data_files_to_params(self.params)
         self.params = util.prune_data_file_paths(self.params)
+        pdb.set_trace()
+        return 0
 
 
     def get_data(self):

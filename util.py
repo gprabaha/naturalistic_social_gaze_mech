@@ -123,7 +123,7 @@ def add_paths_to_all_data_files_to_params(params):
 
 
 
-def generate_legend(data_dict, max_examples=3):
+def generate_legend(data_dict, max_examples=5):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
     Parameters:
@@ -135,50 +135,66 @@ def generate_legend(data_dict, max_examples=3):
     legend = {}
     if not isinstance(data_dict, dict) or not data_dict:
         return {'error': 'Empty or invalid data structure provided.'}
-    # Identify the top-level keys and structure
+
     legend['root'] = "Top-level keys are session dates (8 digits)."
-
-    # Function to create a simplified description of the nested structure
-    def describe_nested_structure(current_dict, level=0, max_depth=5):  # Adjust max_depth to capture all relevant levels
-        if not isinstance(current_dict, dict):
-            return
-        for key, value in current_dict.items():
-            if level == 0:
-                legend[key] = "Nested structure with keys representing interaction types (e.g., interactive, non_interactive)."
-            elif level == 1:
-                legend[key] = "Keys represent runs, with nested data types (positions, neural timeline, pupil size)."
-            elif level == 2:
-                if key == 'positions' or key == 'pupil_size':
-                    legend[key] = "Data contains m1 and m2 entries."
-                elif key == 'neural_timeline':
-                    legend[key] = "Data contains neural timeline entries common for both m1 and m2."
-            # Stop detailing after reaching max_depth to keep the legend concise
-            if level < max_depth - 1:
-                describe_nested_structure(value, level + 1)
-
     # Describe the structure with example paths
-    describe_nested_structure(data_dict)
+    describe_nested_dict_structure(data_dict, legend)
     # Add example paths to illustrate the structure
     legend['example_paths'] = []
-    
-    def collect_examples(current_dict, path=[], depth=0):
-        if depth >= max_examples or not isinstance(current_dict, dict):
-            return
-        for key, value in current_dict.items():
-            if isinstance(value, dict):
-                collect_examples(value, path + [key], depth + 1)
-            else:
-                legend['example_paths'].append(" -> ".join(path + [key]))
-                if len(legend['example_paths']) >= max_examples:
-                    return
-
-    collect_examples(data_dict)
+    collect_example_dict_paths(data_dict, legend, max_examples)
     legend['description'] = (
         "This legend summarizes the structure of the data. Top-level keys are session dates, followed by interaction "
         "types, runs, and data types like positions, neural timeline, and pupil size. "
         "Positions and pupil size contain m1 and m2 data, while neural timeline data is shared."
     )
     return legend
+
+
+def describe_nested_dict_structure(current_dict, legend, level=0, max_depth=5):
+    """
+    Recursively describes the nested structure of the data dictionary.
+    Parameters:
+    - current_dict (dict): The current level of the dictionary being described.
+    - legend (dict): The legend dictionary to append descriptions to.
+    - level (int): The current level of nesting.
+    - max_depth (int): The maximum depth to describe.
+    """
+    if not isinstance(current_dict, dict):
+        return
+    for key, value in current_dict.items():
+        if level == 0:
+            legend[key] = "Nested structure with keys representing interaction types (e.g., interactive, non_interactive)."
+        elif level == 1:
+            legend[key] = "Keys represent runs, with nested data types (positions, neural timeline, pupil size)."
+        elif level == 2:
+            if key == 'positions' or key == 'pupil_size':
+                legend[key] = "Data contains m1 and m2 entries."
+            elif key == 'neural_timeline':
+                legend[key] = "Data contains neural timeline entries common for both m1 and m2."
+        if level < max_depth - 1:
+            describe_nested_dict_structure(value, legend, level + 1)
+
+
+def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
+    """
+    Collects example paths to illustrate the structure of the data dictionary.
+    Parameters:
+    - current_dict (dict): The current level of the dictionary.
+    - legend (dict): The legend dictionary to append example paths to.
+    - max_examples (int): Maximum number of example paths to collect.
+    - path (list): The current path being constructed.
+    """
+    if len(legend['example_paths']) >= max_examples:
+        return
+    for key, value in current_dict.items():
+        if isinstance(value, dict):
+            collect_example_dict_paths(value, legend, max_examples, path + [key])
+        else:
+            legend['example_paths'].append(" -> ".join(path + [key]))
+            if len(legend['example_paths']) >= max_examples:
+                break
+
+
 
 
 
