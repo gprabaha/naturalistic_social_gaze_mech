@@ -79,7 +79,7 @@ def add_paths_to_all_data_files_to_params(params):
     - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
     Returns:
     - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
-      and interaction type.
+      and interaction type, along with a dynamic legend describing the structure.
     """
     # Define directories
     directories = {
@@ -114,19 +114,73 @@ def add_paths_to_all_data_files_to_params(params):
                         paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
-    # Add legend explaining the dictionary structure
-    paths_dict['legend'] = {
-        'positions': 'Paths for positions data, categorized by session, then by interactive/non_interactive.',
-        'neural_timeline': 'Paths for neural timeline data, categorized by session, then by interactive/non_interactive.',
-        'pupil_size': 'Paths for pupil size data, categorized by session, then by interactive/non_interactive.',
-        'session_name': 'Top-level keys representing session dates (8 digits).',
-        'interactive': 'Files with "position" in the name, grouped under run number keys.',
-        'non_interactive': 'Files with "dot" in the name, grouped under run number keys.'
-    }
+    # Generate a dynamic legend based on the populated paths dictionary
+    paths_dict['legend'] = generate_legend(paths_dict)
     logger.info("Paths to all data files populated successfully.")
     # Update params with the generated paths dictionary
     params['data_file_paths'] = paths_dict
     return params
+
+
+
+def generate_legend(data_dict, max_examples=3):
+    """
+    Generates a concise legend describing the nested structure of the given data dictionary.
+    Parameters:
+    - data_dict (dict): The dictionary whose structure is to be described.
+    - max_examples (int): Maximum number of example paths to include for illustration.
+    Returns:
+    - legend (dict): A dictionary explaining the high-level structure of the input dictionary.
+    """
+    legend = {}
+    if not isinstance(data_dict, dict) or not data_dict:
+        return {'error': 'Empty or invalid data structure provided.'}
+    # Identify the top-level keys and structure
+    legend['root'] = "Top-level keys are session dates (8 digits)."
+
+    # Function to create a simplified description of the nested structure
+    def describe_nested_structure(current_dict, level=0, max_depth=5):  # Adjust max_depth to capture all relevant levels
+        if not isinstance(current_dict, dict):
+            return
+        for key, value in current_dict.items():
+            if level == 0:
+                legend[key] = "Nested structure with keys representing interaction types (e.g., interactive, non_interactive)."
+            elif level == 1:
+                legend[key] = "Keys represent runs, with nested data types (positions, neural timeline, pupil size)."
+            elif level == 2:
+                if key == 'positions' or key == 'pupil_size':
+                    legend[key] = "Data contains m1 and m2 entries."
+                elif key == 'neural_timeline':
+                    legend[key] = "Data contains neural timeline entries common for both m1 and m2."
+            # Stop detailing after reaching max_depth to keep the legend concise
+            if level < max_depth - 1:
+                describe_nested_structure(value, level + 1)
+
+    # Describe the structure with example paths
+    describe_nested_structure(data_dict)
+    # Add example paths to illustrate the structure
+    legend['example_paths'] = []
+    
+    def collect_examples(current_dict, path=[], depth=0):
+        if depth >= max_examples or not isinstance(current_dict, dict):
+            return
+        for key, value in current_dict.items():
+            if isinstance(value, dict):
+                collect_examples(value, path + [key], depth + 1)
+            else:
+                legend['example_paths'].append(" -> ".join(path + [key]))
+                if len(legend['example_paths']) >= max_examples:
+                    return
+
+    collect_examples(data_dict)
+    legend['description'] = (
+        "This legend summarizes the structure of the data. Top-level keys are session dates, followed by interaction "
+        "types, runs, and data types like positions, neural timeline, and pupil size. "
+        "Positions and pupil size contain m1 and m2 data, while neural timeline data is shared."
+    )
+    return legend
+
+
 
 
 def prune_data_file_paths(params):
@@ -266,6 +320,9 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
         else:
             pruned_pupil_size[key] = np.array([])
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
+
+
 
 
 
