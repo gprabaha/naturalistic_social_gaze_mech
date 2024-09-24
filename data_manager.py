@@ -53,11 +53,11 @@ class DataManager:
 
 
     def populate_params_with_data_paths(self):
-        self.params = util.add_root_data_to_params(self.params)
-        self.params = util.add_processed_data_to_params(self.params)
-        self.params = util.add_raw_data_dir_to_params(self.params)
-        self.params = util.add_paths_to_all_data_files_to_params(self.params)
-        self.params = util.prune_data_file_paths(self.params)
+        self.params = curate_data.add_root_data_to_params(self.params)
+        self.params = curate_data.add_processed_data_to_params(self.params)
+        self.params = curate_data.add_raw_data_dir_to_params(self.params)
+        self.params = curate_data.add_paths_to_all_data_files_to_params(self.params)
+        self.params = curate_data.prune_data_file_paths(self.params)
         pdb.set_trace()
         return 0
 
@@ -95,7 +95,7 @@ class DataManager:
                 pruned_interaction_dict = {}
                 for run, run_dict in interaction_dict.items():
                     # Extract the time series
-                    time_series = run_dict.get('time')
+                    time_series = run_dict.get('neural_timeline')
                     if time_series is not None:
                         # Prune NaN values and adjust corresponding timeseries using the helper function
                         pruned_positions, pruned_pupil_size, pruned_time_series = util.prune_nans_in_specific_timeseries(
