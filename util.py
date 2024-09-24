@@ -19,110 +19,8 @@ import pdb
 # Set up a logger for this module
 logger = logging.getLogger(__name__)
 
-def add_root_data_to_params(params):
-    """
-    Sets the root data directory based on cluster and Grace settings.
-    Parameters:
-    - params (dict): Dictionary containing configuration parameters, including flags for cluster and Grace.
-    Returns:
-    - params (dict): Updated dictionary with the 'root_data_dir' field added.
-    """
-    logger.info("Setting root data directory based on cluster and Grace settings.")
-    if params.get('is_cluster', True):
-        root_data_dir = "/gpfs/gibbs/project/chang/pg496/data_dir/social_gaze/" if params.get('is_grace', False) \
-                        else "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/"
-    else:
-        root_data_dir = "/Volumes/Stash/changlab/sorted_neural_data/social_gaze/"
-    params['root_data_dir'] = root_data_dir
-    logger.info(f"Root data directory set to: {root_data_dir}")
-    return params
 
-
-def add_processed_data_to_params(params):
-    """
-    Adds the processed data directory path to the parameters.
-    Parameters:
-    - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
-    Returns:
-    - params (dict): Updated dictionary with 'processed_data_dir' field added.
-    """
-    root_data_dir = params.get('root_data_dir')
-    processed_data_dir = os.path.join(root_data_dir, 'intermediates')
-    params.update({'processed_data_dir': processed_data_dir})
-    logger.info(f"Processed data directory set to: {processed_data_dir}")
-    return params
-
-
-def add_raw_data_dir_to_params(params):
-    """
-    Adds paths to raw data directories for positions, neural timeline, and pupil size.
-    Parameters:
-    - params (dict): Dictionary containing configuration parameters with 'root_data_dir' defined.
-    Returns:
-    - params (dict): Updated dictionary with 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir' fields added.
-    """
-    root_data_dir = params.get('root_data_dir')
-    path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
-    path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
-    path_to_pupil_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/pupil_size')
-    params['positions_dir'] = path_to_positions
-    params['neural_timeline_dir'] = path_to_time_vecs
-    params['pupil_size_dir'] = path_to_pupil_vecs
-    logger.info("Raw data directories added to params.")
-    return params
-
-
-def add_paths_to_all_data_files_to_params(params):
-    """
-    Populates the paths to data files categorized by session, interaction type, and run number.
-    Parameters:
-    - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
-    Returns:
-    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session
-      and interaction type, along with a dynamic legend describing the structure.
-    """
-    # Define directories
-    directories = {
-        'positions': params['positions_dir'],
-        'neural_timeline': params['neural_timeline_dir'],
-        'pupil_size': params['pupil_size_dir']
-    }
-    # Initialize data structure to store file paths
-    paths_dict = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
-    # Define regex to extract session name (date) and run number
-    file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
-    logger.info("Populating paths to data files.")
-    # Iterate over each directory
-    for key, dir_path in directories.items():
-        logger.info(f"Processing directory: {dir_path}")
-        try:
-            for filename in os.listdir(dir_path):
-                match = file_pattern.match(filename)
-                if match:
-                    session_name, file_type, run_number = match.groups()
-                    run_number = int(run_number)
-                    # Initialize session dictionary if not already
-                    if session_name not in paths_dict[key]:
-                        paths_dict[key][session_name] = {
-                            'interactive': {},
-                            'non_interactive': {}
-                        }
-                    # Determine file category and assign path
-                    if file_type == 'position':
-                        paths_dict[key][session_name]['interactive'][run_number] = os.path.join(dir_path, filename)
-                    elif file_type == 'dot':
-                        paths_dict[key][session_name]['non_interactive'][run_number] = os.path.join(dir_path, filename)
-        except Exception as e:
-            logger.error(f"Error processing directory {dir_path}: {e}")
-    # Generate a dynamic legend based on the populated paths dictionary
-    paths_dict['legend'] = generate_legend(paths_dict)
-    logger.info("Paths to all data files populated successfully.")
-    # Update params with the generated paths dictionary
-    params['data_file_paths'] = paths_dict
-    return params
-
-
-def generate_legend(data_dict, max_examples=5):
+def generate_dict_legend(data_dict, max_examples=5):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
     Parameters:
@@ -176,7 +74,6 @@ def describe_nested_dict_structure(current_dict, legend, level=0, max_depth=5):
 def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
     """
     Collects example paths to illustrate the structure of the data dictionary.
-
     Parameters:
     - current_dict (dict): The current level of the dictionary.
     - legend (dict): The legend dictionary to append example paths to.
@@ -196,63 +93,31 @@ def collect_example_dict_paths(current_dict, legend, max_examples, path=[]):
                 break
 
 
-
-
-
-
-
-def prune_data_file_paths(params):
+def check_dict_leaves(data_dict):
     """
-    Prunes the data file paths to ensure that positions, neural timeline, and pupil size all have the same set
-    of file names. Files present in one folder but not the others are discarded and recorded.
+    Checks all leaves of a nested dictionary to find any missing or empty data.
     Parameters:
-    - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
-      and run number.
+    - data_dict (dict): The dictionary to check.
     Returns:
-    - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
-      that records paths of discarded files.
+    - missing_paths (list): List of paths where data is missing or empty.
+    - total_paths (int): The total number of paths checked.
     """
-    logger.info("Pruning data file paths to ensure consistency across data types.")
-    # Extract the data paths dictionary from params
-    paths_dict = params.get('data_file_paths', {})
-    discarded_paths = {'positions': {}, 'neural_timeline': {}, 'pupil_size': {}}
-    # Get the keys (positions, neural_timeline, pupil_size) for processing
-    data_keys = ['positions', 'neural_timeline', 'pupil_size']
-    # Find common sessions across all data types
-    common_sessions = set(paths_dict['positions'].keys())
-    for key in data_keys[1:]:
-        common_sessions.intersection_update(paths_dict[key].keys())
-    # Iterate through common sessions to find common runs and prune mismatches
-    for session in common_sessions:
-        # Gather all run numbers present in each data type for this session
-        runs_per_type = {key: set(paths_dict[key][session]['interactive'].keys()) | set(paths_dict[key][session]['non_interactive'].keys()) for key in data_keys}
-        # Find the intersection of runs that exist in all data types
-        common_runs = set.intersection(*runs_per_type.values())
-        # Prune files not in the common runs for each data type
-        for key in data_keys:
-            # Check interactive runs
-            interactive_runs = set(paths_dict[key][session]['interactive'].keys())
-            non_interactive_runs = set(paths_dict[key][session]['non_interactive'].keys())
-            # Identify runs to discard
-            discard_interactive = interactive_runs - common_runs
-            discard_non_interactive = non_interactive_runs - common_runs
-            # Move discarded interactive runs to discarded paths
-            for run in discard_interactive:
-                if session not in discarded_paths[key]:
-                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
-                discarded_paths[key][session]['interactive'][run] = paths_dict[key][session]['interactive'].pop(run)
-                logger.info(f"Discarded interactive run {run} for session {session} in {key}.")
-            # Move discarded non-interactive runs to discarded paths
-            for run in discard_non_interactive:
-                if session not in discarded_paths[key]:
-                    discarded_paths[key][session] = {'interactive': {}, 'non_interactive': {}}
-                discarded_paths[key][session]['non_interactive'][run] = paths_dict[key][session]['non_interactive'].pop(run)
-                logger.info(f"Discarded non-interactive run {run} for session {session} in {key}.")
-    # Update params with the pruned paths and the discarded paths
-    params['data_file_paths'] = paths_dict
-    params['discarded_paths'] = discarded_paths
-    logger.info("Data file paths pruned successfully.")
-    return params
+    missing_paths = []
+    total_paths = 0
+
+    def recursive_check(d, path=""):
+        nonlocal total_paths
+        for key, value in d.items():
+            current_path = f"{path}/{key}" if path else str(key)
+            if isinstance(value, dict):
+                recursive_check(value, current_path)
+            else:
+                total_paths += 1
+                if value is None or (hasattr(value, "size") and value.size == 0):
+                    missing_paths.append(current_path)
+
+    recursive_check(data_dict)
+    return missing_paths, total_paths
 
 
 def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
