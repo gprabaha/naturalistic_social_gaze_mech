@@ -7,6 +7,75 @@ Created on Tue Apr 30 15:34:44 2024
 """
 
 
+from fixation_detector_class import FixationDetector
+from saccade_detector_class import SaccadeDetector
+
+
+def detect_fixations_and_saccades(gaze_data_dict, agent, params):
+    """
+    Detects fixations and saccades for a specified agent (m1 or m2) across the given gaze data dictionary.
+    Parameters:
+    - gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
+    - agent (str): The agent ('m1' or 'm2') for which to detect fixations and saccades.
+    - params (dict): Configuration parameters, including those for the detectors.
+    Returns:
+    - fixation_dict (dict): A dictionary containing fixation detection results for each session and run.
+    - saccade_dict (dict): A dictionary containing saccade detection results for each session and run.
+    """
+    fixation_dict = {}
+    saccade_dict = {}
+    # Iterate over sessions, interaction types, and runs
+    for session, session_dict in gaze_data_dict.items():
+        fixation_dict[session] = {}
+        saccade_dict[session] = {}
+        for interaction_type, interaction_dict in session_dict.items():
+            fixation_dict[session][interaction_type] = {}
+            saccade_dict[session][interaction_type] = {}
+            for run, run_dict in interaction_dict.items():
+                # Extract 2D position data for the specified agent
+                positions = run_dict.get('positions', {}).get(agent)
+                if positions is not None and positions.size > 0:
+                    # Initialize fixation and saccade detectors
+                    fixation_detector = FixationDetector(
+                        session_name=session,
+                        samprate=params.get('sampling_rate', 1/1000),
+                        params=params,
+                        num_cpus=params.get('num_cpus', 1)
+                    )
+                    saccade_detector = SaccadeDetector(
+                        session_name=session,
+                        samprate=params.get('sampling_rate', 1/1000),
+                        params=params,
+                        num_cpus=params.get('num_cpus', 1)
+                    )
+                    # Detect fixations
+                    fixation_results = fixation_detector.detect_fixations_with_edge_outliers(
+                        (positions[0], positions[1]))
+                    fixation_dict[session][interaction_type][run] = fixation_results
+                    # Detect saccades
+                    saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
+                        (positions[0], positions[1]))
+                    saccade_dict[session][interaction_type][run] = saccade_results
+    return fixation_dict, saccade_dict
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import os
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
