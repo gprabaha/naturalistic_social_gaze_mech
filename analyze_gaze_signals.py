@@ -32,7 +32,7 @@ def main():
 
         'remake_gaze_data_dict': False,
         
-        'try_using_single_run': True,
+        'try_using_single_run': False,
 
         'submit_separate_fix_and_saccade_detect_jobs': True,
 
