@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import os
 import re
-import pickle
+import numpy as np
 
 import load_data
 import util
