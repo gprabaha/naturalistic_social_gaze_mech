@@ -19,28 +19,23 @@ from hpc_fix_and_saccade_detector import HPCFixAndSaccadeDetector
 
 logger = logging.getLogger(__name__)
 
-def detect_fixations_and_saccades(gaze_data_dict, agent, params):
+def detect_fixations_and_saccades(gaze_data_dict, params):
     fixation_dict = {}
     saccade_dict = {}
-
-    # Collect all paths to process
-    paths = collect_paths_to_pos_in_dict(gaze_data_dict, agent)
-    logger.info(f"Starting detection for agent {agent}. Total runs to process: {len(paths)}")
-
+    # Collect all paths to process for both agents
+    paths = collect_paths_to_pos_in_dict(gaze_data_dict)
+    logger.info(f"Starting detection. Total runs to process: {len(paths)} for both agents.")
     # Optionally limit to a randomly chosen single example run if specified in params
     if params.get('try_using_single_run', False) and paths:
         paths = [random.choice(paths)]  # Choose a random path
         logger.info("Selected a single run for processing based on params setting.")
-
-    # Prepare tasks with session, interaction_type, run, and other parameters
-    tasks = [(session, interaction_type, run, agent) for session, interaction_type, run in paths]
-
+    # Prepare tasks with session, interaction_type, run, and agent
+    tasks = [(session, interaction_type, run, agent) for session, interaction_type, run, agent in paths]
     # Save params for HPC job submission
-    params_file_path = os.path.join(params['processed_data_dir'], f'{agent}_params.pkl')
+    params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
         pickle.dump(params, f)
-    logger.info(f"Serialized params to {params_file_path}")
-
+    logger.info(f"Pickle dumped params to {params_file_path}")
     if params.get('use_parallel', False):
         # Use HPCFixAndSaccadeDetector to submit jobs for each task
         detector = HPCFixAndSaccadeDetector(params)
@@ -55,11 +50,11 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
                     fix_dict = pickle.load(f)
-                    fixation_dict.setdefault(session, {}).setdefault(interaction_type, {})[run] = fix_dict[session][interaction_type][run]
+                    fixation_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = fix_dict[session][interaction_type][run][agent]
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
                     sacc_dict = pickle.load(f)
-                    saccade_dict.setdefault(session, {}).setdefault(interaction_type, {})[run] = sacc_dict[session][interaction_type][run]
+                    saccade_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = sacc_dict[session][interaction_type][run][agent]
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")
@@ -72,18 +67,21 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
                 for interaction_type, runs in interaction_types.items():
                     if interaction_type not in fixation_dict[session]:
                         fixation_dict[session][interaction_type] = {}
-                    for run, result in runs.items():
-                        fixation_dict[session][interaction_type][run] = result
+                    for run, agents in runs.items():
+                        if run not in fixation_dict[session][interaction_type]:
+                            fixation_dict[session][interaction_type][run] = {}
+                        fixation_dict[session][interaction_type][run].update(agents)
             for session, interaction_types in sacc_dict.items():
                 if session not in saccade_dict:
                     saccade_dict[session] = {}
                 for interaction_type, runs in interaction_types.items():
                     if interaction_type not in saccade_dict[session]:
                         saccade_dict[session][interaction_type] = {}
-                    for run, result in runs.items():
-                        saccade_dict[session][interaction_type][run] = result
-
-    logger.info(f"Detection completed for agent {agent}.")
+                    for run, agents in runs.items():
+                        if run not in saccade_dict[session][interaction_type]:
+                            saccade_dict[session][interaction_type][run] = {}
+                        saccade_dict[session][interaction_type][run].update(agents)
+    logger.info("Detection completed for both agents.")
     return fixation_dict, saccade_dict
 
 
@@ -99,10 +97,8 @@ def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
     """
     session, interaction_type, run, agent, params = args
     fixation_dict, saccade_dict = {}, {}
-
     # Fetch the required positions data from the gaze_data_dict
     positions = gaze_data_dict[session][interaction_type][run].get('positions', {}).get(agent)
-
     if positions is not None and positions.size > 0:
         # Initialize fixation and saccade detectors
         fixation_detector = fixation_detector_class.FixationDetector(
@@ -123,34 +119,38 @@ def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
         )
         fixation_dict[session] = {interaction_type: {run: fixation_results}}
         logger.debug(f"Detected fixations for session: {session}, interaction_type: {interaction_type}, run: {run}")
-
         # Detect saccades
         saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
             (positions[0], positions[1])
         )
         saccade_dict[session] = {interaction_type: {run: saccade_results}}
         logger.debug(f"Detected saccades for session: {session}, interaction_type: {interaction_type}, run: {run}")
-
     return fixation_dict, saccade_dict
 
-def collect_paths_to_pos_in_dict(gaze_data_dict, agent):
+
+def collect_paths_to_pos_in_dict(gaze_data_dict):
     """
     Collects all paths within the nested gaze_data_dict where 
     the fixation and saccade detectors need to be executed.
     Parameters:
     - gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
-    - agent (str): The agent ('m1' or 'm2') for which to collect paths.
     Returns:
-    - paths (list): A list of tuples, each containing (session, interaction_type, run).
+    - paths (list): A list of tuples, each containing (session, interaction_type, run, agent).
     """
     paths = []
     for session, session_dict in gaze_data_dict.items():
         for interaction_type, interaction_dict in session_dict.items():
-            for run in interaction_dict.keys():
-                paths.append((session, interaction_type, run))
-                logger.debug(f"Collected path for session: {session}, interaction_type: {interaction_type}, run: {run}")
-    logger.info(f"Collected {len(paths)} paths for agent {agent}.")
+            for run, run_data in interaction_dict.items():
+                # Check if positions for m1 and m2 exist and add them to the paths
+                if 'm1' in run_data.get('positions', {}):
+                    paths.append((session, interaction_type, run, 'm1'))
+                    logger.debug(f"Collected path for session: {session}, interaction_type: {interaction_type}, run: {run}, agent: m1")
+                if 'm2' in run_data.get('positions', {}):
+                    paths.append((session, interaction_type, run, 'm2'))
+                    logger.debug(f"Collected path for session: {session}, interaction_type: {interaction_type}, run: {run}, agent: m2")
+    logger.info(f"Collected {len(paths)} paths for both agents.")
     return paths
+
 
 
 

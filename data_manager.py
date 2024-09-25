@@ -93,15 +93,9 @@ class DataManager:
     def analyze_behavior(self):
         self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict)
         # Detect fixations and saccades for m1
-        self.fixation_dict_m1, self.saccade_dict_m1 = fix_and_saccades.detect_fixations_and_saccades(
-            self.nan_removed_gaze_data_dict, agent='m1', params=self.params
+        self.fixation_dict, self.saccade_dict = fix_and_saccades.detect_fixations_and_saccades(
+            self.nan_removed_gaze_data_dict, params=self.params
         )
-        pdb.set_trace()
-        return 0
-        # # Detect fixations and saccades for m2
-        # self.fixation_dict_m2, self.saccade_dict_m2 = fix_and_saccades.detect_fixations_and_saccades(
-        #     self.nan_removed_gaze_data_dict, agent='m2', params=self.params
-        # )
 
 
     def run(self):
