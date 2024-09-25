@@ -6,18 +6,6 @@ Created on Tue Apr 30 15:34:44 2024
 @author: pg496
 """
 
-
-import logging
-import random
-
-import fixation_detector_class
-import saccade_detector_class
-
-
-logger = logging.getLogger(__name__)
-
-
-
 import logging
 import random
 import fixation_detector_class
@@ -48,17 +36,19 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
     if params.get('try_using_single_run', False) and paths:
         paths = [random.choice(paths)]  # Choose a random path
         logger.info("Selected a single run for processing based on params setting.")
-    tasks = [(session, interaction_type, run, agent, params) for session, interaction_type, run in paths]
+
+    # Include gaze_data_dict directly in the task arguments
+    tasks = [(session, interaction_type, run, agent, params, gaze_data_dict) for session, interaction_type, run in paths]
     if params.get('use_parallel', False):
         # Run in parallel using multiprocessing
         logger.info("Running in parallel mode.")
         with Pool(processes=min(cpu_count(), params.get('num_cpus', 1))) as pool:
-            results = list(tqdm(pool.imap(lambda task: process_fix_and_saccade_for_specific_run(task, gaze_data_dict), tasks), 
+            results = list(tqdm(pool.imap(process_fix_and_saccade_for_specific_run, tasks), 
                                 total=len(tasks), desc="Processing runs"))
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")
-        results = [process_fix_and_saccade_for_specific_run(task, gaze_data_dict) for task in tqdm(tasks, total=len(tasks), desc="Processing runs")]
+        results = [process_fix_and_saccade_for_specific_run(task) for task in tqdm(tasks, total=len(tasks), desc="Processing runs")]
     # Combine results
     for fix_dict, sacc_dict in results:
         # Combine fixation results
@@ -85,19 +75,19 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
     return fixation_dict, saccade_dict
 
 
-def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
+def process_fix_and_saccade_for_specific_run(args):
     """
     Processes fixations and saccades for a specific run.
     Parameters:
-    - args (tuple): A tuple containing session, interaction_type, run, agent, and params.
-    - gaze_data_dict (dict): The gaze data dictionary containing position data.
+    - args (tuple): A tuple containing session, interaction_type, run, agent, params, and gaze_data_dict.
     Returns:
     - fixation_dict (dict): A dictionary containing fixation detection results for the specific run.
     - saccade_dict (dict): A dictionary containing saccade detection results for the specific run.
     """
-    session, interaction_type, run, agent, params = args
+    session, interaction_type, run, agent, params, gaze_data_dict = args
     fixation_dict, saccade_dict = {}, {}
     positions = gaze_data_dict[session][interaction_type][run].get('positions', {}).get(agent)
+
     if positions is not None and positions.size > 0:
         # Initialize fixation and saccade detectors
         fixation_detector = fixation_detector_class.FixationDetector(
@@ -145,6 +135,7 @@ def collect_paths_to_pos_in_dict(gaze_data_dict, agent):
                 logger.debug(f"Collected path for session: {session}, interaction_type: {interaction_type}, run: {run}")
     logger.info(f"Collected {len(paths)} paths for agent {agent}.")
     return paths
+
 
 
 
