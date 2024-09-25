@@ -8,7 +8,7 @@ Created on Wed Sep 18 14::51:42 2024
 
 import logging
 import os
-import pickle
+import multiprocessing
 
 import util
 import curate_data
@@ -21,8 +21,28 @@ import pdb
 class DataManager:
     def __init__(self, params):
         self.params = params
+        self.find_n_cores()
         self.setup_logger()
         self.initialize_class_objects()
+
+
+    def find_n_cores(self):
+        """Determine the number of CPU cores available, prioritizing SLURM if available."""
+        try:
+            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
+            num_cpus = int(slurm_cpus)
+            self.logger.info(f"SLURM detected {num_cpus} CPUs")
+        except Exception as e:
+            self.logger.warning(f"Failed to detect cores with SLURM_CPUS_ON_NODE: {e}")
+            num_cpus = None
+        
+        if num_cpus is None or num_cpus <= 1:
+            num_cpus = multiprocessing.cpu_count()
+            self.logger.info(f"Multiprocessing detected {num_cpus} CPUs")
+        os.environ['NUMEXPR_MAX_THREADS'] = str(num_cpus)
+        self.num_cpus = num_cpus
+        self.params['num_cpus'] = num_cpus
+        self.logger.info(f"NumExpr set to use {num_cpus} threads")
 
 
     def setup_logger(self):
@@ -31,6 +51,7 @@ class DataManager:
 
 
     def initialize_class_objects(self):
+        """Initialize class object attributes."""
         self.gaze_data_dict = None
         self.empty_gaze_dict_paths = None
         self.nan_removed_gaze_data_dict = None
@@ -41,6 +62,7 @@ class DataManager:
         self.saccade_df_m2 = None
         self.microsaccade_df_m1 = None
         self.microsaccade_df_m2 = None
+
 
 
     def populate_params_with_data_paths(self):
@@ -75,10 +97,10 @@ class DataManager:
         self.fixation_dict_m1, self.saccade_dict_m1 = fix_and_saccades.detect_fixations_and_saccades(
             self.nan_removed_gaze_data_dict, agent='m1', params=self.params
         )
-        # Detect fixations and saccades for m2
-        self.fixation_dict_m2, self.saccade_dict_m2 = fix_and_saccades.detect_fixations_and_saccades(
-            self.nan_removed_gaze_data_dict, agent='m2', params=self.params
-        )
+        # # Detect fixations and saccades for m2
+        # self.fixation_dict_m2, self.saccade_dict_m2 = fix_and_saccades.detect_fixations_and_saccades(
+        #     self.nan_removed_gaze_data_dict, agent='m2', params=self.params
+        # )
 
 
     def run(self):

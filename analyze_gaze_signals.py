@@ -6,18 +6,9 @@ Created on Wed May 22 14:19:31 2024
 @author: pg496
 """
 
-import os
-import re
-
-import util
-import filter_behav
-import load_data
-import fix_and_saccades
-
 import logging
 
 from data_manager import DataManager
-
 
 def main():
     # Configure the root logger
@@ -39,10 +30,9 @@ def main():
         'num_cpus': None,
         'do_local_reclustering_in_parallel': False,
 
-        'remake_gaze_data_dict': True,
+        'remake_gaze_data_dict': False,
         
         'try_using_single_run': True,
-
 
         'remake_gaze_position_dict_m1': False,
         'remake_gaze_position_dict_m2': False,
