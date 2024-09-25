@@ -7,8 +7,29 @@ Created on Tue Apr 30 15:34:44 2024
 """
 
 
-from fixation_detector_class import FixationDetector
-from saccade_detector_class import SaccadeDetector
+import fixation_detector_class
+import saccade_detector_class
+import random
+
+
+def collect_positions_with_paths(gaze_data_dict, agent):
+    """
+    Collects all paths within the nested gaze_data_dict along with positions data where 
+    the fixation and saccade detectors need to be executed.
+    Parameters:
+    - gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
+    - agent (str): The agent ('m1' or 'm2') for which to collect paths and positions data.
+    Returns:
+    - positions_data (list): A list of tuples, each containing (session, interaction_type, run, positions).
+    """
+    positions_data = []
+    for session, session_dict in gaze_data_dict.items():
+        for interaction_type, interaction_dict in session_dict.items():
+            for run, run_dict in interaction_dict.items():
+                positions = run_dict.get('positions', {}).get(agent)
+                if positions is not None and positions.size > 0:
+                    positions_data.append((session, interaction_type, run, positions))
+    return positions_data
 
 
 def detect_fixations_and_saccades(gaze_data_dict, agent, params):
@@ -24,39 +45,47 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
     """
     fixation_dict = {}
     saccade_dict = {}
-    # Iterate over sessions, interaction types, and runs
-    for session, session_dict in gaze_data_dict.items():
-        fixation_dict[session] = {}
-        saccade_dict[session] = {}
-        for interaction_type, interaction_dict in session_dict.items():
+    # Collect all paths and positions data to process
+    positions_data = collect_positions_with_paths(gaze_data_dict, agent)
+    # Optionally limit to a randomly chosen single example run if specified in params
+    if params.get('try_using_single_run', False) and positions_data:
+        positions_data = [random.choice(positions_data)]  # Choose a random path
+    # Process each path and positions data
+    for session, interaction_type, run, positions in positions_data:
+        # Initialize dictionaries if not already present
+        if session not in fixation_dict:
+            fixation_dict[session] = {}
+            saccade_dict[session] = {}
+        if interaction_type not in fixation_dict[session]:
             fixation_dict[session][interaction_type] = {}
             saccade_dict[session][interaction_type] = {}
-            for run, run_dict in interaction_dict.items():
-                # Extract 2D position data for the specified agent
-                positions = run_dict.get('positions', {}).get(agent)
-                if positions is not None and positions.size > 0:
-                    # Initialize fixation and saccade detectors
-                    fixation_detector = FixationDetector(
-                        session_name=session,
-                        samprate=params.get('sampling_rate', 1/1000),
-                        params=params,
-                        num_cpus=params.get('num_cpus', 1)
-                    )
-                    saccade_detector = SaccadeDetector(
-                        session_name=session,
-                        samprate=params.get('sampling_rate', 1/1000),
-                        params=params,
-                        num_cpus=params.get('num_cpus', 1)
-                    )
-                    # Detect fixations
-                    fixation_results = fixation_detector.detect_fixations_with_edge_outliers(
-                        (positions[0], positions[1]))
-                    fixation_dict[session][interaction_type][run] = fixation_results
-                    # Detect saccades
-                    saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
-                        (positions[0], positions[1]))
-                    saccade_dict[session][interaction_type][run] = saccade_results
+        # Initialize fixation and saccade detectors
+        fixation_detector = fixation_detector_class.FixationDetector(
+            session_name=session,
+            samprate=params.get('sampling_rate', 1 / 1000),
+            params=params,
+            num_cpus=params.get('num_cpus', 1)
+        )
+        saccade_detector = saccade_detector_class.SaccadeDetector(
+            session_name=session,
+            samprate=params.get('sampling_rate', 1 / 1000),
+            params=params,
+            num_cpus=params.get('num_cpus', 1)
+        )
+        # Detect fixations
+        fixation_results = fixation_detector.detect_fixations_with_edge_outliers(
+            (positions[0], positions[1])
+        )
+        fixation_dict[session][interaction_type][run] = fixation_results
+        # Detect saccades
+        saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
+            (positions[0], positions[1])
+        )
+        saccade_dict[session][interaction_type][run] = saccade_results
     return fixation_dict, saccade_dict
+
+
+
 
 
 
