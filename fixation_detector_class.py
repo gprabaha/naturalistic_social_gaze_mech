@@ -36,7 +36,7 @@ class FixationDetector:
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
 
 
     def detect_fixations_with_edge_outliers(self, eyedat):

@@ -7,9 +7,14 @@ Created on Tue Apr 30 15:34:44 2024
 """
 
 
+import logging
+import random
+
 import fixation_detector_class
 import saccade_detector_class
-import random
+
+
+logger = logging.getLogger(__name__)
 
 
 def collect_positions_with_paths(gaze_data_dict, agent):
@@ -29,6 +34,8 @@ def collect_positions_with_paths(gaze_data_dict, agent):
                 positions = run_dict.get('positions', {}).get(agent)
                 if positions is not None and positions.size > 0:
                     positions_data.append((session, interaction_type, run, positions))
+                    logger.debug(f"Collected positions for session: {session}, interaction_type: {interaction_type}, run: {run}")
+    logger.info(f"Collected {len(positions_data)} positions paths for agent {agent}.")
     return positions_data
 
 
@@ -47,11 +54,14 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
     saccade_dict = {}
     # Collect all paths and positions data to process
     positions_data = collect_positions_with_paths(gaze_data_dict, agent)
+    logger.info(f"Starting detection for agent {agent}. Total runs to process: {len(positions_data)}")
     # Optionally limit to a randomly chosen single example run if specified in params
     if params.get('try_using_single_run', False) and positions_data:
         positions_data = [random.choice(positions_data)]  # Choose a random path
+        logger.info(f"Selected a single run for processing based on params setting.")
     # Process each path and positions data
     for session, interaction_type, run, positions in positions_data:
+        logger.debug(f"Processing session: {session}, interaction_type: {interaction_type}, run: {run}")
         # Initialize dictionaries if not already present
         if session not in fixation_dict:
             fixation_dict[session] = {}
@@ -77,12 +87,16 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
             (positions[0], positions[1])
         )
         fixation_dict[session][interaction_type][run] = fixation_results
+        logger.debug(f"Detected fixations for session: {session}, interaction_type: {interaction_type}, run: {run}")
         # Detect saccades
         saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
             (positions[0], positions[1])
         )
         saccade_dict[session][interaction_type][run] = saccade_results
+        logger.debug(f"Detected saccades for session: {session}, interaction_type: {interaction_type}, run: {run}")
+    logger.info(f"Detection completed for agent {agent}.")
     return fixation_dict, saccade_dict
+
 
 
 
