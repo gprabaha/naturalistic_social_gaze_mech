@@ -20,10 +20,15 @@ import pdb
 
 class DataManager:
     def __init__(self, params):
+        self.setup_logger()
         self.params = params
         self.find_n_cores()
-        self.setup_logger()
         self.initialize_class_objects()
+
+
+    def setup_logger(self):
+        """Setup the logger for the DataManager."""
+        self.logger = logging.getLogger(__name__)
 
 
     def find_n_cores(self):
@@ -45,11 +50,6 @@ class DataManager:
         self.logger.info(f"NumExpr set to use {num_cpus} threads")
 
 
-    def setup_logger(self):
-        """Setup the logger for the DataManager."""
-        self.logger = logging.getLogger(__name__)
-
-
     def initialize_class_objects(self):
         """Initialize class object attributes."""
         self.gaze_data_dict = None
@@ -62,7 +62,6 @@ class DataManager:
         self.saccade_df_m2 = None
         self.microsaccade_df_m1 = None
         self.microsaccade_df_m2 = None
-
 
 
     def populate_params_with_data_paths(self):
@@ -92,7 +91,7 @@ class DataManager:
 
 
     def analyze_behavior(self):
-        self.nan_removed_gaze_data_dict = util.prune_nan_values_in_timeseries(self.gaze_data_dict)
+        self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict)
         # Detect fixations and saccades for m1
         self.fixation_dict_m1, self.saccade_dict_m1 = fix_and_saccades.detect_fixations_and_saccades(
             self.nan_removed_gaze_data_dict, agent='m1', params=self.params
