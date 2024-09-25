@@ -12,20 +12,14 @@ import fixation_detector_class
 import saccade_detector_class
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
+import pickle
+
+from hpc_fix_and_saccade_detector import HPCFixAndSaccadeDetector
+
 
 logger = logging.getLogger(__name__)
 
 def detect_fixations_and_saccades(gaze_data_dict, agent, params):
-    """
-    Detects fixations and saccades for a specified agent (m1 or m2) across the given gaze data dictionary.
-    Parameters:
-    - gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
-    - agent (str): The agent ('m1' or 'm2') for which to detect fixations and saccades.
-    - params (dict): Configuration parameters, including those for the detectors.
-    Returns:
-    - fixation_dict (dict): A dictionary containing fixation detection results for each session and run.
-    - saccade_dict (dict): A dictionary containing saccade detection results for each session and run.
-    """
     fixation_dict = {}
     saccade_dict = {}
 
@@ -39,45 +33,59 @@ def detect_fixations_and_saccades(gaze_data_dict, agent, params):
         logger.info("Selected a single run for processing based on params setting.")
 
     # Prepare tasks with session, interaction_type, run, and other parameters
-    tasks = [(session, interaction_type, run, agent, params) for session, interaction_type, run in paths]
+    tasks = [(session, interaction_type, run, agent) for session, interaction_type, run in paths]
+
+    # Save params for HPC job submission
+    params_file_path = os.path.join(params['processed_data_dir'], f'{agent}_params.pkl')
+    with open(params_file_path, 'wb') as f:
+        pickle.dump(params, f)
+    logger.info(f"Serialized params to {params_file_path}")
 
     if params.get('use_parallel', False):
-        # Run in parallel using multiprocessing
-        logger.info("Running in parallel mode.")
-        with Pool(processes=min(cpu_count(), params.get('num_cpus', 1))) as pool:
-            results = list(tqdm(pool.imap(lambda args: process_fix_and_saccade_for_specific_run(args, gaze_data_dict), tasks),
-                                total=len(tasks), desc="Processing runs"))
+        # Use HPCFixAndSaccadeDetector to submit jobs for each task
+        detector = HPCFixAndSaccadeDetector(params)
+        job_file_path = detector.generate_job_file(tasks, params_file_path)
+        detector.submit_job_array(job_file_path)
+        # Combine results after jobs have completed
+        for task in tasks:
+            session, interaction_type, run, agent = task
+            run_str = str(run)  # Convert run to string for file path
+            fix_path = os.path.join(params['processed_data_dir'], f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
+            sacc_path = os.path.join(params['processed_data_dir'], f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
+            if os.path.exists(fix_path):
+                with open(fix_path, 'rb') as f:
+                    fix_dict = pickle.load(f)
+                    fixation_dict.setdefault(session, {}).setdefault(interaction_type, {})[run] = fix_dict[session][interaction_type][run]
+            if os.path.exists(sacc_path):
+                with open(sacc_path, 'rb') as f:
+                    sacc_dict = pickle.load(f)
+                    saccade_dict.setdefault(session, {}).setdefault(interaction_type, {})[run] = sacc_dict[session][interaction_type][run]
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")
         results = [process_fix_and_saccade_for_specific_run(task, gaze_data_dict) for task in tqdm(tasks, total=len(tasks), desc="Processing runs")]
-
-    # Combine results
-    for fix_dict, sacc_dict in results:
-        # Combine fixation results
-        for session, interaction_types in fix_dict.items():
-            if session not in fixation_dict:
-                fixation_dict[session] = {}
-            for interaction_type, runs in interaction_types.items():
-                if interaction_type not in fixation_dict[session]:
-                    fixation_dict[session][interaction_type] = {}
-                # Update or add runs, ensuring each run has a separate entry
-                for run, result in runs.items():
-                    fixation_dict[session][interaction_type][run] = result
-
-        # Combine saccade results
-        for session, interaction_types in sacc_dict.items():
-            if session not in saccade_dict:
-                saccade_dict[session] = {}
-            for interaction_type, runs in interaction_types.items():
-                if interaction_type not in saccade_dict[session]:
-                    saccade_dict[session][interaction_type] = {}
-                # Update or add runs, ensuring each run has a separate entry
-                for run, result in runs.items():
-                    saccade_dict[session][interaction_type][run] = result
+        # Combine results
+        for fix_dict, sacc_dict in results:
+            for session, interaction_types in fix_dict.items():
+                if session not in fixation_dict:
+                    fixation_dict[session] = {}
+                for interaction_type, runs in interaction_types.items():
+                    if interaction_type not in fixation_dict[session]:
+                        fixation_dict[session][interaction_type] = {}
+                    for run, result in runs.items():
+                        fixation_dict[session][interaction_type][run] = result
+            for session, interaction_types in sacc_dict.items():
+                if session not in saccade_dict:
+                    saccade_dict[session] = {}
+                for interaction_type, runs in interaction_types.items():
+                    if interaction_type not in saccade_dict[session]:
+                        saccade_dict[session][interaction_type] = {}
+                    for run, result in runs.items():
+                        saccade_dict[session][interaction_type][run] = result
 
     logger.info(f"Detection completed for agent {agent}.")
     return fixation_dict, saccade_dict
+
 
 def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
     """
