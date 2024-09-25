@@ -13,7 +13,7 @@ from data_manager import DataManager
 def main():
     # Configure the root logger
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler()
@@ -33,6 +33,8 @@ def main():
         'remake_gaze_data_dict': False,
         
         'try_using_single_run': True,
+
+        'submit_separate_fix_and_saccade_detect_jobs': True,
 
         'remake_gaze_position_dict_m1': False,
         'remake_gaze_position_dict_m2': False,
