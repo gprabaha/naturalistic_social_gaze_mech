@@ -23,9 +23,9 @@ class HPCFixAndSaccadeDetector:
                 session, interaction_type, run, agent = task
                 task_key = f"{session},{interaction_type},{run},{agent}"
                 command = (
-                    f"module load miniconda; conda deactivate; "
+                    f"module load miniconda; "
                     f"conda activate {env_name}; "
-                    f"python {self.python_script_path} {task_key} {params_file_path} {session} {interaction_type} {run} {agent}"
+                    f"python {self.python_script_path} {task_key} {params_file_path}"
                 )
                 file.write(command + "\n")
         self.logger.info(f"Generated job file at {job_file_path}")

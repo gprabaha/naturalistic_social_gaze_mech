@@ -1,0 +1,1 @@
+module load miniconda; conda deactivate; conda activate gaze_processing; python run_single_fix_and_saccade_detection_task.py 01132019,interactive,1,m2 /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl 01132019 interactive 1 m2

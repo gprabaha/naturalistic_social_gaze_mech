@@ -1,0 +1,9 @@
+
+CondaError: Run 'conda init' before 'conda deactivate'
+
+Traceback (most recent call last):
+  File "run_single_fix_and_saccade_detection_task.py", line 46, in <module>
+    main(task_key, params_file_path)
+  File "run_single_fix_and_saccade_detection_task.py", line 33, in main
+    fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(task_args, gaze_data_dict, params)
+TypeError: process_fix_and_saccade_for_specific_run() takes 2 positional arguments but 3 were given
