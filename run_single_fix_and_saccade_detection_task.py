@@ -32,14 +32,13 @@ def main(task_key, params_file_path):
         sys.exit(1)
     # Paths to gaze data dictionary and missing data paths
     processed_data_dir = params['processed_data_dir']
-    gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
-    missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
+    nan_removed_gaze_data_dict_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_dict.pkl')
     # Load gaze data dictionary
     try:
-        gaze_data_dict, _ = load_data.get_gaze_data_dict(gaze_data_file_path, missing_data_file_path)
+        nan_removed_gaze_data_dict_path = load_data.get_nan_removed_gaze_data_dict(nan_removed_gaze_data_dict_path)
         logger.info("Gaze data dictionary loaded successfully.")
     except Exception as e:
-        logger.error(f"Failed to load gaze data from {gaze_data_file_path} or {missing_data_file_path}: {e}")
+        logger.error(f"Failed to load gaze data from {nan_removed_gaze_data_dict_path}: {e}")
         sys.exit(1)
     # Parse task_key to fetch the required positions array
     try:
@@ -56,7 +55,7 @@ def main(task_key, params_file_path):
     task_args = (session, interaction_type, run, agent, params)
     # Run fixation and saccade detection
     try:
-        fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(task_args, gaze_data_dict)
+        fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(task_args, nan_removed_gaze_data_dict_path)
         logger.info("Fixation and saccade detection completed successfully.")
     except Exception as e:
         logger.error(f"Failed during fixation and saccade detection: {e}")

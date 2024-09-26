@@ -12,6 +12,7 @@ from tqdm import tqdm
 import os
 import re
 import numpy as np
+import pickle
 
 import load_data
 import util
@@ -382,13 +383,14 @@ def process_pupil_file(mat_file):
     return None, None
 
 
-def prune_nan_values_in_timeseries(gaze_data_dict):
+def prune_nan_values_in_timeseries(gaze_data_dict, params):
     """
     Prunes NaN values from the time series in the gaze data dictionary and 
     adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
-    The pruned dictionary is returned as `nan_removed_gaze_data_dict`.
+    The pruned dictionary is saved to the processed data directory specified in params.
     Parameters:
     - gaze_data_dict (dict): The gaze data dictionary containing session, interaction type, and run data.
+    - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
     - nan_removed_gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
     """
@@ -420,7 +422,18 @@ def prune_nan_values_in_timeseries(gaze_data_dict):
                     pruned_interaction_dict[run] = pruned_run_dict
             pruned_session_dict[interaction_type] = pruned_interaction_dict
         nan_removed_gaze_data_dict[session] = pruned_session_dict
+    # Save the pruned gaze data dictionary to the processed data directory
+    processed_data_dir = params['processed_data_dir']
+    output_filename = 'nan_removed_gaze_data_dict.pkl'
+    output_path = os.path.join(processed_data_dir, output_filename)
+    try:
+        with open(output_path, 'wb') as f:
+            pickle.dump(nan_removed_gaze_data_dict, f)
+        logger.info(f"NaN removed gaze data dictionary saved successfully at {output_path}")
+    except Exception as e:
+        logger.error(f"Failed to save NaN removed gaze data dictionary: {e}")
     return nan_removed_gaze_data_dict
+
 
 
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):

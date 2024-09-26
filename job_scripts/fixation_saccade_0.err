@@ -1,8 +1,12 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-2024-09-26 10:57:45,353 - INFO - Starting the main function
-2024-09-26 10:57:45,357 - INFO - Parameters loaded successfully.
-2024-09-26 10:57:55,520 - INFO - Gaze data dictionary loaded successfully.
-2024-09-26 10:57:55,520 - INFO - Parsed task key successfully: 09112018,interactive,3,m1
-2024-09-26 10:57:55,520 - ERROR - Failed during fixation and saccade detection: not enough values to unpack (expected 5, got 4)
+2024-09-26 11:03:24,352 - INFO - Starting the main function
+2024-09-26 11:03:24,354 - INFO - Parameters loaded successfully.
+2024-09-26 11:03:35,133 - INFO - Gaze data dictionary loaded successfully.
+2024-09-26 11:03:35,135 - INFO - Parsed task key successfully: session: 09292018; interaction_type: interactive; run: 7; agent: m2
+2024-09-26 11:03:36,343 - fixation_detector_class - INFO - Starting global_clustering...
+2024-09-26 11:03:36,345 - fixation_detector_class - INFO - Using parallel processing for global clustering
+2024-09-26 11:03:36,345 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
+Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]
+2024-09-26 11:03:36,658 - ERROR - Failed during fixation and saccade detection: Input contains NaN, infinity or a value too large for dtype('float64').
