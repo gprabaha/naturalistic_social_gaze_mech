@@ -1,0 +1,1 @@
+0	0	r811u34n03.milgram.ycrc.yale.edu	2024-09-26 11:21:20	2024-09-26 11:22:21	61.82	module load miniconda; conda activate gaze_processing; python run_single_fix_and_saccade_detection_task.py 08102018,interactive,1,m1 /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl

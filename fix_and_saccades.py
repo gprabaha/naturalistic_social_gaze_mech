@@ -113,14 +113,14 @@ def process_fix_and_saccade_for_specific_run(args, nan_removed_gaze_data_dict):
         fixation_results = fixation_detector.detect_fixations_with_edge_outliers(
             (positions[0], positions[1])
         )
-        fixation_dict[session] = {interaction_type: {run: fixation_results}}
-        logger.debug(f"Detected fixations for session: {session}, interaction_type: {interaction_type}, run: {run}")
+        fixation_dict[session] = {interaction_type: {run: {agent: fixation_results}}}
+        logger.info(f"Detected fixations for session: {session}, interaction_type: {interaction_type}, run: {run}, , agent: {agent}")
         # Detect saccades
         saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
             (positions[0], positions[1])
         )
-        saccade_dict[session] = {interaction_type: {run: saccade_results}}
-        logger.debug(f"Detected saccades for session: {session}, interaction_type: {interaction_type}, run: {run}")
+        saccade_dict[session] = {interaction_type: {run: {agent: saccade_results}}}
+        logger.info(f"Detected saccades for session: {session}, interaction_type: {interaction_type}, run: {run}, agent: {agent}")
     return fixation_dict, saccade_dict
 
 
