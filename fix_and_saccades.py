@@ -19,11 +19,11 @@ from hpc_fix_and_saccade_detector import HPCFixAndSaccadeDetector
 
 logger = logging.getLogger(__name__)
 
-def detect_fixations_and_saccades(gaze_data_dict, params):
+def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
     fixation_dict = {}
     saccade_dict = {}
     # Collect all paths to process for both agents
-    paths = collect_paths_to_pos_in_dict(gaze_data_dict)
+    paths = collect_paths_to_pos_in_dict(nan_removed_gaze_data_dict)
     logger.info(f"Starting detection. Total runs to process: {len(paths)} for both agents.")
     # Optionally limit to a randomly chosen single example run if specified in params
     if params.get('try_using_single_run', False) and paths:
@@ -63,7 +63,7 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
         # Run in serial mode
         logger.info("Running in serial mode.")
         results = [process_fix_and_saccade_for_specific_run(
-            task, gaze_data_dict) for task in tqdm(
+            task, nan_removed_gaze_data_dict) for task in tqdm(
                 dict_entries_for_tasks,
                 total=len(dict_entries_for_tasks),
                 desc="Processing runs")]
@@ -81,7 +81,7 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
     return fixation_dict, saccade_dict
 
 
-def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
+def process_fix_and_saccade_for_specific_run(args, nan_removed_gaze_data_dict):
     """
     Processes fixations and saccades for a specific run.
     Parameters:
@@ -94,7 +94,7 @@ def process_fix_and_saccade_for_specific_run(args, gaze_data_dict):
     session, interaction_type, run, agent, params = args
     fixation_dict, saccade_dict = {}, {}
     # Fetch the required positions data from the gaze_data_dict
-    positions = gaze_data_dict[session][interaction_type][run].get('positions', {}).get(agent)
+    positions = nan_removed_gaze_data_dict[session][interaction_type][run].get('positions', {}).get(agent)
     if positions is not None and positions.size > 0:
         # Initialize fixation and saccade detectors
         fixation_detector = fixation_detector_class.FixationDetector(

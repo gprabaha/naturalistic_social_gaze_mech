@@ -56,12 +56,8 @@ class DataManager:
         self.empty_gaze_dict_paths = None
         self.nan_removed_gaze_data_dict = None
 
-        self.fixation_df_m1 = None
-        self.fixation_df_m2 = None
-        self.saccade_df_m1 = None
-        self.saccade_df_m2 = None
-        self.microsaccade_df_m1 = None
-        self.microsaccade_df_m2 = None
+        self.fixation_dict = None
+        self.saccade_dict = None
 
 
     def populate_params_with_data_paths(self):
@@ -90,8 +86,11 @@ class DataManager:
         )
 
 
+    def prune_data(self):
+        self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict, self.params)
+
+
     def analyze_behavior(self):
-        self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict)
         # Detect fixations and saccades for m1
         self.fixation_dict, self.saccade_dict = fix_and_saccades.detect_fixations_and_saccades(
             self.nan_removed_gaze_data_dict, params=self.params
@@ -101,6 +100,7 @@ class DataManager:
     def run(self):
         self.populate_params_with_data_paths()
         self.get_data()
+        self.prune_data()
         self.analyze_behavior()
 
 
