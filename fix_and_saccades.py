@@ -30,7 +30,7 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
         paths = [random.choice(paths)]  # Choose a random path
         logger.info("Selected a single run for processing based on params setting.")
     # Prepare tasks with session, interaction_type, run, and agent
-    tasks = [(session, interaction_type, run, agent) for session, interaction_type, run, agent in paths]
+    dict_entries_for_tasks = [(session, interaction_type, run, agent) for session, interaction_type, run, agent in paths]
     # Save params for HPC job submission
     params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
@@ -39,10 +39,10 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
     if params.get('use_parallel', False):
         # Use HPCFixAndSaccadeDetector to submit jobs for each task
         detector = HPCFixAndSaccadeDetector(params)
-        job_file_path = detector.generate_job_file(tasks, params_file_path)
+        job_file_path = detector.generate_job_file(dict_entries_for_tasks, params_file_path)
         detector.submit_job_array(job_file_path)
         # Combine results after jobs have completed
-        for task in tasks:
+        for task in dict_entries_for_tasks:
             session, interaction_type, run, agent = task
             run_str = str(run)  # Convert run to string for file path
             fix_path = os.path.join(params['processed_data_dir'], f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
