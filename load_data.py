@@ -41,7 +41,8 @@ def get_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
         logger.error(f"Failed to load gaze data: {e}")
         raise
 
-def get_nan_removed_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
+
+def get_nan_removed_gaze_data_dict(nan_removed_gaze_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
     Parameters:
@@ -52,7 +53,7 @@ def get_nan_removed_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
     - missing_data_paths (list): The loaded list of missing data paths.
     """
     try:
-        with open(gaze_data_file_path, 'rb') as f:
+        with open(nan_removed_gaze_data_file_path, 'rb') as f:
             gaze_data_dict = pickle.load(f)
         return gaze_data_dict
     except Exception as e:
