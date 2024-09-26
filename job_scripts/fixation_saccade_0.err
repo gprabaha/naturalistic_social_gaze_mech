@@ -1,9 +1,8 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-Traceback (most recent call last):
-  File "run_single_fix_and_saccade_detection_task.py", line 46, in <module>
-    main(task_key, params_file_path)
-  File "run_single_fix_and_saccade_detection_task.py", line 33, in main
-    fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(task_args, gaze_data_dict, params)
-TypeError: process_fix_and_saccade_for_specific_run() takes 2 positional arguments but 3 were given
+2024-09-26 10:57:45,353 - INFO - Starting the main function
+2024-09-26 10:57:45,357 - INFO - Parameters loaded successfully.
+2024-09-26 10:57:55,520 - INFO - Gaze data dictionary loaded successfully.
+2024-09-26 10:57:55,520 - INFO - Parsed task key successfully: 09112018,interactive,3,m1
+2024-09-26 10:57:55,520 - ERROR - Failed during fixation and saccade detection: not enough values to unpack (expected 5, got 4)

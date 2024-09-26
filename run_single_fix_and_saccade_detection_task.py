@@ -48,12 +48,12 @@ def main(task_key, params_file_path):
         interaction_type = interaction_type.strip()
         run = int(run.strip())
         agent = agent.strip()
-        logger.info(f"Parsed task key successfully: {task_key}")
+        logger.info(f"Parsed task key successfully: session: {session}; interaction_type: {interaction_type}; run: {str(run)}; agent: {agent}")
     except Exception as e:
         logger.error(f"Failed to parse task key {task_key}: {e}")
         sys.exit(1)
     # Prepare task arguments
-    task_args = (session, interaction_type, run, agent)
+    task_args = (session, interaction_type, run, agent, params)
     # Run fixation and saccade detection
     try:
         fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(task_args, gaze_data_dict)
