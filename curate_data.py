@@ -107,26 +107,29 @@ def add_paths_to_all_data_files_to_params(params):
                     session_name, file_type, run_number = match.groups()
                     run_number = int(run_number)
                     # Initialize session structure if not already present
-                    if session_name not in paths_dict:
-                        paths_dict[session_name] = {
-                            'interactive': {},
-                            'non_interactive': {}
-                        }
+                    paths_dict.setdefault(session_name, {
+                        'interactive': {},
+                        'non_interactive': {}
+                    })
                     # Determine interaction type based on file type
                     interaction_type = 'interactive' if file_type == 'position' else 'non_interactive'
                     # Initialize run structure if not already present
-                    if run_number not in paths_dict[session_name][interaction_type]:
-                        paths_dict[session_name][interaction_type][run_number] = {
-                            'positions': None,
-                            'neural_timeline': None,
-                            'pupil_size': None
-                        }
+                    paths_dict[session_name][interaction_type].setdefault(run_number, {
+                        'positions': None,
+                        'neural_timeline': None,
+                        'pupil_size': None
+                    })
                     # Assign the file path to the appropriate data type
-                    if data_type == 'positions' and file_type == 'position':
-                        paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
-                    elif data_type == 'neural_timeline':
+                    if data_type == 'positions':
+                        if file_type == 'position':
+                            paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                        elif file_type == 'dot':
+                            # Specifically log and add 'dot' files found in positions
+                            logger.info(f"Adding 'dot' file found in positions: {filename}")
+                            paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                    elif data_type == 'neural_timeline' and file_type == 'dot':
                         paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
-                    elif data_type == 'pupil_size':
+                    elif data_type == 'pupil_size' and file_type == 'dot':
                         paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
@@ -136,6 +139,7 @@ def add_paths_to_all_data_files_to_params(params):
     # Update params with the structured paths dictionary
     params['data_file_paths'] = paths_dict
     return params
+
 
 
 def prune_data_file_paths(params):
