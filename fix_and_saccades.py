@@ -45,8 +45,12 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
         for task in dict_entries_for_tasks:
             session, interaction_type, run, agent = task
             run_str = str(run)  # Convert run to string for file path
-            fix_path = os.path.join(params['processed_data_dir'], f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
-            sacc_path = os.path.join(params['processed_data_dir'], f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
+            fix_path = os.path.join(
+                params['processed_data_dir'],
+                f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
+            sacc_path = os.path.join(
+                params['processed_data_dir'],
+                f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
                     fix_dict = pickle.load(f)
@@ -58,29 +62,21 @@ def detect_fixations_and_saccades(gaze_data_dict, params):
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")
-        results = [process_fix_and_saccade_for_specific_run(task, gaze_data_dict) for task in tqdm(tasks, total=len(tasks), desc="Processing runs")]
+        results = [process_fix_and_saccade_for_specific_run(
+            task, gaze_data_dict) for task in tqdm(
+                dict_entries_for_tasks,
+                total=len(dict_entries_for_tasks),
+                desc="Processing runs")]
         # Combine results
         for fix_dict, sacc_dict in results:
             for session, interaction_types in fix_dict.items():
-                if session not in fixation_dict:
-                    fixation_dict[session] = {}
                 for interaction_type, runs in interaction_types.items():
-                    if interaction_type not in fixation_dict[session]:
-                        fixation_dict[session][interaction_type] = {}
                     for run, agents in runs.items():
-                        if run not in fixation_dict[session][interaction_type]:
-                            fixation_dict[session][interaction_type][run] = {}
-                        fixation_dict[session][interaction_type][run].update(agents)
+                        fixation_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {}).update(agents)
             for session, interaction_types in sacc_dict.items():
-                if session not in saccade_dict:
-                    saccade_dict[session] = {}
                 for interaction_type, runs in interaction_types.items():
-                    if interaction_type not in saccade_dict[session]:
-                        saccade_dict[session][interaction_type] = {}
                     for run, agents in runs.items():
-                        if run not in saccade_dict[session][interaction_type]:
-                            saccade_dict[session][interaction_type][run] = {}
-                        saccade_dict[session][interaction_type][run].update(agents)
+                        saccade_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {}).update(agents)
     logger.info("Detection completed for both agents.")
     return fixation_dict, saccade_dict
 
