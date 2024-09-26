@@ -78,7 +78,8 @@ class HPCFixAndSaccadeDetector:
         self.logger.info(f"Tracking progress of job array with ID: {job_id}")
         start_time = time.time()
         check_interval = 30  # Check the job status every 30 seconds
-        print_interval = 1 * 60  # Print job status every 1 minute
+        print_every_n_mins = 1
+        print_interval = print_every_n_mins * 60  # Print job status every 1 minute
         last_print_time = start_time
         while True:
             result = subprocess.run(
@@ -98,6 +99,6 @@ class HPCFixAndSaccadeDetector:
                 self.logger.info(f"Job array {job_id} has completed.")
                 break
             elif current_time - last_print_time >= print_interval:
-                self.logger.info(f"Job array {job_id} is still running. Checking again in 5 mins...")
+                self.logger.info(f"Job array {job_id} is still running. Checking again in {print_every_n_mins} mins...")
                 last_print_time = current_time
             time.sleep(check_interval)
