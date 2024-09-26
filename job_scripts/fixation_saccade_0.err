@@ -1,12 +1,6 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-2024-09-26 11:03:24,352 - INFO - Starting the main function
-2024-09-26 11:03:24,354 - INFO - Parameters loaded successfully.
-2024-09-26 11:03:35,133 - INFO - Gaze data dictionary loaded successfully.
-2024-09-26 11:03:35,135 - INFO - Parsed task key successfully: session: 09292018; interaction_type: interactive; run: 7; agent: m2
-2024-09-26 11:03:36,343 - fixation_detector_class - INFO - Starting global_clustering...
-2024-09-26 11:03:36,345 - fixation_detector_class - INFO - Using parallel processing for global clustering
-2024-09-26 11:03:36,345 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
-Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]
-2024-09-26 11:03:36,658 - ERROR - Failed during fixation and saccade detection: Input contains NaN, infinity or a value too large for dtype('float64').
+2024-09-26 11:19:04,974 - INFO - Starting the main function
+2024-09-26 11:19:05,041 - INFO - Parameters loaded successfully.
+2024-09-26 11:19:05,041 - ERROR - Failed to load gaze data from /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/nan_removed_gaze_data_dict.pkl: get_nan_removed_gaze_data_dict() missing 1 required positional argument: 'missing_data_file_path'
