@@ -385,23 +385,33 @@ def clean_and_log_missing_dict_leaves(data_dict):
     - missing_paths (list): List of paths where data was missing or empty.
     """
     missing_paths = []
-    pruned_dict = _remove_and_log_missing_leaves(data_dict, missing_paths)
+    total_paths_checked = 0
+    pruned_dict, total_paths_checked, missing_paths = _remove_and_log_missing_leaves(
+        data_dict, missing_paths, total_paths_checked
+    )
+    # Log the summary of the operation
+    logger.info(f"Total paths checked: {total_paths_checked}")
+    logger.info(f"Total paths removed: {len(missing_paths)}")
     return pruned_dict, missing_paths
 
 
-def _remove_and_log_missing_leaves(d, missing_paths, path=""):
+def _remove_and_log_missing_leaves(d, missing_paths, total_paths_checked, path=""):
     """
     Helper function that recursively removes keys with missing or empty data, logs paths of removed items.
     Parameters:
     - d (dict): The dictionary to clean.
     - missing_paths (list): List to accumulate paths of missing or empty data.
+    - total_paths_checked (int): Counter to keep track of the total paths checked.
     - path (str): Current path of the dictionary during recursion.
     Returns:
     - d (dict): The cleaned dictionary with missing or empty values removed.
+    - total_paths_checked (int): Updated count of paths checked.
+    - missing_paths (list): Updated list of paths where data was missing or empty.
     """
     for key in list(d.keys()):  # Use list(d.keys()) to avoid runtime error during iteration if keys are removed
         current_path = f"{path}/{key}" if path else str(key)
         value = d[key]
+        total_paths_checked += 1  # Increment the counter for each path checked
         # Check for missing or empty values before recursion
         if value is None or (hasattr(value, "size") and value.size == 0):
             logger.warning(f"Missing data at path: {current_path}")
@@ -409,14 +419,15 @@ def _remove_and_log_missing_leaves(d, missing_paths, path=""):
             d.pop(key)  # Directly remove the key
         elif isinstance(value, dict):
             # Recursively clean sub-dictionaries
-            _remove_and_log_missing_leaves(value, missing_paths, current_path)
+            d[key], total_paths_checked, missing_paths = _remove_and_log_missing_leaves(
+                value, missing_paths, total_paths_checked, current_path
+            )
             # If the sub-dictionary is empty after recursion, remove it
-            if not value:  # This catches sub-dicts that became empty after cleaning
+            if not d[key]:  # This catches sub-dicts that became empty after cleaning
                 logger.warning(f"Empty sub-dictionary at path: {current_path}")
                 missing_paths.append(current_path)
                 d.pop(key)
-    return d
-
+    return d, total_paths_checked, missing_paths
 
 
 def prune_nan_values_in_timeseries(gaze_data_dict, params):
