@@ -121,15 +121,10 @@ def add_paths_to_all_data_files_to_params(params):
                     })
                     # Assign the file path to the appropriate data type
                     if data_type == 'positions':
-                        if file_type == 'position':
-                            paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
-                        elif file_type == 'dot':
-                            # Specifically log and add 'dot' files found in positions
-                            logger.info(f"Adding 'dot' file found in positions: {filename}")
-                            paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
-                    elif data_type == 'neural_timeline' and file_type == 'dot':
+                        paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                    elif data_type == 'neural_timeline':
                         paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
-                    elif data_type == 'pupil_size' and file_type == 'dot':
+                    elif data_type == 'pupil_size':
                         paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
@@ -141,8 +136,7 @@ def add_paths_to_all_data_files_to_params(params):
     return params
 
 
-
-def prune_data_file_paths(params):
+def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     """
     Prunes the data file paths to ensure that the filenames of positions, neural timeline, and pupil size 
     are consistent within each run. Runs with mismatched or missing filenames are discarded and recorded.
@@ -176,7 +170,7 @@ def prune_data_file_paths(params):
                 pupil_size_filename = pupil_size_file.split('/')[-1] if pupil_size_file else None
                 # Check if filenames are consistent
                 filenames = [positions_filename, neural_timeline_filename, pupil_size_filename]
-                if len(set(filenames) - {None}) > 1:  # Check for mismatch ignoring missing files
+                if len(set(filenames)) > 1:  # Check for mismatch INCLUDING missing files
                     # Move the run to discarded paths and remove from the main paths
                     discarded_paths[session][interaction_type][run] = paths_dict[session][interaction_type].pop(run)
                     # Log which data types have inconsistent or missing filenames
@@ -267,13 +261,7 @@ def make_gaze_data_dict(params):
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
     gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
-    # Check the final structure and report any missing data
-    missing_data_dict_paths, total_data_paths = util.check_dict_leaves(gaze_data_dict)
-    if missing_data_dict_paths:
-        logger.warning(f"Missing or empty data found at {len(missing_data_dict_paths)} data dict paths out of {total_data_paths} total paths.")
-    else:
-        logger.info(f"All data leaves are correctly populated. Total paths checked: {total_data_paths}.")
-    return gaze_data_dict, missing_data_dict_paths
+    return gaze_data_dict
 
 
 def load_run_data(data_type, session, interaction_type, run, file_path):
@@ -385,6 +373,42 @@ def process_pupil_file(mat_file):
     logger.warning(f"Pupil size data is missing or improperly formatted in file: {mat_file}")
     pdb.set_trace()  # Breakpoint when data is missing or improperly formatted
     return None, None
+
+
+def clean_and_log_missing_dict_leaves(data_dict):
+    """
+    Recursively checks and removes keys with missing or empty data in a nested dictionary, logs missing paths.
+    Parameters:
+    - data_dict (dict): The dictionary to clean.
+    Returns:
+    - missing_paths (list): List of paths where data was missing or empty.
+    """
+    missing_paths = []
+    _remove_and_log_missing_leaves(data_dict, missing_paths)
+    return missing_paths
+
+
+def _remove_and_log_missing_leaves(d, missing_paths, path=""):
+    """
+    Helper function that recursively removes keys with missing or empty data, logs paths of removed items.
+    Parameters:
+    - d (dict): The dictionary to clean.
+    - missing_paths (list): List to accumulate paths of missing or empty data.
+    - path (str): Current path of the dictionary during recursion.
+    """
+    for key in list(d.keys()):  # Use list(d.keys()) to avoid runtime error during iteration if keys are removed
+        current_path = f"{path}/{key}" if path else str(key)
+        value = d[key]
+
+        if isinstance(value, dict):
+            # Recursively clean sub-dictionaries
+            _remove_and_log_missing_leaves(value, missing_paths, current_path)
+        else:
+            # Check for missing or empty values
+            if value is None or (hasattr(value, "size") and value.size == 0):
+                logger.warning(f"Missing data at path: {current_path}")
+                missing_paths.append(current_path)
+                d.pop(key)  # Directly remove the key
 
 
 def prune_nan_values_in_timeseries(gaze_data_dict, params):

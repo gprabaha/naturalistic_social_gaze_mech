@@ -18,70 +18,7 @@ import fix_and_saccades
 import pdb
 
 
-def check_non_interactive_data(gaze_data_dict):
-    """
-    Checks if any 'non_interactive' key in the gaze data dictionary has data and identifies which runs contain data.
-    Parameters:
-    - gaze_data_dict (dict): A dictionary structured with sessions as top-level keys, followed by 
-      'interactive' and 'non_interactive' keys, which contain run numbers and their associated data.
-    Returns:
-    - results (dict): A dictionary summarizing the sessions and runs where 'non_interactive' data is found,
-      including details on the data keys ('positions', 'pupil_size', 'neural_timeline') and subkeys ('m1', 'm2').
-    """
-    results = {}
-    # Iterate over each session in the gaze data dictionary
-    for session_name, interaction_types in gaze_data_dict.items():
-        # Check if 'non_interactive' exists in the interaction types
-        if 'non_interactive' in interaction_types:
-            # Iterate over each run in the 'non_interactive' interaction type
-            for run_number, run_data in interaction_types['non_interactive'].items():
-                # Initialize a flag to track if this run has any data
-                has_data = False
-                run_results = {}
-                # Check positions data for m1 and m2
-                if 'positions' in run_data:
-                    positions = run_data['positions']
-                    m1_data = positions.get('m1')
-                    m2_data = positions.get('m2')
-                    m1_has_data = m1_data is not None and m1_data.size > 0
-                    m2_has_data = m2_data is not None and m2_data.size > 0
-                    if m1_has_data or m2_has_data:
-                        run_results['positions'] = {
-                            'm1': m1_has_data,
-                            'm2': m2_has_data
-                        }
-                        has_data = True
-                # Check pupil size data for m1 and m2
-                if 'pupil_size' in run_data:
-                    pupil_size = run_data['pupil_size']
-                    m1_data = pupil_size.get('m1')
-                    m2_data = pupil_size.get('m2')
-                    m1_has_data = m1_data is not None and m1_data.size > 0
-                    m2_has_data = m2_data is not None and m2_data.size > 0
-                    if m1_has_data or m2_has_data:
-                        run_results['pupil_size'] = {
-                            'm1': m1_has_data,
-                            'm2': m2_has_data
-                        }
-                        has_data = True
-                # Check neural timeline data
-                if 'neural_timeline' in run_data and run_data['neural_timeline'] is not None and run_data['neural_timeline'].size > 0:
-                    run_results['neural_timeline'] = True
-                    has_data = True
-                # If any data was found, add it to the results
-                if has_data:
-                    if session_name not in results:
-                        results[session_name] = {}
-                    results[session_name][run_number] = run_results
-    # Log and return the results
-    if results:
-        print("Found non_interactive data in the following sessions and runs:")
-        for session, runs in results.items():
-            for run, data_keys in runs.items():
-                print(f"Session: {session}, Run: {run}, Data: {data_keys}")
-    else:
-        print("No non_interactive data found in the gaze data dictionary.")
-    return results
+
 
 
 
@@ -132,7 +69,7 @@ class DataManager:
         self.params = curate_data.add_processed_data_to_params(self.params)
         self.params = curate_data.add_raw_data_dir_to_params(self.params)
         self.params = curate_data.add_paths_to_all_data_files_to_params(self.params)
-        self.params = curate_data.prune_data_file_paths(self.params)
+        self.params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(self.params)
 
 
     def get_data(self):
@@ -154,6 +91,7 @@ class DataManager:
 
 
     def prune_data(self):
+        self.gaze_data_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
         self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict, self.params)
 
 
@@ -168,6 +106,8 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
+        util.check_non_interactive_data(self.nan_removed_gaze_data_dict)
+        pdb.set_trace()
         self.analyze_behavior()
 
 
