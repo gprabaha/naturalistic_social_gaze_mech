@@ -21,7 +21,7 @@ def load_mat_from_path(path):
     return scipy.io.loadmat(path)
 
 
-def get_gaze_data_dict(gaze_data_file_path, missing_data_file_path):
+def get_gaze_data_dict(gaze_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
     Parameters:

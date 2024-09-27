@@ -19,9 +19,6 @@ import pdb
 
 
 
-
-
-
 class DataManager:
     def __init__(self, params):
         self.setup_logger()
@@ -44,7 +41,6 @@ class DataManager:
         except Exception as e:
             self.logger.warning(f"Failed to detect cores with SLURM_CPUS_ON_NODE: {e}")
             num_cpus = None
-        
         if num_cpus is None or num_cpus <= 1:
             num_cpus = multiprocessing.cpu_count()
             self.logger.info(f"Multiprocessing detected {num_cpus} CPUs")
@@ -79,12 +75,11 @@ class DataManager:
         # Define paths to save/load the variables
         processed_data_dir = self.params['processed_data_dir']
         gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
-        missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
         self.gaze_data_dict = util.compute_or_load_variables(
             compute_func=curate_data.make_gaze_data_dict,
             load_func=load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
-            file_paths=[gaze_data_file_path, missing_data_file_path],
+            file_paths=[gaze_data_file_path],
             remake_flag_key='remake_gaze_data_dict',
             params=self.params  # Pass the params dictionary
         )
@@ -106,7 +101,6 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        util.check_non_interactive_data(self.nan_removed_gaze_data_dict)
         pdb.set_trace()
         self.analyze_behavior()
 
