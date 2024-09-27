@@ -80,7 +80,7 @@ class DataManager:
         self.gaze_data_dict = util.compute_or_load_variables(
             compute_func=curate_data.make_gaze_data_dict,
             load_func=load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
-            file_paths=[gaze_data_file_path],
+            file_paths=gaze_data_file_path,
             remake_flag_key='remake_gaze_data_dict',
             params=self.params  # Pass the params dictionary
         )
@@ -101,7 +101,6 @@ class DataManager:
     def run(self):
         self.populate_params_with_data_paths()
         self.get_data()
-        pdb.set_trace()
         self.prune_data()
         self.analyze_behavior()
 
