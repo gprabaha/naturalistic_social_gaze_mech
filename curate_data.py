@@ -486,7 +486,6 @@ def prune_nan_values_in_timeseries(gaze_data_dict, params):
     return nan_removed_gaze_data_dict
 
 
-
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     """
     Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
@@ -518,9 +517,15 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     # Prune the time series based on combined valid indices
     pruned_time_series = time_series[valid_indices]
     # Prune positions for m1 and m2 based on the combined valid indices
-    pruned_positions = {key: positions[key][:, valid_indices[:positions[key].shape[1]]] if key in positions and positions[key] is not None and positions[key].size > 0 else np.array([])
-                        for key in ['m1', 'm2']}
+    pruned_positions = {
+        key: positions[key][:, valid_indices] 
+        for key in ['m1', 'm2'] 
+        if key in positions and positions[key] is not None and positions[key].size > 0 and valid_indices.size > 0
+    }
     # Prune pupil size for m1 and m2 based on the combined valid indices
-    pruned_pupil_size = {key: pupil_size[key][:, valid_indices] if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 else np.array([])
-                         for key in ['m1', 'm2']}
+    pruned_pupil_size = {
+        key: pupil_size[key][:, valid_indices] 
+        for key in ['m1', 'm2'] 
+        if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 and valid_indices.size > 0
+    }
     return pruned_positions, pruned_pupil_size, pruned_time_series

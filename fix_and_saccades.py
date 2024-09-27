@@ -45,6 +45,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
         # Combine results after jobs have completed
         for task in dict_entries_for_tasks:
             session, interaction_type, run, agent = task
+            logger.info(f'Updating fix/sacc dict for: {session}, {interaction_type}, {str(run)}, {agent}')
             run_str = str(run)  # Convert run to string for file path
             fix_path = os.path.join(
                 params['processed_data_dir'],
@@ -55,12 +56,12 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
                     fix_dict = pickle.load(f)
-                    pdb.set_trace()
                     fixation_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = fix_dict[session][interaction_type][run][agent]
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
                     sacc_dict = pickle.load(f)
                     saccade_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = sacc_dict[session][interaction_type][run][agent]
+        pdb.set_trace()
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")

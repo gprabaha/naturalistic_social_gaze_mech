@@ -59,13 +59,11 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
                 loaded_vars = load_func(file_paths)
             else:
                 loaded_vars = load_func(*file_paths)
-
             logger.info(f"Successfully loaded data from {file_paths}.")
             return loaded_vars
         except Exception as e:
             logger.error(f"Failed to load data from {file_paths}: {e}")
             raise
-
 
 
 def generate_behav_dict_legend(data_dict, max_examples=2):
