@@ -92,7 +92,6 @@ class DataManager:
 
     def prune_data(self):
         self.gaze_data_dict, self.missing_data_in_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
-        pdb.set_trace()
         self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict, self.params)
 
 
