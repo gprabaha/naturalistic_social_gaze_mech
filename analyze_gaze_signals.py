@@ -30,10 +30,12 @@ def main():
         'num_cpus': None,
         'do_local_reclustering_in_parallel': False,
 
-        'remake_gaze_data_dict': False,
+        'remake_gaze_data_dict': True,
 
         'try_using_single_run': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
+
 
         'remake_gaze_position_dict_m1': False,
         'remake_gaze_position_dict_m2': False,

@@ -43,15 +43,18 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
             job_file_path = detector.generate_job_file(dict_entries_for_tasks, params_file_path)
             detector.submit_job_array(job_file_path)
         # Combine results after jobs have completed
+        hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         for task in dict_entries_for_tasks:
             session, interaction_type, run, agent = task
             logger.info(f'Updating fix/sacc dict for: {session}, {interaction_type}, {str(run)}, {agent}')
             run_str = str(run)  # Convert run to string for file path
             fix_path = os.path.join(
                 params['processed_data_dir'],
+                hpc_data_subfolder,
                 f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             sacc_path = os.path.join(
                 params['processed_data_dir'],
+                hpc_data_subfolder,
                 f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
@@ -61,7 +64,6 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
                 with open(sacc_path, 'rb') as f:
                     sacc_dict = pickle.load(f)
                     saccade_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = sacc_dict[session][interaction_type][run][agent]
-        pdb.set_trace()
     else:
         # Run in serial mode
         logger.info("Running in serial mode.")

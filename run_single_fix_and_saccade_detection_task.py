@@ -62,8 +62,9 @@ def main(task_key, params_file_path):
         sys.exit(1)
     # Save results
     try:
-        fixation_output_path = os.path.join(processed_data_dir, f'fixation_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
-        saccade_output_path = os.path.join(processed_data_dir, f'saccade_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
+        hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
+        fixation_output_path = os.path.join(processed_data_dir, hpc_data_subfolder, f'fixation_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
+        saccade_output_path = os.path.join(processed_data_dir, hpc_data_subfolder, f'saccade_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
         with open(fixation_output_path, 'wb') as f:
             pickle.dump(fix_dict, f)
         logger.info(f"Fixation results saved successfully at {fixation_output_path}")

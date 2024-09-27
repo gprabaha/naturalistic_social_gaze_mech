@@ -224,12 +224,14 @@ def make_gaze_data_dict(params):
                             if file_path:  # Ensure the file path exists
                                 futures.append(executor.submit(load_run_data, data_key, session, interaction_type, run, file_path))
             # Collect the results as they complete with tqdm progress bar
-            for future in tqdm(as_completed(futures), total=total_tasks, desc="Loading Data", unit="file"):
-                temp_results.append(future.result())
+            with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
+                for future in as_completed(futures):
+                    temp_results.append(future.result())
+                    pbar.update(1)
     else:
         logger.info("Using serial processing to load data.")
         # Serial processing with a tqdm progress bar
-        with tqdm(total=total_tasks, desc="Loading Data", unit="file") as pbar:
+        with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
             for session, interaction_types in data_file_paths.items():
                 if session == 'legend':  # Skip legend if present
                     continue
@@ -239,7 +241,8 @@ def make_gaze_data_dict(params):
                             if file_path:  # Ensure the file path exists
                                 result = load_run_data(data_key, session, interaction_type, run, file_path)
                                 temp_results.append(result)
-                        pbar.update(1)  # Manually update the progress bar
+                            pbar.update(1)  # Manually update the progress bar
+        pbar.close()  # Explicitly close the first progress bar
     # Assignment of results into the gaze_data_dict with a progress bar
     logger.info("Assigning loaded data to the gaze data dictionary.")
     with tqdm(total=len(temp_results), desc="Assigning Data", unit="assignment") as pbar:
@@ -261,15 +264,6 @@ def make_gaze_data_dict(params):
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
     gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
-    # processed_data_dir = params['processed_data_dir']
-    # output_filename = 'gaze_data_dict.pkl'
-    # output_path = os.path.join(processed_data_dir, output_filename)
-    # try:
-    #     with open(output_path, 'wb') as f:
-    #         pickle.dump(gaze_data_dict, f)
-    #     logger.info(f"Gaze data dictionary saved successfully at {output_path}")
-    # except Exception as e:
-    #     logger.error(f"Failed to save gaze data dictionary: {e}")
     return gaze_data_dict
 
 
