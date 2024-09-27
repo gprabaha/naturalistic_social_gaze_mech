@@ -19,6 +19,54 @@ import pdb
 # Set up a logger for this module
 logger = logging.getLogger(__name__)
 
+def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
+    """
+    Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
+    Parameters:
+    - compute_func (function): The function that computes the data.
+    - load_func (function): The function that loads the data from saved files.
+    - file_paths (list or str): List of file paths where each variable will be saved or loaded from, or a single path.
+    - remake_flag_key (str): The key in params to check whether to compute or load.
+    - params (dict): The dictionary containing configuration parameters.
+    - args, kwargs: Additional arguments to pass to the compute_func.
+    Returns:
+    - A list of variables, either loaded from files or computed, or a single variable if there's only one output.
+    """
+    remake_flag = params.get(remake_flag_key, True)  # Check the corresponding remake flag
+    if remake_flag:
+        logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
+        # Compute the data
+        computed_vars = compute_func(params, *args, **kwargs)  # Pass params explicitly
+        # If the computed_vars is not a tuple or list, make it a single-element list for consistent handling
+        is_single_output = not isinstance(computed_vars, (list, tuple))
+        if is_single_output:
+            computed_vars = [computed_vars]
+            file_paths = [file_paths]
+        # Save each computed variable to its corresponding file path
+        for file_path, var in zip(file_paths, computed_vars):
+            try:
+                with open(file_path, 'wb') as f:
+                    pickle.dump(var, f)
+                logger.info(f"Saved computed data to {file_path}.")
+            except Exception as e:
+                logger.error(f"Failed to save computed data to {file_path}: {e}")
+        return computed_vars[0] if is_single_output else computed_vars
+    else:
+        logger.info(f"Remake flag '{remake_flag_key}' is set to False. Loading data using {load_func.__name__}.")
+        try:
+            # Handle loading for both single and multiple paths
+            if isinstance(file_paths, str):
+                loaded_vars = load_func(file_paths)
+            else:
+                loaded_vars = load_func(*file_paths)
+
+            logger.info(f"Successfully loaded data from {file_paths}.")
+            return loaded_vars
+        except Exception as e:
+            logger.error(f"Failed to load data from {file_paths}: {e}")
+            raise
+
+
 
 def generate_behav_dict_legend(data_dict, max_examples=2):
     """
@@ -90,46 +138,6 @@ def fetch_dict_keys_at_level(current_dict, max_examples, current_level=0, target
         if len(keys) >= max_examples:
             break
     return keys[:max_examples]
-
-
-def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
-    """
-    Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
-    Parameters:
-    - compute_func (function): The function that computes the data.
-    - load_func (function): The function that loads the data from saved files.
-    - file_paths (list): List of file paths where each variable will be saved or loaded from.
-    - remake_flag_key (str): The key in params to check whether to compute or load.
-    - params (dict): The dictionary containing configuration parameters.
-    - args, kwargs: Additional arguments to pass to the compute_func.
-    Returns:
-    - A list of variables, either loaded from files or computed.
-    """
-    remake_flag = params.get(remake_flag_key, True)  # Check the corresponding remake flag
-    if remake_flag:
-        logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
-        # Compute the data
-        computed_vars = compute_func(params, *args, **kwargs)  # Pass params explicitly
-        # Save each computed variable to its corresponding file path
-        for file_path, var in zip(file_paths, computed_vars):
-            try:
-                with open(file_path, 'wb') as f:
-                    pickle.dump(var, f)
-                logger.info(f"Saved computed data to {file_path}.")
-            except Exception as e:
-                logger.error(f"Failed to save computed data to {file_path}: {e}")
-        return computed_vars
-    else:
-        logger.info(f"Remake flag '{remake_flag_key}' is set to False. Loading data using {load_func.__name__}.")
-        try:
-            # Load the data using the provided load function
-            loaded_vars = load_func(*file_paths)
-            logger.info(f"Successfully loaded data from {file_paths}.")
-            return loaded_vars
-        except Exception as e:
-            logger.error(f"Failed to load data from {file_paths}: {e}")
-            raise
-
 
 
 def check_non_interactive_data(gaze_data_dict):
