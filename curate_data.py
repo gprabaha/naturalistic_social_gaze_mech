@@ -261,6 +261,15 @@ def make_gaze_data_dict(params):
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
     gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
+    processed_data_dir = params['processed_data_dir']
+    output_filename = 'gaze_data_dict.pkl'
+    output_path = os.path.join(processed_data_dir, output_filename)
+    try:
+        with open(output_path, 'wb') as f:
+            pickle.dump(gaze_data_dict, f)
+        logger.info(f"Gaze data dictionary saved successfully at {output_path}")
+    except Exception as e:
+        logger.error(f"Failed to save NaN removed gaze data dictionary: {e}")
     return gaze_data_dict
 
 
@@ -311,11 +320,9 @@ def process_position_file(mat_file):
         # Check if both data are missing or empty and set a breakpoint if it is
         if (m1_data is None or m1_data.size == 0) and (m2_data is None or m2_data.size == 0):
             logger.error(f"Both m1 and m2 data are missing or empty in file: {mat_file}")
-            pdb.set_trace()  # Breakpoint will trigger if both m1 and m2 data are empty
         return m1_data, m2_data
     # Log and set a breakpoint if data is missing or improperly formatted
     logger.warning(f"Position data is missing or improperly formatted in file: {mat_file}")
-    pdb.set_trace()  # Breakpoint when data is missing or improperly formatted
     return None, None
 
 
@@ -342,7 +349,6 @@ def process_time_file(mat_file):
     # Check if time data is empty or None and set a breakpoint if it is
     if time_data is None or time_data.size == 0:
         logger.error(f"Empty or missing time data in file: {mat_file}")
-        pdb.set_trace()  # Breakpoint when time data is missing or improperly formatted
     return time_data
 
 
@@ -367,11 +373,9 @@ def process_pupil_file(mat_file):
         # Check if both data are missing or empty and set a breakpoint if it is
         if (m1_data is None or m1_data.size == 0) and (m2_data is None or m2_data.size == 0):
             logger.error(f"Both m1 and m2 pupil data are missing or empty in file: {mat_file}")
-            pdb.set_trace()  # Breakpoint will trigger if both m1 and m2 data are empty
         return m1_data, m2_data
     # Log and set a breakpoint if data is missing or improperly formatted
     logger.warning(f"Pupil size data is missing or improperly formatted in file: {mat_file}")
-    pdb.set_trace()  # Breakpoint when data is missing or improperly formatted
     return None, None
 
 
