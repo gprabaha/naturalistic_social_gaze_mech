@@ -76,6 +76,7 @@ class DataManager:
         processed_data_dir = self.params['processed_data_dir']
         gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
+        # !! Load and compute variables function also saves the variable that it computes !!
         self.gaze_data_dict = util.compute_or_load_variables(
             compute_func=curate_data.make_gaze_data_dict,
             load_func=load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
@@ -101,7 +102,6 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        pdb.set_trace()
         self.analyze_behavior()
 
 
