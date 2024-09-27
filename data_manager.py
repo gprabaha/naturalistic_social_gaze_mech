@@ -81,7 +81,7 @@ class DataManager:
         gaze_data_file_path = os.path.join(processed_data_dir, 'gaze_data_dict.pkl')
         missing_data_file_path = os.path.join(processed_data_dir, 'missing_data_dict_paths.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
-        self.gaze_data_dict, self.empty_gaze_dict_paths = util.compute_or_load_variables(
+        self.gaze_data_dict = util.compute_or_load_variables(
             compute_func=curate_data.make_gaze_data_dict,
             load_func=load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
             file_paths=[gaze_data_file_path, missing_data_file_path],
@@ -91,7 +91,8 @@ class DataManager:
 
 
     def prune_data(self):
-        self.gaze_data_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
+        self.gaze_data_dict, self.missing_data_in_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
+        pdb.set_trace()
         self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict, self.params)
 
 

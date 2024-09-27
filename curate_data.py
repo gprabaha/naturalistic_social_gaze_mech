@@ -381,11 +381,12 @@ def clean_and_log_missing_dict_leaves(data_dict):
     Parameters:
     - data_dict (dict): The dictionary to clean.
     Returns:
+    - pruned_dict (dict): The cleaned dictionary with missing or empty values removed.
     - missing_paths (list): List of paths where data was missing or empty.
     """
     missing_paths = []
-    _remove_and_log_missing_leaves(data_dict, missing_paths)
-    return missing_paths
+    pruned_dict = _remove_and_log_missing_leaves(data_dict, missing_paths)
+    return pruned_dict, missing_paths
 
 
 def _remove_and_log_missing_leaves(d, missing_paths, path=""):
@@ -395,20 +396,27 @@ def _remove_and_log_missing_leaves(d, missing_paths, path=""):
     - d (dict): The dictionary to clean.
     - missing_paths (list): List to accumulate paths of missing or empty data.
     - path (str): Current path of the dictionary during recursion.
+    Returns:
+    - d (dict): The cleaned dictionary with missing or empty values removed.
     """
     for key in list(d.keys()):  # Use list(d.keys()) to avoid runtime error during iteration if keys are removed
         current_path = f"{path}/{key}" if path else str(key)
         value = d[key]
-
-        if isinstance(value, dict):
+        # Check for missing or empty values before recursion
+        if value is None or (hasattr(value, "size") and value.size == 0):
+            logger.warning(f"Missing data at path: {current_path}")
+            missing_paths.append(current_path)
+            d.pop(key)  # Directly remove the key
+        elif isinstance(value, dict):
             # Recursively clean sub-dictionaries
             _remove_and_log_missing_leaves(value, missing_paths, current_path)
-        else:
-            # Check for missing or empty values
-            if value is None or (hasattr(value, "size") and value.size == 0):
-                logger.warning(f"Missing data at path: {current_path}")
+            # If the sub-dictionary is empty after recursion, remove it
+            if not value:  # This catches sub-dicts that became empty after cleaning
+                logger.warning(f"Empty sub-dictionary at path: {current_path}")
                 missing_paths.append(current_path)
-                d.pop(key)  # Directly remove the key
+                d.pop(key)
+    return d
+
 
 
 def prune_nan_values_in_timeseries(gaze_data_dict, params):
