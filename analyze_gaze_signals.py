@@ -33,8 +33,7 @@ def main():
         'remake_gaze_data_dict': False,
         
         'try_using_single_run': False,
-
-        'submit_separate_fix_and_saccade_detect_jobs': True,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
 
         'remake_gaze_position_dict_m1': False,
         'remake_gaze_position_dict_m2': False,

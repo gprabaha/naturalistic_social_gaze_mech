@@ -261,15 +261,15 @@ def make_gaze_data_dict(params):
     logger.info("Completed loading gaze data.")
     # Add a concise legend to the gaze_data_dict
     gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
-    processed_data_dir = params['processed_data_dir']
-    output_filename = 'gaze_data_dict.pkl'
-    output_path = os.path.join(processed_data_dir, output_filename)
-    try:
-        with open(output_path, 'wb') as f:
-            pickle.dump(gaze_data_dict, f)
-        logger.info(f"Gaze data dictionary saved successfully at {output_path}")
-    except Exception as e:
-        logger.error(f"Failed to save NaN removed gaze data dictionary: {e}")
+    # processed_data_dir = params['processed_data_dir']
+    # output_filename = 'gaze_data_dict.pkl'
+    # output_path = os.path.join(processed_data_dir, output_filename)
+    # try:
+    #     with open(output_path, 'wb') as f:
+    #         pickle.dump(gaze_data_dict, f)
+    #     logger.info(f"Gaze data dictionary saved successfully at {output_path}")
+    # except Exception as e:
+    #     logger.error(f"Failed to save gaze data dictionary: {e}")
     return gaze_data_dict
 
 

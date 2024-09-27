@@ -37,10 +37,11 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
         pickle.dump(params, f)
     logger.info(f"Pickle dumped params to {params_file_path}")
     if params.get('use_parallel', False):
-        # Use HPCFixAndSaccadeDetector to submit jobs for each task
-        detector = HPCFixAndSaccadeDetector(params)
-        job_file_path = detector.generate_job_file(dict_entries_for_tasks, params_file_path)
-        detector.submit_job_array(job_file_path)
+        if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
+            # Use HPCFixAndSaccadeDetector to submit jobs for each task
+            detector = HPCFixAndSaccadeDetector(params)
+            job_file_path = detector.generate_job_file(dict_entries_for_tasks, params_file_path)
+            detector.submit_job_array(job_file_path)
         # Combine results after jobs have completed
         for task in dict_entries_for_tasks:
             session, interaction_type, run, agent = task
@@ -54,6 +55,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
                     fix_dict = pickle.load(f)
+                    pdb.set_trace()
                     fixation_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {})[agent] = fix_dict[session][interaction_type][run][agent]
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
