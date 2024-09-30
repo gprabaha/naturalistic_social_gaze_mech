@@ -88,7 +88,19 @@ class DataManager:
 
     def prune_data(self):
         self.gaze_data_dict, self.missing_data_in_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
-        self.nan_removed_gaze_data_dict = curate_data.prune_nan_values_in_timeseries(self.gaze_data_dict, self.params)
+
+        processed_data_dir = self.params['processed_data_dir']
+        nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_dict.pkl')
+        # Use the compute_or_load_variables function to compute or load the gaze data
+        # !! Load and compute variables function also saves the variable that it computes !!
+        self.nan_removed_gaze_data_dict = util.compute_or_load_variables(
+            curate_data.prune_nan_values_in_timeseries,  # Positional argument (compute_func)
+            load_data.get_nan_removed_gaze_data_dict,    # Positional argument (load_func)
+            nan_removed_gaze_data_file_path,             # Positional argument (file_paths)
+            'remake_nan_removed_gaze_data_dict',         # Positional argument (remake_flag_key)
+            self.params,                                 # Positional argument (params)
+            self.gaze_data_dict                          # Positional argument (additional arguments)
+        )
 
 
     def analyze_behavior(self):

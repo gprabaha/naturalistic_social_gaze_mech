@@ -471,7 +471,7 @@ def _remove_and_log_missing_leaves(d, missing_paths, total_paths_checked, path="
     return d, total_paths_checked, missing_paths
 
 
-def prune_nan_values_in_timeseries(gaze_data_dict, params):
+def prune_nan_values_in_timeseries(params, gaze_data_dict):
     """
     Prunes NaN values from the time series in the gaze data dictionary and 
     adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
@@ -512,15 +512,15 @@ def prune_nan_values_in_timeseries(gaze_data_dict, params):
             pruned_session_dict[interaction_type] = pruned_interaction_dict
         nan_removed_gaze_data_dict[session] = pruned_session_dict
     # Save the pruned gaze data dictionary to the processed data directory
-    processed_data_dir = params['processed_data_dir']
-    output_filename = 'nan_removed_gaze_data_dict.pkl'
-    output_path = os.path.join(processed_data_dir, output_filename)
-    try:
-        with open(output_path, 'wb') as f:
-            pickle.dump(nan_removed_gaze_data_dict, f)
-        logger.info(f"NaN removed gaze data dictionary saved successfully at {output_path}")
-    except Exception as e:
-        logger.error(f"Failed to save NaN removed gaze data dictionary: {e}")
+    # processed_data_dir = params['processed_data_dir']
+    # output_filename = 'nan_removed_gaze_data_dict.pkl'
+    # output_path = os.path.join(processed_data_dir, output_filename)
+    # try:
+    #     with open(output_path, 'wb') as f:
+    #         pickle.dump(nan_removed_gaze_data_dict, f)
+    #     logger.info(f"NaN removed gaze data dictionary saved successfully at {output_path}")
+    # except Exception as e:
+    #     logger.error(f"Failed to save NaN removed gaze data dictionary: {e}")
     return nan_removed_gaze_data_dict
 
 
