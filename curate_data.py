@@ -70,9 +70,11 @@ def add_raw_data_dir_to_params(params):
     path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
     path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
     path_to_pupil_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/pupil_size')
+    path_to_roi_rects = os.path.join(root_data_dir, 'eyetracking/roi_rect_tables')
     params['positions_dir'] = path_to_positions
     params['neural_timeline_dir'] = path_to_time_vecs
     params['pupil_size_dir'] = path_to_pupil_vecs
+    params['roi_rect_dir'] = path_to_roi_rects
     logger.info("Raw data directories added to params.")
     return params
 
@@ -90,7 +92,8 @@ def add_paths_to_all_data_files_to_params(params):
     directories = {
         'positions': params['positions_dir'],
         'neural_timeline': params['neural_timeline_dir'],
-        'pupil_size': params['pupil_size_dir']
+        'pupil_size': params['pupil_size_dir'],
+        'roi_rects': params['roi_rects_dir']
     }
     # Initialize data structure to store file paths organized by session
     paths_dict = {}
@@ -126,6 +129,8 @@ def add_paths_to_all_data_files_to_params(params):
                         paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
                     elif data_type == 'pupil_size':
                         paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
+                    elif data_type == 'roi_rects':
+                        paths_dict[session_name][interaction_type][run_number]['roi_rects'] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
     # Generate a dynamic legend based on the newly structured paths dictionary
@@ -284,10 +289,17 @@ def load_run_data(data_type, session, interaction_type, run, file_path):
         return session, interaction_type, run, 'positions', {'m1': m1_data, 'm2': m2_data}
     elif data_type == 'neural_timeline':
         t_data = process_time_file(file_path)
-        return session, interaction_type, run, 'neural_timeline', t_data  # Updated key to match the correct naming
+        return session, interaction_type, run, 'neural_timeline', t_data
     elif data_type == 'pupil_size':
         m1_data, m2_data = process_pupil_file(file_path)
         return session, interaction_type, run, 'pupil_size', {'m1': m1_data, 'm2': m2_data}
+    
+    ## Edit here... The process roi rect funciton does not exist
+    elif data_type == 'roi_rects':
+        m1_data, m2_data = process_roi_rects_file(file_path)
+        return session, interaction_type, run, 'roi_rects', {'m1': m1_data, 'm2': m2_data}
+    ## Edit here
+
     # Fallback if the data type does not match expected values
     logger.warning(f"Unexpected data type '{data_type}' for session {session}, interaction {interaction_type}, run {run}.")
     return session, interaction_type, run, data_type, None
@@ -382,6 +394,7 @@ def clean_and_log_missing_dict_leaves(data_dict):
     - pruned_dict (dict): The cleaned dictionary with missing or empty values removed.
     - missing_paths (list): List of paths where data was missing or empty.
     """
+    logger.info(f"Removing dict keys with empty values (m2 data in some sessions/measurement)")
     missing_paths = []
     total_paths_checked = 0
     pruned_dict, total_paths_checked, missing_paths = _remove_and_log_missing_leaves(
@@ -412,7 +425,6 @@ def _remove_and_log_missing_leaves(d, missing_paths, total_paths_checked, path="
         total_paths_checked += 1  # Increment the counter for each path checked
         # Check for missing or empty values before recursion
         if value is None or (hasattr(value, "size") and value.size == 0):
-            logger.warning(f"Missing data at path: {current_path}")
             missing_paths.append(current_path)
             d.pop(key)  # Directly remove the key
         elif isinstance(value, dict):
