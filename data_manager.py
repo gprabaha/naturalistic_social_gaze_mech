@@ -101,10 +101,9 @@ class DataManager:
     def run(self):
         self.populate_params_with_data_paths()
         self.get_data()
-        pdb.set_trace()
         self.prune_data()
+        pdb.set_trace()
         self.analyze_behavior()
-
 
 
 
