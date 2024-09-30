@@ -2,8 +2,10 @@ import pickle
 import sys
 import os
 import logging
+
 import load_data
 import fix_and_saccades
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -65,6 +67,7 @@ def main(task_key, params_file_path):
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         fixation_output_path = os.path.join(processed_data_dir, hpc_data_subfolder, f'fixation_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
         saccade_output_path = os.path.join(processed_data_dir, hpc_data_subfolder, f'saccade_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
+        os.makedirs(os.path.dirname(fixation_output_path), exist_ok=True)
         with open(fixation_output_path, 'wb') as f:
             pickle.dump(fix_dict, f)
         logger.info(f"Fixation results saved successfully at {fixation_output_path}")
