@@ -74,7 +74,7 @@ def add_raw_data_dir_to_params(params):
     params['positions_dir'] = path_to_positions
     params['neural_timeline_dir'] = path_to_time_vecs
     params['pupil_size_dir'] = path_to_pupil_vecs
-    params['roi_rect_dir'] = path_to_roi_rects
+    params['roi_rects_dir'] = path_to_roi_rects
     logger.info("Raw data directories added to params.")
     return params
 
@@ -247,7 +247,7 @@ def make_gaze_data_dict(params):
                                 result = load_run_data(data_key, session, interaction_type, run, file_path)
                                 temp_results.append(result)
                             pbar.update(1)  # Manually update the progress bar
-        pbar.close()  # Explicitly close the first progress bar
+    pbar.close()  # Explicitly close the first progress bar
     # Assignment of results into the gaze_data_dict with a progress bar
     logger.info("Assigning loaded data to the gaze data dictionary.")
     with tqdm(total=len(temp_results), desc="Assigning Data", unit="assignment") as pbar:
@@ -255,9 +255,11 @@ def make_gaze_data_dict(params):
             session_dict = gaze_data_dict.setdefault(session, {})
             interaction_dict = session_dict.setdefault(interaction_type, {})
             run_dict = interaction_dict.setdefault(run, {})
-            if data_key in ['positions', 'pupil_size']:
+            if data_key in ['positions', 'pupil_size', 'roi_rects']:
                 # Handle m1 and m2 under positions and pupil size
                 data_subdict = run_dict.setdefault(data_key, {})
+                if data_key == 'roi_rects':
+                    pdb.set_trace()
                 if 'm1' in data_value:
                     data_subdict['m1'] = data_value['m1']
                 if 'm2' in data_value:
@@ -293,7 +295,7 @@ def load_run_data(data_type, session, interaction_type, run, file_path):
     elif data_type == 'pupil_size':
         m1_data, m2_data = process_pupil_file(file_path)
         return session, interaction_type, run, 'pupil_size', {'m1': m1_data, 'm2': m2_data}
-    
+
     ## Edit here... The process roi rect funciton does not exist
     elif data_type == 'roi_rects':
         m1_data, m2_data = process_roi_rects_file(file_path)
@@ -383,6 +385,39 @@ def process_pupil_file(mat_file):
     # Log and set a breakpoint if data is missing or improperly formatted
     logger.warning(f"Pupil size data is missing or improperly formatted in file: {mat_file}")
     return None, None
+
+
+def process_roi_rects_file(mat_file):
+    """
+    Processes an ROI rects file to extract m1 and m2 ROI data as dictionaries.
+    Parameters:
+    - mat_file (str): Path to the .mat file.
+    Returns:
+    - dict: A dictionary containing 'm1' and 'm2' as keys, where each value is a dictionary with ROI names as keys
+            and the rect coordinates as values. If m1 or m2 data is missing, their value will be None.
+    """
+    mat_data = load_data.load_mat_from_path(mat_file)
+    roi_data = None
+    if isinstance(mat_data, dict) and 'roi_rects' in mat_data:
+        roi_data = mat_data['roi_rects'][0][0]
+    if roi_data is not None:
+
+        def extract_roi_dict(agent_roi_data):
+            if agent_roi_data is None:
+                return None
+            roi_dict = {}
+            for roi_name in agent_roi_data.dtype.names:
+                roi_dict[roi_name] = agent_roi_data[roi_name][0][0][0]
+            return roi_dict
+        
+        roi_rects_dict = {
+            'm1': extract_roi_dict(roi_data['m1']) if 'm1' in roi_data.dtype.names else None,
+            'm2': extract_roi_dict(roi_data['m2']) if 'm2' in roi_data.dtype.names else None
+        }
+        return roi_rects_dict
+    # Log and return empty dict if roi_data is missing or improperly formatted
+    logger.warning(f"ROI rects data is missing or improperly formatted in file: {mat_file}")
+    return {'m1': None, 'm2': None}
 
 
 def clean_and_log_missing_dict_leaves(data_dict):
