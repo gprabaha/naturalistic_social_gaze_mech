@@ -505,7 +505,8 @@ def prune_nan_values_in_timeseries(gaze_data_dict, params):
                     pruned_run_dict = {
                         'positions': pruned_positions,
                         'pupil_size': pruned_pupil_size,
-                        'neural_timeline': pruned_time_series
+                        'neural_timeline': pruned_time_series,
+                        'roi_rects': run_dict.get('roi_rects')
                     }
                     pruned_interaction_dict[run] = pruned_run_dict
             pruned_session_dict[interaction_type] = pruned_interaction_dict

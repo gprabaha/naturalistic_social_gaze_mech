@@ -105,7 +105,7 @@ def generate_behav_dict_legend(data_dict, max_examples=2):
         },
         'level_4': {
             'description': "Fourth-level keys represent data types (positions, neural timeline, pupil size).",
-            'examples': [key for key in level_4_examples if key in ['positions', 'neural_timeline', 'pupil_size']]
+            'examples': [key for key in level_4_examples if key in ['positions', 'neural_timeline', 'pupil_size', 'roi_rects']]
         },
         'level_5': {
             'description': "Fifth-level keys contain m1 and m2 data under positions and pupil size.",
