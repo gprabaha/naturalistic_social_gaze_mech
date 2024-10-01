@@ -19,6 +19,7 @@ import pdb
 # Set up a logger for this module
 logger = logging.getLogger(__name__)
 
+
 def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
     """
     Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.
@@ -36,7 +37,7 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
     if remake_flag:
         logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
         # Compute the data
-        computed_vars = compute_func(params, *args, **kwargs)  # Pass params explicitly
+        computed_vars = compute_func(*args, params=params, **kwargs)  # Pass params as a keyword argument
         # If the computed_vars is not a tuple or list, make it a single-element list for consistent handling
         is_single_output = not isinstance(computed_vars, (list, tuple))
         if is_single_output:
@@ -204,7 +205,13 @@ def check_non_interactive_data(gaze_data_dict):
     return results
 
 
-
+def print_dict_keys(d, indent=0):
+    """Recursively prints keys of a dictionary. If a value is a dictionary,
+    it will print its keys as well. Halts if value is not a dictionary."""
+    for key, value in d.items():
+        print(' ' * indent + str(key))  # Print key with indentation
+        if isinstance(value, dict):     # If the value is a dictionary, recurse
+            print_dict_keys(value, indent + 2)
 
 
 

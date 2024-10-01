@@ -84,17 +84,17 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_dict, params):
                         saccade_dict.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run, {}).update(agents)
     logger.info("Detection completed for both agents.")
     # Save the fixation and saccade dictionaries to the processed data directory
-    try:
-        fixation_output_path = os.path.join(params['processed_data_dir'], 'fixation_dict.pkl')
-        saccade_output_path = os.path.join(params['processed_data_dir'], 'saccade_dict.pkl')
-        with open(fixation_output_path, 'wb') as f:
-            pickle.dump(fixation_dict, f)
-        logger.info(f"Fixation dictionary saved successfully at {fixation_output_path}")
-        with open(saccade_output_path, 'wb') as f:
-            pickle.dump(saccade_dict, f)
-        logger.info(f"Saccade dictionary saved successfully at {saccade_output_path}")
-    except Exception as e:
-        logger.error(f"Failed to save fixation and saccade dictionaries: {e}")
+    # try:
+    #     fixation_output_path = os.path.join(params['processed_data_dir'], 'fixation_dict.pkl')
+    #     saccade_output_path = os.path.join(params['processed_data_dir'], 'saccade_dict.pkl')
+    #     with open(fixation_output_path, 'wb') as f:
+    #         pickle.dump(fixation_dict, f)
+    #     logger.info(f"Fixation dictionary saved successfully at {fixation_output_path}")
+    #     with open(saccade_output_path, 'wb') as f:
+    #         pickle.dump(saccade_dict, f)
+    #     logger.info(f"Saccade dictionary saved successfully at {saccade_output_path}")
+    # except Exception as e:
+    #     logger.error(f"Failed to save fixation and saccade dictionaries: {e}")
     return fixation_dict, saccade_dict
 
 

@@ -59,70 +59,31 @@ def get_nan_removed_gaze_data_dict(nan_removed_gaze_data_file_path):
         raise
 
 
-
-
-
-
-
-
-def get_combined_gaze_pos_and_time_lists(params):
+def load_fixation_and_saccade_dicts(fixation_file_path, saccade_file_path):
     """
-    Load combined gaze position and time lists.
-    Args:
-    - params (dict): Dictionary containing parameters.
+    Loads the fixation and saccade dictionaries from the processed data directory.
+    Parameters:
+    - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
-    - sorted_position_path_list (list): List of sorted file paths.
-    - m1_positions (list): List of m1 gaze positions.
-    - m2_positions (list): List of m2 gaze positions.
-    - time_vectors (list): List of time vectors.
+    - fixation_dict (dict): The fixation data loaded from the saved pickle file.
+    - saccade_dict (dict): The saccade data loaded from the saved pickle file.
     """
-    root_data_dir = params.get('root_data_dir')
-    intermediates_dir = os.path.join(root_data_dir, 'intermediates')
-    # Load sorted position and time file lists
-    sorted_position_path_list_file = os.path.join(intermediates_dir, 'sorted_position_path_list.txt')
-    sorted_time_path_list_file = os.path.join(intermediates_dir, 'sorted_time_path_list.txt')
-    with open(sorted_position_path_list_file, 'r') as f:
-        sorted_position_path_list = f.read().splitlines()
-    with open(sorted_time_path_list_file, 'r') as f:
-        sorted_time_path_list = f.read().splitlines()
-    # Load m1_positions, m2_positions, and time_vectors as lists of arrays
-    m1_positions = load_arrays_from_multiple_npy(intermediates_dir, 'm1_positions')
-    m2_positions = load_arrays_from_multiple_npy(intermediates_dir, 'm2_positions')
-    time_vectors = load_arrays_from_multiple_npy(intermediates_dir, 'time_vectors')
-    return sorted_position_path_list, m1_positions, m2_positions, sorted_time_path_list, time_vectors
+    try:
+        # Load fixation dictionary
+        with open(fixation_file_path, 'rb') as f:
+            fixation_dict = pickle.load(f)
+        logger.info(f"Successfully loaded fixation data from {fixation_file_path}")
+        # Load saccade dictionary
+        with open(saccade_file_path, 'rb') as f:
+            saccade_dict = pickle.load(f)
+        logger.info(f"Successfully loaded saccade data from {saccade_file_path}")
+        return fixation_dict, saccade_dict
+    except Exception as e:
+        logger.error(f"Failed to load fixation or saccade data: {e}")
+        raise
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-def load_arrays_from_multiple_npy(directory, filename_prefix):
-    """
-    Load arrays from .npy files with preserved list structure.
-    Args:
-    - directory (str): Directory containing the files.
-    - filename_prefix (str): Prefix for the input filenames.
-    Returns:
-    - arrays (list): List of loaded arrays.
-    """
-    arrays = []
-    i = 0
-    while True:
-        input_file = os.path.join(directory, f"{filename_prefix}_{i}.npy")
-        if not os.path.exists(input_file):
-            break
-        arrays.append(np.load(input_file))
-        i += 1
-    return arrays
 
 
 
