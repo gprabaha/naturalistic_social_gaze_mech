@@ -9,6 +9,7 @@ Created on Wed Sep 18 14::51:42 2024
 import logging
 import os
 import multiprocessing
+from datetime import datetime
 
 import util
 import curate_data
@@ -118,14 +119,17 @@ class DataManager:
 
 
     def plot_behavior(self):
+        # Create the base directory under 'fixations_and_saccades' with today's date
+        today_date = datetime.now().strftime('%Y-%m-%d')
+        base_plot_dir = os.path.join(self.params['root_data_dir'], 'plots', 'fixations_and_saccades', today_date)
         for session, session_data in self.fixation_dict.items():
-            # Create a separate folder for each session
-            session_plot_dir = os.path.join(self.params['root_data_dir'], 'plots', session)
+            # Create a separate folder for each session under the date folder
+            session_plot_dir = os.path.join(base_plot_dir, session)
             os.makedirs(session_plot_dir, exist_ok=True)
             # Loop through interaction types (e.g., 'interactive' or 'non-interactive')
             for interaction_type, interaction_data in session_data.items():
                 for run, run_data in interaction_data.items():
-                    for agent in ['m1', 'm2']:
+                    for agent, _ in run_data.items():
                         # Fetch fixation and saccade data for the agent
                         fixation_data = self.fixation_dict[session][interaction_type][run].get(agent, None)
                         saccade_data = self.saccade_dicts[session][interaction_type][run].get(agent, None)
