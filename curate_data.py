@@ -567,3 +567,5 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
         if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 and valid_indices.size > 0
     }
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
+
