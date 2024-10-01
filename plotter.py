@@ -1,5 +1,29 @@
+
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+
+def gather_plotting_tasks(fixation_dict, saccade_dict, nan_removed_gaze_data_dict, base_plot_dir, params):
+    tasks = []
+    for session, session_data in fixation_dict.items():
+        # Create a separate folder for each session under the date folder
+        session_plot_dir = os.path.join(base_plot_dir, session)
+        os.makedirs(session_plot_dir, exist_ok=True)
+        # Loop through interaction types (e.g., 'interactive' or 'non-interactive')
+        for interaction_type, interaction_data in session_data.items():
+            for run, run_data in interaction_data.items():
+                for agent, _ in run_data.items():
+                    # Fetch fixation and saccade data for the agent
+                    fixation_data = fixation_dict[session][interaction_type][run].get(agent, None)
+                    saccade_data = saccade_dict[session][interaction_type][run].get(agent, None)
+                    nan_removed_data = nan_removed_gaze_data_dict[session][interaction_type][run]['positions'][agent]
+                    roi_rects = nan_removed_gaze_data_dict[session][interaction_type][run]['roi_rects'][agent]
+                    # Check if there is data for this agent
+                    if fixation_data and saccade_data:
+                        plot_filename = os.path.join(session_plot_dir, f'{agent}_run_{run}_{interaction_type}.png')
+                        tasks.append((fixation_data, saccade_data, nan_removed_data, roi_rects, plot_filename, params))    
+    return tasks
 
 
 def plot_agent_behavior(fixation_data, saccade_data, gaze_data, roi_rects, filename, params):
