@@ -134,7 +134,15 @@ class DataManager:
         # Execute tasks either in parallel or serial based on use_parallel flag
         if self.params.get('use_parallel', False):
             with mp.Pool(processes=self.params['num_cpus']) as pool:
-                list(tqdm(pool.imap(plotter.plot_agent_behavior, tasks), total=len(tasks), desc="Plotting fix and saccades in parallel"))
+                # Initialize the progress bar
+                pbar = tqdm(total=len(tasks), desc="Plotting fix and saccades in parallel")
+                # Submit tasks individually using apply_async and update progress after each task completes
+                results = [pool.apply_async(plotter.plot_agent_behavior, args=task, callback=lambda _: pbar.update(1)) for task in tasks]
+                # Ensure all tasks are completed
+                for result in results:
+                    result.wait()  # Wait for each task to complete
+                # Close the progress bar when done
+                pbar.close()
         else:
             for task in tqdm(tasks, desc="Plotting fix and saccades in serial"):
                 plotter.plot_agent_behavior(*task)

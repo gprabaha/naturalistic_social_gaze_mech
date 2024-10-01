@@ -214,6 +214,11 @@ def print_dict_keys(d, indent=0):
             print_dict_keys(value, indent + 2)
 
 
+def update_progress(pbar):
+    """Utility function to update the progress bar."""
+    pbar.update()
+
+
 
 
 
