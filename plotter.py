@@ -1,4 +1,6 @@
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -69,17 +71,17 @@ def plot_saccades(ax, saccade_data, gaze_data):
     end_points = np.array([gaze_data[:, end - 1] for _, end in saccade_indices])
     # Calculate relative time for color
     relative_times = np.array([start / gaze_data.shape[1] for start, _ in saccade_indices])
+    # Convert scalar relative_times to RGBA colors using colormap
+    colors = plt.cm.viridis(relative_times)
     # Plot all saccade points with 30% opacity
     all_saccade_points = np.hstack([gaze_data[:, start:end] for start, end in saccade_indices])
     ax.scatter(all_saccade_points[0, :], all_saccade_points[1, :], c='black', alpha=0.3)
     # Plot arrows from start to end of saccades with color gradient
     for i in range(len(start_points)):
-        # Use the full RGBA color value
-        color = plt.cm.viridis(relative_times[i])
         ax.arrow(start_points[i][0], start_points[i][1], 
                  end_points[i][0] - start_points[i][0], 
                  end_points[i][1] - start_points[i][1], 
-                 head_width=0.05, color=color)
+                 head_width=0.05, color=colors[i])  # Pass RGBA color
 
 
 def plot_combined(ax, fixation_data, saccade_data, gaze_data):
@@ -87,21 +89,21 @@ def plot_combined(ax, fixation_data, saccade_data, gaze_data):
     fixation_indices = fixation_data['fixationindices'].T
     mean_fixation_points = np.array([np.mean(gaze_data[:, start:end], axis=1) for start, end in fixation_indices])
     relative_times_fix = np.array([start / gaze_data.shape[1] for start, _ in fixation_indices])
-    ax.scatter(mean_fixation_points[:, 0], mean_fixation_points[:, 1], c=relative_times_fix, cmap='cool', s=100, alpha=1)
+    # Convert scalar relative_times to RGBA colors using colormap
+    fix_colors = plt.cm.cool(relative_times_fix)
+    ax.scatter(mean_fixation_points[:, 0], mean_fixation_points[:, 1], c=fix_colors, s=100, alpha=1)
     # Plot saccade arrows (no scatter points)
     saccade_indices = saccade_data['saccadeindices']
     start_points = np.array([gaze_data[:, start] for start, _ in saccade_indices])
     end_points = np.array([gaze_data[:, end - 1] for _, end in saccade_indices])
     relative_times_sacc = np.array([start / gaze_data.shape[1] for start, _ in saccade_indices])
+    # Convert scalar relative_times to RGBA colors using colormap
+    sacc_colors = plt.cm.viridis(relative_times_sacc)
     for i in range(len(start_points)):
-        # Use the full RGBA color value
-        color = plt.cm.viridis(relative_times_sacc[i])
         ax.arrow(start_points[i][0], start_points[i][1], 
                  end_points[i][0] - start_points[i][0], 
                  end_points[i][1] - start_points[i][1], 
-                 head_width=0.05, color=color)
-
-
+                 head_width=0.05, color=sacc_colors[i])  # Pass RGBA color
 
 
 def overlay_roi_rects(ax, roi_rects):
