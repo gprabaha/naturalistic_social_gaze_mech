@@ -122,10 +122,8 @@ class DataManager:
         util.print_dict_keys(self.fixation_dict)
         print('Sacc dict:')
         util.print_dict_keys(self.saccade_dict)
-
         self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
-        pdb.set_trace()
-        return 0
+        util.print_dict_keys_and_values(self.binary_behav_timeseries)
 
 
 
@@ -164,5 +162,5 @@ class DataManager:
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
-        self.plot_behavior()
+        # self.plot_behavior()
 
