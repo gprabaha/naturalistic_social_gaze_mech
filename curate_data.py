@@ -12,7 +12,7 @@ from tqdm import tqdm
 import os
 import re
 import numpy as np
-import pickle
+import pandas as pd
 
 import load_data
 import util
@@ -78,9 +78,6 @@ def add_raw_data_dir_to_params(params):
     logger.info("Raw data directories added to params.")
     return params
 
-import pandas as pd
-import os
-import re
 
 def add_paths_to_all_data_files_to_params(params):
     """
@@ -144,49 +141,55 @@ def add_paths_to_all_data_files_to_params(params):
 
 def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     """
-    Prunes the data file paths to ensure that the filenames of positions, neural timeline, and pupil size 
-    are consistent within each run. Runs with mismatched or missing filenames are discarded and recorded.
+    Prunes the data file paths DataFrame to ensure that the filenames of positions, neural timeline, and pupil size 
+    are consistent within each run (based on session, interaction type, and run number).
     Parameters:
-    - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
-      and run number.
+    - params (dict): Dictionary containing 'data_file_paths_df' with a DataFrame of paths categorized by session,
+      interaction type, and run number.
     Returns:
-    - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
+    - params (dict): Updated dictionary with pruned 'data_file_paths_df' and a new 'discarded_paths_df' field 
       that records paths of discarded files.
     """
-    logger.info("Pruning data file paths to ensure consistency of filenames across data types.")
-    # Extract the data paths dictionary from params
-    paths_dict = params.get('data_file_paths', {})
-    discarded_paths = {}
-    # Iterate over sessions
-    for session, interaction_types in paths_dict.items():
-        if session == 'legend':  # Skip the legend key
-            continue
-        # Initialize discarded paths for the session if not already present
-        discarded_paths[session] = {'interactive': {}, 'non_interactive': {}}
-        # Iterate over interaction types (interactive, non_interactive)
-        for interaction_type, runs in interaction_types.items():
-            for run, data_types in list(runs.items()):
-                # Extract filenames for each data type
-                positions_file = data_types.get('positions')
-                neural_timeline_file = data_types.get('neural_timeline')
-                pupil_size_file = data_types.get('pupil_size')
-                # Extract just the filenames without paths
-                positions_filename = positions_file.split('/')[-1] if positions_file else None
-                neural_timeline_filename = neural_timeline_file.split('/')[-1] if neural_timeline_file else None
-                pupil_size_filename = pupil_size_file.split('/')[-1] if pupil_size_file else None
-                # Check if filenames are consistent
-                filenames = [positions_filename, neural_timeline_filename, pupil_size_filename]
-                if len(set(filenames)) > 1:  # Check for mismatch INCLUDING missing files
-                    # Move the run to discarded paths and remove from the main paths
-                    discarded_paths[session][interaction_type][run] = paths_dict[session][interaction_type].pop(run)
-                    # Log which data types have inconsistent or missing filenames
-                    inconsistent_types = [dtype for dtype, fname in zip(['positions', 'neural_timeline', 'pupil_size'], filenames) if fname != positions_filename]
-                    logger.info(f"Discarded {interaction_type} run {run} for session {session}. Inconsistent or missing filenames in: {', '.join(inconsistent_types)}.")
-    # Update params with the pruned paths and the discarded paths
-    params['data_file_paths'] = paths_dict
-    params['discarded_paths'] = discarded_paths
-    logger.info("Data file paths pruned successfully.")
+    logger.info("Pruning data file paths to ensure consistency of filenames within each session and interaction type.")
+    # Extract the paths DataFrame from params
+    paths_df = params.get('data_file_paths_df', pd.DataFrame())
+    if paths_df.empty:
+        logger.warning("No data file paths found to prune.")
+        return params
+    # Group by session_name, interaction_type, and run_number
+    grouped_df = paths_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    # Separate consistent and inconsistent runs by applying the consistency check within each group
+    consistent_mask = grouped_df.apply(lambda group: _check_filenames_consistency_within_run(group.iloc[0]))
+    # Filter for consistent and inconsistent runs
+    consistent_paths_df = paths_df[consistent_mask]
+    discarded_paths_df = paths_df[~consistent_mask]
+    # Update params with the pruned paths and the discarded paths DataFrame
+    params['data_file_paths_df'] = consistent_paths_df
+    params['discarded_paths_df'] = discarded_paths_df
+    # Log how many paths were discarded
+    logger.info(f"Discarded {len(discarded_paths_df)} runs due to inconsistent or missing filenames within their respective session and interaction type.")
     return params
+
+
+def _check_filenames_consistency_within_run(group):
+    """
+    Checks if the filenames of positions, neural timeline, and pupil size are consistent for a given run.
+    Parameters:
+    - group (pd.Series): A row from the DataFrame representing a single run with 'positions', 'neural_timeline', 
+      and 'pupil_size' fields.
+    Returns:
+    - bool: True if filenames are consistent, otherwise False.
+    """
+    # Extract filenames from the full paths
+    filenames = [
+        os.path.basename(group['positions']) if group['positions'] else None,
+        os.path.basename(group['neural_timeline']) if group['neural_timeline'] else None,
+        os.path.basename(group['pupil_size']) if group['pupil_size'] else None
+    ]
+    # Return True if all filenames are the same or None
+    return len(set(filenames)) == 1
+
+
 
 
 def make_gaze_data_dict(params):
