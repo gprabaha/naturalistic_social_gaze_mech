@@ -247,3 +247,311 @@ session_infos = [{'session_name': re.match(pos_pattern, os.path.basename(f)).gro
 
 # Extract fixations and saccades for both monkeys
 fixations_m1, saccades_m1, fixations_m2, saccades_m2 = fix_and_saccades.extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, time_vecs, session_infos)
+
+
+
+# old fix_and_saccades.py
+
+import os
+import pandas as pd
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
+import logging
+
+import pdb
+
+import util
+from fix_saccade_detectors import ClusterFixationDetector, EyeMVMFixationDetector, EyeMVMSaccadeDetector
+
+def extract_fixations_for_both_monkeys(params, m1_gaze_positions, m2_gaze_positions, time_vecs, session_infos):
+    """
+    Extracts fixations and saccades for both monkeys.
+    Parameters:
+    - params (dict): Dictionary containing parameters.
+    - m1_gaze_positions (list): List of m1 gaze positions arrays.
+    - m2_gaze_positions (list): List of m2 gaze positions arrays.
+    - session_infos (list): List of session info dictionaries.
+    Returns:
+    - fixations_m1 (list): List of m1 fixations.
+    - saccades_m1 (list): List of m1 saccades.
+    - fixations_m2 (list): List of m2 fixations.
+    - saccades_m2 (list): List of m2 saccades.
+    """
+    sessions_data_m1 = [(positions, info, time_vec, params) for positions, time_vec, info in zip(m1_gaze_positions, time_vecs, session_infos)]
+    sessions_data_m2 = [(positions, info, time_vec, params) for positions, time_vec, info in zip(m2_gaze_positions, time_vecs, session_infos)]
+
+    fixations_m1, saccades_m1 = extract_fixations_and_saccades(sessions_data_m1, params['use_parallel'])
+    fixations_m2, saccades_m2 = extract_fixations_and_saccades(sessions_data_m2, params['use_parallel'])
+
+    all_fix_timepos_m1 = process_fixation_results(fixations_m1)
+    all_fix_timepos_m2 = process_fixation_results(fixations_m2)
+
+    save_fixation_and_saccade_results(params['intermediates'], all_fix_timepos_m1, fixations_m1, saccades_m1, params, 'm1')
+    save_fixation_and_saccade_results(params['intermediates'], all_fix_timepos_m2, fixations_m2, saccades_m2, params, 'm2')
+
+    return fixations_m1, saccades_m1, fixations_m2, saccades_m2
+
+
+'''
+Edit here. We are trying to create a timevec like we did for OTNAL, but for this 
+dataset a corresponding timevec already exists. we might have to do some NaN
+removal from both position and time before fixations or saccades can be detected
+'''
+
+def extract_fixations_and_saccades(sessions_data, use_parallel):
+    """
+    Extracts fixations and saccades from session data.
+    Parameters:
+    - sessions_data (list): List of session data tuples.
+    - use_parallel (bool): Flag to determine if parallel processing should be used.
+    Returns:
+    - fix_detection_results (list): List of fixation detection results.
+    - saccade_detection_results (list): List of saccade detection results.
+    """
+    if use_parallel:
+        print("\nExtracting fixations and saccades in parallel")
+        num_cores = multiprocessing.cpu_count()
+        num_processes = min(num_cores, len(sessions_data))
+        
+        with ProcessPoolExecutor(max_workers=num_processes) as executor:
+            futures = {executor.submit(get_session_fixations_and_saccades, session_data): session_data for session_data in sessions_data}
+            results = []
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    logging.error(f"Error processing session data: {e}")
+                    continue
+    else:
+        print("\nExtracting fixations and saccades serially")
+        results = [get_session_fixations_and_saccades(session_data) for session_data in sessions_data]
+    fix_detection_results, saccade_detection_results = zip(*results)
+    return fix_detection_results, saccade_detection_results
+
+def get_session_fixations_and_saccades(session_data):
+    """
+    Extracts fixations and saccades for a session.
+    Parameters:
+    - session_data (tuple): Tuple containing session identifier, positions, and metadata.
+    Returns:
+    - fix_timepos_df (pd.DataFrame): DataFrame of fixation time positions.
+    - info (dict): Metadata information for the session.
+    - session_saccades (list): List of saccades for the session.
+    """
+    positions, info, time_vec, params = session_data
+    session_name = info['session_name']
+    sampling_rate = params.get('sampling_rate', 0.001)
+    n_samples = positions.shape[0]
+    nan_removed_positions, nan_removed_time_vec = util.remove_nans(positions, time_vec)
+    if params.get('fixation_detection_method', 'default') == 'cluster_fix':
+        detector = ClusterFixationDetector(samprate=sampling_rate)
+        x_coords = nan_removed_positions[:, 0]
+        y_coords = nan_removed_positions[:, 1]
+        # Transform into the expected format
+        eyedat = [(x_coords, y_coords)]
+        fix_stats = detector.detect_fixations(eyedat)
+        fixationtimes = fix_stats[0]['fixationtimes']
+        fixations = fix_stats[0]['fixations']
+        saccadetimes = fix_stats[0]['saccadetimes']
+        saccades = format_saccades(saccadetimes, nan_removed_positions, info)
+    else:
+        fix_detector = EyeMVMFixationDetector(sampling_rate=sampling_rate)
+        fixationtimes, fixations = fix_detector.detect_fixations(nan_removed_positions, nan_removed_time_vec, session_name)
+        saccade_detector = EyeMVMSaccadeDetector(params['vel_thresh'], params['min_samples'], params['smooth_func'])
+        saccades = saccade_detector.extract_saccades_for_session((nan_removed_positions, nan_removed_time_vec, info))
+
+    fix_timepos_df = pd.DataFrame({
+        'start_time': fixationtimes[0],
+        'end_time': fixationtimes[1],
+        'fix_x': fixations[0],
+        'fix_y': fixations[1]
+    })
+    return fix_timepos_df, info, saccades
+
+def process_fixation_results(fix_detection_results):
+    """
+    Processes the results from fixation detection.
+    Parameters:
+    - fix_detection_results (list): List of fixation detection results.
+    Returns:
+    - all_fix_timepos (pd.DataFrame): DataFrame of fixation time positions.
+    """
+    all_fix_timepos = pd.DataFrame()
+    for session_timepos_df, _ in fix_detection_results:
+        all_fix_timepos = pd.concat([all_fix_timepos, session_timepos_df], ignore_index=True)
+    return all_fix_timepos
+
+def save_fixation_and_saccade_results(processed_data_dir, all_fix_timepos, fix_detection_results, saccade_detection_results, params, monkey):
+    """
+    Saves fixation and saccade results to files.
+    Parameters:
+    - processed_data_dir (str): Directory to save processed data.
+    - all_fix_timepos (pd.DataFrame): DataFrame of fixation time positions.
+    - fix_detection_results (list): List of fixation detection results.
+    - saccade_detection_results (list): List of saccade detection results.
+    - params (dict): Dictionary of parameters.
+    - monkey (str): 'm1' or 'm2' to specify monkey data.
+    """
+    flag_info = util.get_filename_flag_info(params)
+    timepos_file_name = f'fix_timepos_{monkey}{flag_info}.csv'
+    all_fix_timepos.to_csv(os.path.join(processed_data_dir, timepos_file_name), index=False)
+    # Save the fixation and saccade detection results using pickle or similar method
+    fix_detection_file_name = f'fix_detection_{monkey}{flag_info}.pkl'
+    saccade_detection_file_name = f'saccade_detection_{monkey}{flag_info}.pkl'
+    util.save_to_pickle(os.path.join(processed_data_dir, fix_detection_file_name), fix_detection_results)
+    util.save_to_pickle(os.path.join(processed_data_dir, saccade_detection_file_name), saccade_detection_results)
+
+def format_saccades(saccadetimes, positions, info):
+    """
+    Formats the saccade times into a list of saccade details.
+    Parameters:
+    - saccadetimes (array): Array of saccade times.
+    - positions (array): Array of gaze positions.
+    - info (dict): Dictionary of session information.
+    Returns:
+    - saccades (list): List of saccade details.
+    """
+    # Placeholder function
+    return []
+
+def determine_roi_of_coord(position, bbox_corners):
+    # Placeholder for ROI determination logic
+    return 'roi_placeholder'
+
+def determine_block(start_time, end_time, startS, stopS):
+    # Placeholder for run and block determining logic based on the new dataset structure
+    return 'block_placeholder'
+
+
+## Old util.py
+
+
+def get_sorted_files(directory, pattern):
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.mat')]
+
+    def sort_key(filepath):
+        basename = os.path.basename(filepath)  # Extract the filename from the path
+        match = re.match(pattern, basename)
+        if match:
+            date_str, run_str = match.groups()
+            date_key = date_str
+            run_key = int(run_str)
+            return (date_key, run_key)
+        return None
+
+    # Create a list of tuples (file, sort_key) where sort_key is not None
+    files_with_keys = [(f, sort_key(f)) for f in files]
+    files_with_keys = [item for item in files_with_keys if item[1] is not None]
+
+    # Sort the list of tuples by the sort_key
+    sorted_files_with_keys = sorted(files_with_keys, key=lambda item: item[1])
+
+    # Extract the sorted files from the sorted list of tuples
+    sorted_files = [item[0] for item in sorted_files_with_keys]
+
+    return sorted_files
+
+
+
+
+def save_arrays_as_npy(directory, arrays, filename_prefix):
+    for i, array in enumerate(arrays):
+        output_file = os.path.join(directory, f"{filename_prefix}_{i}.npy")
+        np.save(output_file, array)
+
+
+def filter_none_entries(*lists):
+    filtered_lists = []
+    for lst in lists:
+        filtered_lists.append([item for item in lst if item is not None])
+    return filtered_lists
+
+
+def synchronize_file_lists(time_files, pos_files, m1_positions, m2_positions, time_vectors, pattern):
+    """
+    Ensure the list of position files matches the list of time files.
+    Args:
+    - time_files (list): List of time file paths.
+    - pos_files (list): List of position file paths.
+    - m1_positions (list): List of m1 gaze positions.
+    - m2_positions (list): List of m2 gaze positions.
+    - time_vectors (list): List of time vectors.
+    Returns:
+    - (list, list, list, list): Synchronized time_files, pos_files, m1_positions, m2_positions, time_vectors.
+    """
+    # Debug prints to check the input types
+    for i, path in enumerate(pos_files):
+        if not isinstance(path, (str, bytes, os.PathLike)):
+            print(f"Error in pos_files at index {i}: {path} is of type {type(path)}")
+
+    for i, path in enumerate(time_files):
+        if not isinstance(path, (str, bytes, os.PathLike)):
+            print(f"Error in time_files at index {i}: {path} is of type {type(path)}")
+
+    # Creating dictionaries with filenames as keys
+    pos_dict = {os.path.basename(path): (path, m1_pos, m2_pos) for path, m1_pos, m2_pos in zip(pos_files, m1_positions, m2_positions)}
+    time_dict = {os.path.basename(path): (path, t) for path, t in zip(time_files, time_vectors)}
+    
+    def sort_key(filepath):
+        basename = os.path.basename(filepath)  # Extract the filename from the path
+        match = re.match(pattern, basename)
+        if match:
+            date_str, run_str = match.groups()
+            date_key = date_str
+            run_key = int(run_str)
+            return (date_key, run_key)
+        return None
+    
+    # Identifying common filenames
+    common_filenames = set(pos_dict.keys()).intersection(time_dict.keys())
+    # Create a list of tuples (file, sort_key) where sort_key is not None
+    files_with_keys = [(f, sort_key(f)) for f in common_filenames]
+    files_with_keys = [item for item in files_with_keys if item[1] is not None]
+    # Sort the list of tuples by the sort_key
+    sorted_files_with_keys = sorted(files_with_keys, key=lambda item: item[1])
+    # Extract the sorted files from the sorted list of tuples
+    common_filenames_sorted = [item[0] for item in sorted_files_with_keys]
+
+    # Initializing synchronized lists
+    synchronized_time_files = []
+    synchronized_pos_files = []
+    synchronized_m1_positions = []
+    synchronized_m2_positions = []
+    synchronized_time_vectors = []
+
+    # Collecting synchronized data
+    for filename in common_filenames_sorted:
+        synchronized_time_files.append(time_dict[filename][0])
+        synchronized_pos_files.append(pos_dict[filename][0])
+        synchronized_m1_positions.append(pos_dict[filename][1])
+        synchronized_m2_positions.append(pos_dict[filename][2])
+        synchronized_time_vectors.append(time_dict[filename][1])
+
+    return synchronized_time_files, synchronized_pos_files, synchronized_m1_positions, synchronized_m2_positions, synchronized_time_vectors
+
+
+def remove_nans(positions, time_vec):
+    # Create a boolean mask where time_vec is not NaN
+    mask = ~np.isnan(time_vec).flatten()
+
+    # Apply the mask to both positions and time_vec
+    nan_removed_positions = positions[mask]
+    nan_removed_time_vec = time_vec[mask]
+
+    return nan_removed_positions, nan_removed_time_vec
+
+
+def distance2p(point1, point2):
+    """
+    Calculates the Euclidean distance between two points.
+    Parameters:
+    - point1 (tuple): First point coordinates.
+    - point2 (tuple): Second point coordinates.
+    Returns:
+    - dist (float): Euclidean distance.
+    """
+    x1, y1 = point1
+    x2, y2 = point2
+    return sqrt((x2 - x1)**2 + (y2 - y1)**2)
+

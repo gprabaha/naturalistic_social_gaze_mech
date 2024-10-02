@@ -11,7 +11,6 @@ import os
 import multiprocessing
 from datetime import datetime
 from tqdm import tqdm
-import multiprocessing as mp
 
 import util
 import curate_data
@@ -62,6 +61,7 @@ class DataManager:
         self.nan_removed_gaze_data_dict = None
         self.fixation_dict = None
         self.saccade_dict = None
+        self.binary_behav_timeseries = None
 
 
     def populate_params_with_data_paths(self):
@@ -118,6 +118,17 @@ class DataManager:
             self.params,                                     # Params
             self.nan_removed_gaze_data_dict                  # Passed as the first positional argument
         )
+        print('Fix dict:')
+        util.print_dict_keys(self.fixation_dict)
+        print('Sacc dict:')
+        util.print_dict_keys(self.saccade_dict)
+
+        self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
+        pdb.set_trace()
+        return 0
+
+
+
 
 
     def plot_behavior(self):
@@ -133,7 +144,7 @@ class DataManager:
             self.params)
         # Execute tasks either in parallel or serial based on use_parallel flag
         if self.params.get('use_parallel', False):
-            with mp.Pool(processes=self.params['num_cpus']) as pool:
+            with multiprocessing.Pool(processes=self.params['num_cpus']) as pool:
                 # Initialize the progress bar
                 pbar = tqdm(total=len(tasks), desc="Plotting fix and saccades in parallel")
                 # Submit tasks individually using apply_async and update progress after each task completes

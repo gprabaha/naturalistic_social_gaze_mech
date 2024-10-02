@@ -559,3 +559,72 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     return pruned_positions, pruned_pupil_size, pruned_time_series
 
 
+
+def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):
+    """
+    Main function to generate binary vectors for fixation and saccade behaviors from the given dictionaries.
+    Args:
+        fixation_dict: Dictionary containing fixation data.
+        saccade_dict: Dictionary containing saccade data.
+    Returns:
+        behavioral_vectors_dict: A dictionary with binary vectors for fixations and saccades.
+    """
+    behavioral_vectors_dict = {}
+    # Process fixation and saccade dictionaries separately
+    fixation_vectors = _generate_vectors_from_behavior_dict(fixation_dict, 'fixation')
+    saccade_vectors = _generate_vectors_from_behavior_dict(saccade_dict, 'saccade')
+    # Merge the results from fixations and saccades
+    for session in fixation_vectors:
+        behavioral_vectors_dict.setdefault(session, {}).update(fixation_vectors[session])
+    for session in saccade_vectors:
+        behavioral_vectors_dict.setdefault(session, {}).update(saccade_vectors[session])
+    return behavioral_vectors_dict
+
+
+def _generate_vectors_from_behavior_dict(behavior_dict, behavior_type):
+    """
+    Generates binary vectors from the given behavior dictionary (fixations, saccades, etc.).
+    Args:
+        behavior_dict: Dictionary containing behavior data (fixation, saccade).
+        behavior_type: The type of behavior (e.g., 'fixation', 'saccade').
+    Returns:
+        A dictionary with binary vectors for the specified behavior type.
+    """
+    behavioral_vectors = {}
+    for session, session_data in behavior_dict.items():
+        for interaction_type, interaction_data in session_data.items():
+            for run_number, run_data in interaction_data.items():
+                for agent, agent_data in run_data.items():
+                    # Fetch XY and behavior indices
+                    XY = agent_data['XY']
+                    behavior_indices = agent_data[f'{behavior_type}index']
+                    # Generate the binary vector for the behavior
+                    binary_vector = _generate_binary_vector_from_indices(XY, behavior_indices)
+                    # Store the binary vector in the hierarchical dictionary using setdefault
+                    behavioral_vectors.setdefault(session, {}).setdefault(interaction_type, {}).setdefault(run_number, {}).setdefault(agent, {})[behavior_type] = binary_vector
+    return behavioral_vectors
+
+
+def _generate_binary_vector_from_indices(XY, indices):
+    """
+    Helper function to generate a binary vector given the XY data and behavior indices.
+    Args:
+        XY: The 2xN or Nx2 position data timeseries array.
+        indices: The start and stop indices for the behavior.
+    Returns:
+        A binary vector with 1s marking the behavior intervals and 0s elsewhere.
+    """
+    # Check the shape of indices to ensure it is always 2xN
+    if indices.shape[0] != 2:
+        indices = indices.T
+    # Initialize binary vector of zeros with the length of XY
+    data_length = XY.shape[1] if XY.shape[0] == 2 else XY.shape[0]
+    binary_vector = np.zeros(data_length, dtype=int)
+    # Efficiently set the values to 1 for each start-stop index pair
+    for start, stop in indices.T:
+        binary_vector[start:stop] = 1
+    return binary_vector
+
+
+
+
