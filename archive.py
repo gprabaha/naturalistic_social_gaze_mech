@@ -6,6 +6,74 @@ Created on Wed May 22 16:04:31 2024
 @author: pg496
 """
 
+
+
+
+## from curate data: old dictionary structure, now using dataframe
+
+def add_paths_to_all_data_files_to_params(params):
+    """
+    Populates the paths to data files categorized by session, interaction type, run number, and data type.
+    Parameters:
+    - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
+    Returns:
+    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session,
+      interaction type, and run number, along with a dynamic legend describing the structure.
+    """
+    # Define directories
+    directories = {
+        'positions': params['positions_dir'],
+        'neural_timeline': params['neural_timeline_dir'],
+        'pupil_size': params['pupil_size_dir'],
+        'roi_rects': params['roi_rects_dir']
+    }
+    # Initialize data structure to store file paths organized by session
+    paths_dict = {}
+    # Define regex to extract session name (date), file type, and run number
+    file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
+    logger.info("Populating paths to data files.")
+    # Iterate over each directory
+    for data_type, dir_path in directories.items():
+        logger.info(f"Processing directory: {dir_path}")
+        try:
+            for filename in os.listdir(dir_path):
+                match = file_pattern.match(filename)
+                if match:
+                    session_name, file_type, run_number = match.groups()
+                    run_number = int(run_number)
+                    # Initialize session structure if not already present
+                    paths_dict.setdefault(session_name, {
+                        'interactive': {},
+                        'non_interactive': {}
+                    })
+                    # Determine interaction type based on file type
+                    interaction_type = 'interactive' if file_type == 'position' else 'non_interactive'
+                    # Initialize run structure if not already present
+                    paths_dict[session_name][interaction_type].setdefault(run_number, {
+                        'positions': None,
+                        'neural_timeline': None,
+                        'pupil_size': None
+                    })
+                    # Assign the file path to the appropriate data type
+                    if data_type == 'positions':
+                        paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                    elif data_type == 'neural_timeline':
+                        paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
+                    elif data_type == 'pupil_size':
+                        paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
+                    elif data_type == 'roi_rects':
+                        paths_dict[session_name][interaction_type][run_number]['roi_rects'] = os.path.join(dir_path, filename)
+        except Exception as e:
+            logger.error(f"Error processing directory {dir_path}: {e}")
+    # Generate a dynamic legend based on the newly structured paths dictionary
+    paths_dict['legend'] = util.generate_behav_dict_legend(paths_dict)
+    logger.info("Paths to all data files populated successfully.")
+    # Update params with the structured paths dictionary
+    params['data_file_paths'] = paths_dict
+    return params
+
+
+
 ## From filter_behav.py
 
 import os

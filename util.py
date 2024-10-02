@@ -211,7 +211,10 @@ def print_dict_keys(d, indent=0, limit=2):
     keys = list(d.keys())  # Get all the keys in the dictionary
     for i, key in enumerate(keys):
         if i >= limit:
-            print(' ' * indent + '...')  # Print ellipsis if key limit is exceeded
+            # Print a vertical ellipsis (one dot per line)
+            print(' ' * indent + '.')
+            print(' ' * indent + '.')
+            print(' ' * indent + '.')
             break
         print(' ' * indent + str(key))  # Print the key with the specified indentation
         value = d[key]
@@ -273,3 +276,5 @@ def merge_dictionaries(dest_dict, src_dict):
         else:
             # Otherwise, directly set the value in the destination dictionary
             dest_dict[key] = value
+
+

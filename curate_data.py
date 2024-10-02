@@ -78,15 +78,18 @@ def add_raw_data_dir_to_params(params):
     logger.info("Raw data directories added to params.")
     return params
 
+import pandas as pd
+import os
+import re
 
 def add_paths_to_all_data_files_to_params(params):
     """
-    Populates the paths to data files categorized by session, interaction type, run number, and data type.
+    Populates the paths to data files categorized by session, interaction type, run number, and data type
+    into a pandas DataFrame for easier traversal and querying.
     Parameters:
     - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
     Returns:
-    - params (dict): Updated dictionary with 'data_file_paths' field, which contains paths categorized by session,
-      interaction type, and run number, along with a dynamic legend describing the structure.
+    - params (dict): Updated dictionary with 'data_file_paths_df' field, containing a DataFrame with categorized paths.
     """
     # Define directories
     directories = {
@@ -95,49 +98,47 @@ def add_paths_to_all_data_files_to_params(params):
         'pupil_size': params['pupil_size_dir'],
         'roi_rects': params['roi_rects_dir']
     }
-    # Initialize data structure to store file paths organized by session
-    paths_dict = {}
-    # Define regex to extract session name (date), file type, and run number
+    # List to store rows for the DataFrame
+    paths_list = []
+    # Define regex to extract session name, file type, and run number
     file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
-    logger.info("Populating paths to data files.")
     # Iterate over each directory
     for data_type, dir_path in directories.items():
-        logger.info(f"Processing directory: {dir_path}")
         try:
             for filename in os.listdir(dir_path):
                 match = file_pattern.match(filename)
                 if match:
                     session_name, file_type, run_number = match.groups()
                     run_number = int(run_number)
-                    # Initialize session structure if not already present
-                    paths_dict.setdefault(session_name, {
-                        'interactive': {},
-                        'non_interactive': {}
-                    })
                     # Determine interaction type based on file type
                     interaction_type = 'interactive' if file_type == 'position' else 'non_interactive'
-                    # Initialize run structure if not already present
-                    paths_dict[session_name][interaction_type].setdefault(run_number, {
+                    # Prepare a row for the DataFrame
+                    row = {
+                        'session_name': session_name,
+                        'interaction_type': interaction_type,
+                        'run_number': run_number,
                         'positions': None,
                         'neural_timeline': None,
-                        'pupil_size': None
-                    })
+                        'pupil_size': None,
+                        'roi_rects': None
+                    }
                     # Assign the file path to the appropriate data type
                     if data_type == 'positions':
-                        paths_dict[session_name][interaction_type][run_number]['positions'] = os.path.join(dir_path, filename)
+                        row['positions'] = os.path.join(dir_path, filename)
                     elif data_type == 'neural_timeline':
-                        paths_dict[session_name][interaction_type][run_number]['neural_timeline'] = os.path.join(dir_path, filename)
+                        row['neural_timeline'] = os.path.join(dir_path, filename)
                     elif data_type == 'pupil_size':
-                        paths_dict[session_name][interaction_type][run_number]['pupil_size'] = os.path.join(dir_path, filename)
+                        row['pupil_size'] = os.path.join(dir_path, filename)
                     elif data_type == 'roi_rects':
-                        paths_dict[session_name][interaction_type][run_number]['roi_rects'] = os.path.join(dir_path, filename)
+                        row['roi_rects'] = os.path.join(dir_path, filename)
+                    # Add the row to the list
+                    paths_list.append(row)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
-    # Generate a dynamic legend based on the newly structured paths dictionary
-    paths_dict['legend'] = util.generate_behav_dict_legend(paths_dict)
-    logger.info("Paths to all data files populated successfully.")
-    # Update params with the structured paths dictionary
-    params['data_file_paths'] = paths_dict
+    # Convert the list to a DataFrame
+    paths_df = pd.DataFrame(paths_list)
+    # Update params with the paths DataFrame
+    params['data_file_paths_df'] = paths_df
     return params
 
 
@@ -595,7 +596,7 @@ def _generate_vectors_from_behavior_dict(behavior_dict, behavior_type):
                 for agent, agent_data in run_data.items():
                     # Fetch XY and behavior indices
                     XY = agent_data['XY']
-                    behavior_indices = agent_data[f'{behavior_type}index']
+                    behavior_indices = agent_data[f'{behavior_type}indices']
                     # Generate the binary vector for the behavior
                     binary_vector = _generate_binary_vector_from_indices(XY, behavior_indices)
                     # Store the binary vector in the hierarchical dictionary using setdefault
