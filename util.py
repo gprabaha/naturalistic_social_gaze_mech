@@ -218,3 +218,58 @@ def print_dict_keys(d, indent=0, limit=2):
         if isinstance(value, dict):     # If the value is a dictionary, recurse
             print_dict_keys(value, indent + 2, limit)
 
+
+def print_dict_keys_and_values(d, indent=0, limit=2, value_preview_limit=5):
+    """Recursively prints keys of a dictionary. Limits the number of keys printed at each level.
+    If more than 'limit' keys exist at a level, it prints a vertical ellipsis.
+    At the bottom level, prints part of the value if it's not a dictionary.
+    Truncates long values (like lists or arrays) to a preview size."""
+    keys = list(d.keys())  # Get all the keys in the dictionary
+    for i, key in enumerate(keys):
+        if i >= limit:
+            # Print a vertical ellipsis (one dot per line)
+            print(' ' * indent + '.')
+            print(' ' * indent + '.')
+            print(' ' * indent + '.')
+            break
+        value = d[key]
+        print(' ' * indent + str(key))  # Print the key with indentation
+        if isinstance(value, dict):     # If the value is a dictionary, recurse
+            print_dict_keys_and_values(value, indent + 2, limit, value_preview_limit)
+        else:
+            # Print a preview of the value
+            _preview_value(value, indent + 2, value_preview_limit)
+
+
+def _preview_value(value, indent, preview_limit):
+    """Helper function to print a preview of a value, truncating if it's large."""
+    preview_indent = ' ' * indent
+    if isinstance(value, (list, tuple)):
+        if len(value) > preview_limit:
+            print(f"{preview_indent}{value[:preview_limit]}... (and {len(value) - preview_limit} more)")
+        else:
+            print(f"{preview_indent}{value}")
+    elif isinstance(value, (str, bytes)):
+        if len(value) > preview_limit:
+            print(f"{preview_indent}{value[:preview_limit]}... (and {len(value) - preview_limit} more characters)")
+        else:
+            print(f"{preview_indent}{value}")
+    else:
+        print(f"{preview_indent}{value}")  # For other types, just print the value
+
+
+def merge_dictionaries(dest_dict, src_dict):
+    """
+    Recursively merges source dictionary into the destination dictionary, preserving all keys.
+    Args:
+        dest_dict: The destination dictionary to merge into.
+        src_dict: The source dictionary whose values will be merged into the destination.
+    """
+    for key, value in src_dict.items():
+        if isinstance(value, dict):
+            # If the value is a dictionary, recursively merge it
+            node = dest_dict.setdefault(key, {})
+            merge_dictionaries(node, value)
+        else:
+            # Otherwise, directly set the value in the destination dictionary
+            dest_dict[key] = value

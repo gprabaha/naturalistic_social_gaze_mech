@@ -573,11 +573,9 @@ def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):
     # Process fixation and saccade dictionaries separately
     fixation_vectors = _generate_vectors_from_behavior_dict(fixation_dict, 'fixation')
     saccade_vectors = _generate_vectors_from_behavior_dict(saccade_dict, 'saccade')
-    # Merge the results from fixations and saccades
-    for session in fixation_vectors:
-        behavioral_vectors_dict.setdefault(session, {}).update(fixation_vectors[session])
-    for session in saccade_vectors:
-        behavioral_vectors_dict.setdefault(session, {}).update(saccade_vectors[session])
+    # Recursively merge fixation and saccade vectors
+    util.merge_dictionaries(behavioral_vectors_dict, fixation_vectors)
+    util.merge_dictionaries(behavioral_vectors_dict, saccade_vectors)
     return behavioral_vectors_dict
 
 
@@ -624,6 +622,10 @@ def _generate_binary_vector_from_indices(XY, indices):
     for start, stop in indices.T:
         binary_vector[start:stop] = 1
     return binary_vector
+
+
+
+
 
 
 
