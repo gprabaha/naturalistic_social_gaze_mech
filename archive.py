@@ -73,6 +73,52 @@ def add_paths_to_all_data_files_to_params(params):
     return params
 
 
+def prune_data_file_paths_with_pos_time_filename_mismatch(params):
+    """
+    Prunes the data file paths to ensure that the filenames of positions, neural timeline, and pupil size 
+    are consistent within each run. Runs with mismatched or missing filenames are discarded and recorded.
+    Parameters:
+    - params (dict): Dictionary containing 'data_file_paths' with paths categorized by session, interaction type, 
+      and run number.
+    Returns:
+    - params (dict): Updated dictionary with pruned 'data_file_paths' and a new 'discarded_paths' field 
+      that records paths of discarded files.
+    """
+    logger.info("Pruning data file paths to ensure consistency of filenames across data types.")
+    # Extract the data paths dictionary from params
+    paths_dict = params.get('data_file_paths', {})
+    discarded_paths = {}
+    # Iterate over sessions
+    for session, interaction_types in paths_dict.items():
+        if session == 'legend':  # Skip the legend key
+            continue
+        # Initialize discarded paths for the session if not already present
+        discarded_paths[session] = {'interactive': {}, 'non_interactive': {}}
+        # Iterate over interaction types (interactive, non_interactive)
+        for interaction_type, runs in interaction_types.items():
+            for run, data_types in list(runs.items()):
+                # Extract filenames for each data type
+                positions_file = data_types.get('positions')
+                neural_timeline_file = data_types.get('neural_timeline')
+                pupil_size_file = data_types.get('pupil_size')
+                # Extract just the filenames without paths
+                positions_filename = positions_file.split('/')[-1] if positions_file else None
+                neural_timeline_filename = neural_timeline_file.split('/')[-1] if neural_timeline_file else None
+                pupil_size_filename = pupil_size_file.split('/')[-1] if pupil_size_file else None
+                # Check if filenames are consistent
+                filenames = [positions_filename, neural_timeline_filename, pupil_size_filename]
+                if len(set(filenames)) > 1:  # Check for mismatch INCLUDING missing files
+                    # Move the run to discarded paths and remove from the main paths
+                    discarded_paths[session][interaction_type][run] = paths_dict[session][interaction_type].pop(run)
+                    # Log which data types have inconsistent or missing filenames
+                    inconsistent_types = [dtype for dtype, fname in zip(['positions', 'neural_timeline', 'pupil_size'], filenames) if fname != positions_filename]
+                    logger.info(f"Discarded {interaction_type} run {run} for session {session}. Inconsistent or missing filenames in: {', '.join(inconsistent_types)}.")
+    # Update params with the pruned paths and the discarded paths
+    params['data_file_paths'] = paths_dict
+    params['discarded_paths'] = discarded_paths
+    logger.info("Data file paths pruned successfully.")
+    return params
+
 
 ## From filter_behav.py
 
