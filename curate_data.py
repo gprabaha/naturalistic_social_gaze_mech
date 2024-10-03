@@ -192,7 +192,7 @@ def _check_filenames_consistency_within_run(group):
 
 def make_gaze_data_df(params):
     """
-    Loads position, neural timeline, and pupil size data from the specified paths into a structured DataFrame
+    Loads position, neural timeline, pupil size, and ROI rects data from the specified paths into a structured DataFrame
     with optional parallel processing based on `use_parallel`. Saves the resulting DataFrame and 
     missing data paths as separate pickle files.
     Parameters:
@@ -211,78 +211,80 @@ def make_gaze_data_df(params):
         return pd.DataFrame(), []
     temp_results = []  # Temporary storage for results
     missing_data_paths = []  # To store paths where data is missing or empty
-    # Prepare a list of tasks for tqdm progress bar
     total_tasks = len(data_file_paths_df)
     logger.info(f"Total tasks to process: {total_tasks}")
-    # Choose between parallel and serial processing
     if use_parallel:
         logger.info("Using parallel processing to load data.")
         with ThreadPoolExecutor() as executor:
-            futures = []
-            for _, row in data_file_paths_df.iterrows():
-                for data_key in ['positions', 'neural_timeline', 'pupil_size', 'roi_rects']:
-                    file_path = row[data_key]
-                    if file_path:  # Ensure the file path exists
-                        futures.append(executor.submit(_load_run_data, data_key, row['session_name'], row['interaction_type'], row['run_number'], file_path))
-            # Collect the results as they complete with tqdm progress bar
+            futures = [
+                executor.submit(_load_run_data, row['session_name'], row['interaction_type'], row['run_number'], row)
+                for _, row in data_file_paths_df.iterrows()
+            ]
             with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
                 for future in as_completed(futures):
-                    temp_results.append(future.result())
+                    result = future.result()
+                    temp_results.append(result)
                     pbar.update(1)
     else:
         logger.info("Using serial processing to load data.")
         with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
             for _, row in data_file_paths_df.iterrows():
-                for data_key in ['positions', 'neural_timeline', 'pupil_size', 'roi_rects']:
-                    file_path = row[data_key]
-                    if file_path:  # Ensure the file path exists
-                        result = _load_run_data(data_key, row['session_name'], row['interaction_type'], row['run_number'], file_path)
-                        temp_results.append(result)
-                    pbar.update(1)  # Manually update the progress bar
-    pbar.close()  # Explicitly close the progress bar
+                result = _load_run_data(row['session_name'], row['interaction_type'], row['run_number'], row)
+                temp_results.append(result)
+                pbar.update(1)
+    pbar.close()
     # Convert the results into a DataFrame
-    logger.info("Assigning loaded data to the gaze data DataFrame.")
     gaze_data_df = pd.DataFrame(temp_results, columns=[
         'session_name', 'interaction_type', 'run_number', 
-        'positions_m1', 'positions_m2', 'neural_timeline', 'pupil_size_m1', 'pupil_size_m2', 'roi_rects_m1', 'roi_rects_m2'
+        'positions_m1', 'positions_m2',
+        'neural_timeline',
+        'pupil_size_m1', 'pupil_size_m2',
+        'roi_rects_m1', 'roi_rects_m2'
     ])
     # Filter out any missing data and log the missing paths
     missing_data_df = gaze_data_df[gaze_data_df.isnull().any(axis=1)]
     missing_data_paths = missing_data_df[['session_name', 'interaction_type', 'run_number']].values.tolist()
     if len(missing_data_paths) > 0:
         logger.info(f"Found missing or empty data for {len(missing_data_paths)} runs.")
-    # Remove rows with missing data from the main gaze data DataFrame
     gaze_data_df = gaze_data_df.dropna()
     return gaze_data_df, missing_data_paths
 
 
-def _load_run_data(data_type, session, interaction_type, run, file_path):
+def _load_run_data(session, interaction_type, run, row):
     """
-    Loads data based on the data type and file path provided.
+    Loads all relevant data for a given session, interaction type, and run, including positions, neural timeline,
+    pupil size, and ROI rects.
     Parameters:
-    - data_type (str): The type of data to load ('positions', 'neural_timeline', 'pupil_size', 'roi_rects').
     - session (str): The session identifier.
     - interaction_type (str): The type of interaction ('interactive' or 'non_interactive').
     - run (int): The run number.
-    - file_path (str): The path to the data file.
+    - row (pd.Series): Row from the data paths DataFrame containing the paths for each data type.
     Returns:
-    - tuple: A tuple containing session, interaction type, run, and the loaded data categorized by data type.
+    - tuple: A tuple containing session, interaction type, run, and the loaded data for all types.
     """
-    if data_type == 'positions':
-        m1_data, m2_data = __process_position_file(file_path)
-        return session, interaction_type, run, m1_data, m2_data, None, None, None, None
-    elif data_type == 'neural_timeline':
-        t_data = __process_time_file(file_path)
-        return session, interaction_type, run, None, None, t_data, None, None, None
-    elif data_type == 'pupil_size':
-        m1_data, m2_data = __process_pupil_file(file_path)
-        return session, interaction_type, run, None, None, None, m1_data, m2_data, None
-    elif data_type == 'roi_rects':
-        m1_data, m2_data = __process_roi_rects_file(file_path)
-        return session, interaction_type, run, None, None, None, None, None, m1_data, m2_data
-    # Fallback if the data type does not match expected values
-    logger.warning(f"Unexpected data type '{data_type}' for session {session}, interaction {interaction_type}, run {run}.")
-    return session, interaction_type, run, None, None, None, None, None, None
+    positions_m1, positions_m2 = None, None
+    neural_timeline = None
+    pupil_size_m1, pupil_size_m2 = None, None
+    roi_rects_m1, roi_rects_m2 = None, None
+    # Load positions
+    if row['positions']:
+        positions_m1, positions_m2 = __process_position_file(row['positions'])
+    # Load neural timeline
+    if row['neural_timeline']:
+        neural_timeline = __process_time_file(row['neural_timeline'])
+    # Load pupil size
+    if row['pupil_size']:
+        pupil_size_m1, pupil_size_m2 = __process_pupil_file(row['pupil_size'])
+    # Load ROI rects
+    if row['roi_rects']:
+        roi_rects_m1, roi_rects_m2 = __process_roi_rects_file(row['roi_rects'])
+    return (
+        session, interaction_type, run, 
+        positions_m1, positions_m2, 
+        neural_timeline, 
+        pupil_size_m1, pupil_size_m2, 
+        roi_rects_m1, roi_rects_m2
+    )
 
 
 def __process_position_file(mat_file):
@@ -403,61 +405,6 @@ def ___extract_roi_dict(agent_roi_data):
     for roi_name in agent_roi_data.dtype.names:
         roi_dict[roi_name] = agent_roi_data[roi_name][0][0][0]  # Adjust based on the data structure
     return roi_dict
-
-
-def clean_and_log_missing_dict_leaves(data_dict):
-    """
-    Recursively checks and removes keys with missing or empty data in a nested dictionary, logs missing paths.
-    Parameters:
-    - data_dict (dict): The dictionary to clean.
-    Returns:
-    - pruned_dict (dict): The cleaned dictionary with missing or empty values removed.
-    - missing_paths (list): List of paths where data was missing or empty.
-    """
-    logger.info(f"Removing dict keys with empty values (m2 data in some sessions/measurement)")
-    missing_paths = []
-    total_paths_checked = 0
-    pruned_dict, total_paths_checked, missing_paths = _remove_and_log_missing_leaves(
-        data_dict, missing_paths, total_paths_checked
-    )
-    # Log the summary of the operation
-    logger.info(f"Total paths checked: {total_paths_checked}")
-    logger.info(f"Total paths removed: {len(missing_paths)}")
-    return pruned_dict, missing_paths
-
-
-def _remove_and_log_missing_leaves(d, missing_paths, total_paths_checked, path=""):
-    """
-    Helper function that recursively removes keys with missing or empty data, logs paths of removed items.
-    Parameters:
-    - d (dict): The dictionary to clean.
-    - missing_paths (list): List to accumulate paths of missing or empty data.
-    - total_paths_checked (int): Counter to keep track of the total paths checked.
-    - path (str): Current path of the dictionary during recursion.
-    Returns:
-    - d (dict): The cleaned dictionary with missing or empty values removed.
-    - total_paths_checked (int): Updated count of paths checked.
-    - missing_paths (list): Updated list of paths where data was missing or empty.
-    """
-    for key in list(d.keys()):  # Use list(d.keys()) to avoid runtime error during iteration if keys are removed
-        current_path = f"{path}/{key}" if path else str(key)
-        value = d[key]
-        total_paths_checked += 1  # Increment the counter for each path checked
-        # Check for missing or empty values before recursion
-        if value is None or (hasattr(value, "size") and value.size == 0):
-            missing_paths.append(current_path)
-            d.pop(key)  # Directly remove the key
-        elif isinstance(value, dict):
-            # Recursively clean sub-dictionaries
-            d[key], total_paths_checked, missing_paths = _remove_and_log_missing_leaves(
-                value, missing_paths, total_paths_checked, current_path
-            )
-            # If the sub-dictionary is empty after recursion, remove it
-            if not d[key]:  # This catches sub-dicts that became empty after cleaning
-                logger.warning(f"Empty sub-dictionary at path: {current_path}")
-                missing_paths.append(current_path)
-                d.pop(key)
-    return d, total_paths_checked, missing_paths
 
 
 def prune_nan_values_in_timeseries(params, gaze_data_dict):
