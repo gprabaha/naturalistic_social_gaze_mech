@@ -161,6 +161,6 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        self.analyze_behavior()
+        # self.analyze_behavior()
         # self.plot_behavior()
 
