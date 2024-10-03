@@ -190,48 +190,40 @@ def _check_filenames_consistency_within_run(group):
     return len(set(filenames)) == 1
 
 
-
-
-def make_gaze_data_dict(params):
+def make_gaze_data_df(params):
     """
-    Loads position, neural timeline, and pupil size data from the specified paths into a structured dictionary
-    with optional parallel processing based on `use_parallel`. Saves the resulting dictionary and 
+    Loads position, neural timeline, and pupil size data from the specified paths into a structured DataFrame
+    with optional parallel processing based on `use_parallel`. Saves the resulting DataFrame and 
     missing data paths as separate pickle files.
     Parameters:
-    - params (dict): A dictionary containing configuration parameters, including 'data_file_paths', 
+    - params (dict): A dictionary containing configuration parameters, including 'data_file_paths_df', 
       'use_parallel', and 'processed_data_dir'.
     Returns:
-    - gaze_data_dict (dict): Dictionary structured as {session: {interaction_type: {run: {'positions': {'m1': m1_data, 'm2': m2_data}, 
-      'neural_timeline': neural_timeline_data, 'pupil_size': {'m1': m1_data, 'm2': m2_data}}}}}.
+    - gaze_data_df (pd.DataFrame): DataFrame structured with columns ['session_name', 'interaction_type', 
+      'run_number', 'positions_m1', 'positions_m2', 'neural_timeline', 'pupil_size_m1', 'pupil_size_m2', 'roi_rects_m1', 'roi_rects_m2'].
     - missing_data_paths (list): List of paths where data is missing or empty.
     """
     logger.info("Starting to load gaze data from specified paths.")
-    data_file_paths = params['data_file_paths']
+    data_file_paths_df = params.get('data_file_paths_df', pd.DataFrame())
     use_parallel = params.get('use_parallel', False)
-    processed_data_dir = params['processed_data_dir']
-    gaze_data_dict = {}
+    if data_file_paths_df.empty:
+        logger.warning("No data file paths found.")
+        return pd.DataFrame(), []
     temp_results = []  # Temporary storage for results
+    missing_data_paths = []  # To store paths where data is missing or empty
     # Prepare a list of tasks for tqdm progress bar
-    total_tasks = sum(
-        len(runs)
-        for session, interaction_types in data_file_paths.items()
-        if session != 'legend'
-        for interaction_type, runs in interaction_types.items()
-    )
+    total_tasks = len(data_file_paths_df)
     logger.info(f"Total tasks to process: {total_tasks}")
     # Choose between parallel and serial processing
     if use_parallel:
         logger.info("Using parallel processing to load data.")
         with ThreadPoolExecutor() as executor:
             futures = []
-            for session, interaction_types in data_file_paths.items():
-                if session == 'legend':  # Skip legend if present
-                    continue
-                for interaction_type, runs in interaction_types.items():
-                    for run, data_types in runs.items():
-                        for data_key, file_path in data_types.items():
-                            if file_path:  # Ensure the file path exists
-                                futures.append(executor.submit(load_run_data, data_key, session, interaction_type, run, file_path))
+            for _, row in data_file_paths_df.iterrows():
+                for data_key in ['positions', 'neural_timeline', 'pupil_size', 'roi_rects']:
+                    file_path = row[data_key]
+                    if file_path:  # Ensure the file path exists
+                        futures.append(executor.submit(_load_run_data, data_key, row['session_name'], row['interaction_type'], row['run_number'], file_path))
             # Collect the results as they complete with tqdm progress bar
             with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
                 for future in as_completed(futures):
@@ -239,73 +231,61 @@ def make_gaze_data_dict(params):
                     pbar.update(1)
     else:
         logger.info("Using serial processing to load data.")
-        # Serial processing with a tqdm progress bar
         with tqdm(total=total_tasks, desc="Loading Data", unit="file", leave=False) as pbar:
-            for session, interaction_types in data_file_paths.items():
-                if session == 'legend':  # Skip legend if present
-                    continue
-                for interaction_type, runs in interaction_types.items():
-                    for run, data_types in runs.items():
-                        for data_key, file_path in data_types.items():
-                            if file_path:  # Ensure the file path exists
-                                result = load_run_data(data_key, session, interaction_type, run, file_path)
-                                temp_results.append(result)
-                            pbar.update(1)  # Manually update the progress bar
-    pbar.close()  # Explicitly close the first progress bar
-    # Assignment of results into the gaze_data_dict with a progress bar
-    logger.info("Assigning loaded data to the gaze data dictionary.")
-    with tqdm(total=len(temp_results), desc="Assigning Data", unit="assignment") as pbar:
-        for session, interaction_type, run, data_key, data_value in temp_results:
-            session_dict = gaze_data_dict.setdefault(session, {})
-            interaction_dict = session_dict.setdefault(interaction_type, {})
-            run_dict = interaction_dict.setdefault(run, {})
-            if data_key in ['positions', 'pupil_size', 'roi_rects']:
-                # Handle m1 and m2 under positions and pupil size
-                data_subdict = run_dict.setdefault(data_key, {})
-                if 'm1' in data_value:
-                    data_subdict['m1'] = data_value['m1']
-                if 'm2' in data_value:
-                    data_subdict['m2'] = data_value['m2']
-            elif data_key == 'neural_timeline':
-                # Directly assign neural_timeline data
-                run_dict['neural_timeline'] = data_value
-            pbar.update(1)
-    logger.info("Completed loading gaze data.")
-    # Add a concise legend to the gaze_data_dict
-    gaze_data_dict['legend'] = util.generate_behav_dict_legend(gaze_data_dict)
-    return gaze_data_dict
+            for _, row in data_file_paths_df.iterrows():
+                for data_key in ['positions', 'neural_timeline', 'pupil_size', 'roi_rects']:
+                    file_path = row[data_key]
+                    if file_path:  # Ensure the file path exists
+                        result = _load_run_data(data_key, row['session_name'], row['interaction_type'], row['run_number'], file_path)
+                        temp_results.append(result)
+                    pbar.update(1)  # Manually update the progress bar
+    pbar.close()  # Explicitly close the progress bar
+    # Convert the results into a DataFrame
+    logger.info("Assigning loaded data to the gaze data DataFrame.")
+    gaze_data_df = pd.DataFrame(temp_results, columns=[
+        'session_name', 'interaction_type', 'run_number', 
+        'positions_m1', 'positions_m2', 'neural_timeline', 'pupil_size_m1', 'pupil_size_m2', 'roi_rects_m1', 'roi_rects_m2'
+    ])
+    # Filter out any missing data and log the missing paths
+    missing_data_df = gaze_data_df[gaze_data_df.isnull().any(axis=1)]
+    missing_data_paths = missing_data_df[['session_name', 'interaction_type', 'run_number']].values.tolist()
+    if len(missing_data_paths) > 0:
+        logger.info(f"Found missing or empty data for {len(missing_data_paths)} runs.")
+    # Remove rows with missing data from the main gaze data DataFrame
+    gaze_data_df = gaze_data_df.dropna()
+    return gaze_data_df, missing_data_paths
 
 
-def load_run_data(data_type, session, interaction_type, run, file_path):
+def _load_run_data(data_type, session, interaction_type, run, file_path):
     """
     Loads data based on the data type and file path provided.
     Parameters:
-    - data_type (str): The type of data to load ('positions', 'neural_timeline', 'pupil_size').
+    - data_type (str): The type of data to load ('positions', 'neural_timeline', 'pupil_size', 'roi_rects').
     - session (str): The session identifier.
     - interaction_type (str): The type of interaction ('interactive' or 'non_interactive').
     - run (int): The run number.
     - file_path (str): The path to the data file.
     Returns:
-    - tuple: A tuple containing the session, interaction type, run, data key, and the loaded data.
+    - tuple: A tuple containing session, interaction type, run, and the loaded data categorized by data type.
     """
     if data_type == 'positions':
-        m1_data, m2_data = process_position_file(file_path)
-        return session, interaction_type, run, 'positions', {'m1': m1_data, 'm2': m2_data}
+        m1_data, m2_data = __process_position_file(file_path)
+        return session, interaction_type, run, m1_data, m2_data, None, None, None, None
     elif data_type == 'neural_timeline':
-        t_data = process_time_file(file_path)
-        return session, interaction_type, run, 'neural_timeline', t_data
+        t_data = __process_time_file(file_path)
+        return session, interaction_type, run, None, None, t_data, None, None, None
     elif data_type == 'pupil_size':
-        m1_data, m2_data = process_pupil_file(file_path)
-        return session, interaction_type, run, 'pupil_size', {'m1': m1_data, 'm2': m2_data}
+        m1_data, m2_data = __process_pupil_file(file_path)
+        return session, interaction_type, run, None, None, None, m1_data, m2_data, None
     elif data_type == 'roi_rects':
-        m1_data, m2_data = process_roi_rects_file(file_path)
-        return session, interaction_type, run, 'roi_rects', {'m1': m1_data, 'm2': m2_data}
+        m1_data, m2_data = __process_roi_rects_file(file_path)
+        return session, interaction_type, run, None, None, None, None, None, m1_data, m2_data
     # Fallback if the data type does not match expected values
     logger.warning(f"Unexpected data type '{data_type}' for session {session}, interaction {interaction_type}, run {run}.")
-    return session, interaction_type, run, data_type, None
+    return session, interaction_type, run, None, None, None, None, None, None
 
 
-def process_position_file(mat_file):
+def __process_position_file(mat_file):
     """
     Processes a position file to extract m1 and m2 data.
     Parameters:
@@ -332,7 +312,7 @@ def process_position_file(mat_file):
     return None, None
 
 
-def process_time_file(mat_file):
+def __process_time_file(mat_file):
     """
     Processes a time file to extract time data.
     Parameters:
@@ -358,7 +338,7 @@ def process_time_file(mat_file):
     return time_data
 
 
-def process_pupil_file(mat_file):
+def __process_pupil_file(mat_file):
     """
     Processes a pupil size file to extract m1 and m2 pupil size data.
     Parameters:
@@ -385,14 +365,14 @@ def process_pupil_file(mat_file):
     return None, None
 
 
-def process_roi_rects_file(mat_file):
+def __process_roi_rects_file(mat_file):
     """
     Processes an ROI rects file to extract m1 and m2 ROI data as dictionaries.
     Parameters:
     - mat_file (str): Path to the .mat file.
     Returns:
     - tuple: (m1_data, m2_data) where each is a dictionary with ROI names as keys
-            and the rect coordinates as values. If m1 or m2 data is missing, their value will be None.
+             and the rect coordinates as values. If m1 or m2 data is missing, their value will be None.
     """
     mat_data = load_data.load_mat_from_path(mat_file)
     roi_data = None
@@ -400,24 +380,29 @@ def process_roi_rects_file(mat_file):
     if isinstance(mat_data, dict) and 'roi_rects' in mat_data:
         roi_data = mat_data['roi_rects'][0][0]
     if roi_data is not None:
-
-        # Helper function to extract ROI data
-        def extract_roi_dict(agent_roi_data):
-            if agent_roi_data is None:
-                return None
-            roi_dict = {}
-            for roi_name in agent_roi_data.dtype.names:
-                roi_dict[roi_name] = agent_roi_data[roi_name][0][0][0]  # Adjust based on the data structure
-            return roi_dict
-
         # Extract m1 and m2 data
-        m1_data = extract_roi_dict(roi_data['m1']) if 'm1' in roi_data.dtype.names else None
-        m2_data = extract_roi_dict(roi_data['m2']) if 'm2' in roi_data.dtype.names else None
+        m1_data = ___extract_roi_dict(roi_data['m1']) if 'm1' in roi_data.dtype.names else None
+        m2_data = ___extract_roi_dict(roi_data['m2']) if 'm2' in roi_data.dtype.names else None
         return m1_data, m2_data
     # Log if roi_data is missing or improperly formatted
     logger.warning(f"ROI rects data is missing or improperly formatted in file: {mat_file}")
     return None, None
 
+
+def ___extract_roi_dict(agent_roi_data):
+    """
+    Extracts ROI data from the given agent data.
+    Parameters:
+    - agent_roi_data: The agent's ROI data.
+    Returns:
+    - dict: A dictionary with ROI names as keys and rect coordinates as values, or None if the data is missing.
+    """
+    if agent_roi_data is None:
+        return None
+    roi_dict = {}
+    for roi_name in agent_roi_data.dtype.names:
+        roi_dict[roi_name] = agent_roi_data[roi_name][0][0][0]  # Adjust based on the data structure
+    return roi_dict
 
 
 def clean_and_log_missing_dict_leaves(data_dict):
