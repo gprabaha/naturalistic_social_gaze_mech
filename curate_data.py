@@ -70,7 +70,7 @@ def add_raw_data_dir_to_params(params):
     path_to_positions = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/position')
     path_to_time_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/time')
     path_to_pupil_vecs = os.path.join(root_data_dir, 'eyetracking/aligned_raw_samples/pupil_size')
-    path_to_roi_rects = os.path.join(root_data_dir, 'eyetracking/roi_rect_tables')
+    path_to_roi_rects = os.path.join(root_data_dir, 'eyetracking/roi_rects')
     params['positions_dir'] = path_to_positions
     params['neural_timeline_dir'] = path_to_time_vecs
     params['pupil_size_dir'] = path_to_pupil_vecs
@@ -131,9 +131,9 @@ def add_paths_to_all_data_files_to_params(params):
             logger.error(f"Error processing directory {dir_path}: {e}")
             # Check and log missing values
     for key, paths in collected_paths.items():
-        if None in paths.values():
-            logger.warning(f"Incomplete data for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}")
-    # Filter out entries that are incomplete (i.e., contain None)
+        if any(value is None for value in paths.values()):  # Explicitly check for None
+            logger.warning(f"Filepaths of certain types not found for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}")
+    # Filter out entries that contain None values explicitly
     complete_paths_list = [
         {
             'session_name': key[0],
@@ -142,27 +142,19 @@ def add_paths_to_all_data_files_to_params(params):
             **paths
         }
         for key, paths in collected_paths.items()
-        if None not in paths.values()
+        if all(value is not None for value in paths.values())  # Explicitly check for None
     ]
     # Convert the list to a DataFrame
     paths_df = pd.DataFrame(complete_paths_list)
     # Update params with the paths DataFrame
     params['data_file_paths_df'] = paths_df
-    pdb.set_trace()
     return params
-
 
 
 def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     """
     Prunes the data file paths DataFrame to ensure that the filenames of positions, neural timeline, and pupil size 
     are consistent within each run (based on session, interaction type, and run number).
-    Parameters:
-    - params (dict): Dictionary containing 'data_file_paths_df' with a DataFrame of paths categorized by session,
-      interaction type, and run number.
-    Returns:
-    - params (dict): Updated dictionary with pruned 'data_file_paths_df' and a new 'discarded_paths_df' field 
-      that records paths of discarded files.
     """
     logger.info("Pruning data file paths to ensure consistency of filenames within each session and interaction type.")
     # Extract the paths DataFrame from params
@@ -174,6 +166,8 @@ def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     grouped_df = paths_df.groupby(['session_name', 'interaction_type', 'run_number'])
     # Separate consistent and inconsistent runs by applying the consistency check within each group
     consistent_mask = grouped_df.apply(lambda group: _check_filenames_consistency_within_run(group.iloc[0]))
+    # Reset index to match the original DataFrame's index
+    consistent_mask = consistent_mask.reset_index(drop=True)
     # Filter for consistent and inconsistent runs
     consistent_paths_df = paths_df[consistent_mask]
     discarded_paths_df = paths_df[~consistent_mask]
@@ -183,6 +177,7 @@ def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     # Log how many paths were discarded
     logger.info(f"Discarded {len(discarded_paths_df)} runs due to inconsistent or missing filenames within their respective session and interaction type.")
     return params
+
 
 
 def _check_filenames_consistency_within_run(group):
@@ -198,8 +193,11 @@ def _check_filenames_consistency_within_run(group):
     filenames = [
         os.path.basename(group['positions']) if group['positions'] else None,
         os.path.basename(group['neural_timeline']) if group['neural_timeline'] else None,
-        os.path.basename(group['pupil_size']) if group['pupil_size'] else None
+        os.path.basename(group['pupil_size']) if group['pupil_size'] else None,
+        os.path.basename(group['roi_rects']) if group['roi_rects'] else None
     ]
+    if len(set(filenames)) != 1:
+        pdb.set_trace()
     # Return True if all filenames are the same or None
     return len(set(filenames)) == 1
 
