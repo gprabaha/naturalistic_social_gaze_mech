@@ -70,24 +70,38 @@ class DataManager:
         self.params = curate_data.add_raw_data_dir_to_params(self.params)
         self.params = curate_data.add_paths_to_all_data_files_to_params(self.params)
         self.params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(self.params)
-        pdb.set_trace()
 
 
     def get_data(self):
         """
         Loads gaze data into a dictionary format from the available position, time, and pupil size files.
+        If the data already exists and `remake_gaze_data_dict` is False, it will load the data from a saved pickle file.
+        Otherwise, it will recompute the gaze data using the defined function and save the result.
+        This also handles the second output, which is the list of missing data paths.
         """
-        # Define paths to save/load the variables
+        # Define path to save/load the gaze data and the missing data paths
         gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_dict.pkl')
-        # Use the compute_or_load_variables function to compute or load the gaze data
-        # !! Load and compute variables function also saves the variable that it computes !!
-        self.gaze_data_dict = util.compute_or_load_variables(
-            compute_func=curate_data.make_gaze_data_dict,
-            load_func=load_data.get_gaze_data_dict,  # Function to load the data, to be implemented next
-            file_paths=gaze_data_file_path,
-            remake_flag_key='remake_gaze_data_dict',
-            params=self.params  # Pass the params dictionary
+        missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
+        # Use the compute_or_load_variables function to compute or load the gaze data and missing data paths
+        self.gaze_data_df, self.missing_data_paths = util.compute_or_load_variables(
+            compute_func=curate_data.make_gaze_data_df,  # Function that computes the gaze data DataFrame and missing paths
+            load_func=load_data.get_gaze_data_dict,      # Function to load the saved gaze data and missing paths
+            file_paths=[gaze_data_file_path, missing_data_paths_file_path],  # Paths where the data will be saved/loaded
+            remake_flag_key='remake_gaze_data_dict',     # Parameter key to determine if we should remake or load the data
+            params=self.params                           # The params dictionary containing relevant settings
         )
+        pdb.set_trace()
+        # After loading or computing, log the number of sessions loaded
+        if self.gaze_data_dict:
+            self.logger.info(f"Successfully loaded or computed gaze data for {len(self.gaze_data_dict)} sessions.")
+        else:
+            self.logger.warning("No gaze data was loaded or computed.")
+        # Log the missing data paths if any
+        if self.missing_data_paths:
+            self.logger.info(f"Found missing data paths for {len(self.missing_data_paths)} sessions.")
+        else:
+            self.logger.info("No missing data paths found.")
+
 
 
     def prune_data(self):
@@ -161,7 +175,7 @@ class DataManager:
     def run(self):
         self.populate_params_with_data_paths()
         self.get_data()
-        self.prune_data()
+        # self.prune_data()
         # self.analyze_behavior()
         # self.plot_behavior()
 
