@@ -84,7 +84,7 @@ def add_paths_to_all_data_files_to_params(params):
     Populates the paths to data files categorized by session, interaction type, run number, and data type
     into a pandas DataFrame for easier traversal and querying.
     Parameters:
-    - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', and 'pupil_size_dir'.
+    - params (dict): Dictionary containing paths to 'positions_dir', 'neural_timeline_dir', 'pupil_size_dir', and 'roi_rects_dir'.
     Returns:
     - params (dict): Updated dictionary with 'data_file_paths_df' field, containing a DataFrame with categorized paths.
     """
@@ -95,8 +95,8 @@ def add_paths_to_all_data_files_to_params(params):
         'pupil_size': params['pupil_size_dir'],
         'roi_rects': params['roi_rects_dir']
     }
-    # List to store rows for the DataFrame
-    paths_list = []
+    # Dictionary to collect files by session, interaction type, and run number
+    collected_paths = {}
     # Define regex to extract session name, file type, and run number
     file_pattern = re.compile(r'(\d{8})_(position|dot)_(\d+)\.mat')
     # Iterate over each directory
@@ -109,34 +109,48 @@ def add_paths_to_all_data_files_to_params(params):
                     run_number = int(run_number)
                     # Determine interaction type based on file type
                     interaction_type = 'interactive' if file_type == 'position' else 'non_interactive'
-                    # Prepare a row for the DataFrame
-                    row = {
-                        'session_name': session_name,
-                        'interaction_type': interaction_type,
-                        'run_number': run_number,
-                        'positions': None,
-                        'neural_timeline': None,
-                        'pupil_size': None,
-                        'roi_rects': None
-                    }
+                    # Initialize the key for this session, interaction type, and run
+                    key = (session_name, interaction_type, run_number)
+                    if key not in collected_paths:
+                        collected_paths[key] = {
+                            'positions': None,
+                            'neural_timeline': None,
+                            'pupil_size': None,
+                            'roi_rects': None
+                        }
                     # Assign the file path to the appropriate data type
                     if data_type == 'positions':
-                        row['positions'] = os.path.join(dir_path, filename)
+                        collected_paths[key]['positions'] = os.path.join(dir_path, filename)
                     elif data_type == 'neural_timeline':
-                        row['neural_timeline'] = os.path.join(dir_path, filename)
+                        collected_paths[key]['neural_timeline'] = os.path.join(dir_path, filename)
                     elif data_type == 'pupil_size':
-                        row['pupil_size'] = os.path.join(dir_path, filename)
+                        collected_paths[key]['pupil_size'] = os.path.join(dir_path, filename)
                     elif data_type == 'roi_rects':
-                        row['roi_rects'] = os.path.join(dir_path, filename)
-                    # Add the row to the list
-                    paths_list.append(row)
+                        collected_paths[key]['roi_rects'] = os.path.join(dir_path, filename)
         except Exception as e:
             logger.error(f"Error processing directory {dir_path}: {e}")
+            # Check and log missing values
+    for key, paths in collected_paths.items():
+        if None in paths.values():
+            logger.warning(f"Incomplete data for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}")
+    # Filter out entries that are incomplete (i.e., contain None)
+    complete_paths_list = [
+        {
+            'session_name': key[0],
+            'interaction_type': key[1],
+            'run_number': key[2],
+            **paths
+        }
+        for key, paths in collected_paths.items()
+        if None not in paths.values()
+    ]
     # Convert the list to a DataFrame
-    paths_df = pd.DataFrame(paths_list)
+    paths_df = pd.DataFrame(complete_paths_list)
     # Update params with the paths DataFrame
     params['data_file_paths_df'] = paths_df
+    pdb.set_trace()
     return params
+
 
 
 def prune_data_file_paths_with_pos_time_filename_mismatch(params):

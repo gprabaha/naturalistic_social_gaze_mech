@@ -70,6 +70,7 @@ class DataManager:
         self.params = curate_data.add_raw_data_dir_to_params(self.params)
         self.params = curate_data.add_paths_to_all_data_files_to_params(self.params)
         self.params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(self.params)
+        pdb.set_trace()
 
 
     def get_data(self):
