@@ -179,7 +179,6 @@ def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     return params
 
 
-
 def _check_filenames_consistency_within_run(group):
     """
     Checks if the filenames of positions, neural timeline, and pupil size are consistent for a given run.
@@ -213,7 +212,7 @@ def make_gaze_data_df(params):
     Returns:
     - gaze_data_df (pd.DataFrame): DataFrame structured with columns ['session_name', 'interaction_type', 
       'run_number', 'positions_m1', 'positions_m2', 'neural_timeline', 'pupil_size_m1', 'pupil_size_m2', 'roi_rects_m1', 'roi_rects_m2'].
-    - missing_data_paths (list): List of paths where data is missing or empty.
+    - missing_data_info (list): List of dictionaries containing paths and information about which data is missing.
     """
     logger.info("Starting to load gaze data from specified paths.")
     data_file_paths_df = params.get('data_file_paths_df', pd.DataFrame())
@@ -222,7 +221,7 @@ def make_gaze_data_df(params):
         logger.warning("No data file paths found.")
         return pd.DataFrame(), []
     temp_results = []  # Temporary storage for results
-    missing_data_paths = []  # To store paths where data is missing or empty
+    missing_data_info = []  # To store information on missing or empty data
     total_tasks = len(data_file_paths_df)
     logger.info(f"Total tasks to process: {total_tasks}")
     if use_parallel:
@@ -253,13 +252,45 @@ def make_gaze_data_df(params):
         'pupil_size_m1', 'pupil_size_m2',
         'roi_rects_m1', 'roi_rects_m2'
     ])
-    # Filter out any missing data and log the missing paths
-    missing_data_df = gaze_data_df[gaze_data_df.isnull().any(axis=1)]
-    missing_data_paths = missing_data_df[['session_name', 'interaction_type', 'run_number']].values.tolist()
-    if len(missing_data_paths) > 0:
-        logger.info(f"Found missing or empty data for {len(missing_data_paths)} runs.")
+    # Identify and log which data is missing for each session
+    for idx, row in gaze_data_df.iterrows():
+        missing_data = {}
+        # Check if positions_m1 or positions_m2 are None or empty arrays
+        if row['positions_m1'] is None or len(row['positions_m1']) == 0:
+            missing_data['positions_m1'] = True
+        if row['positions_m2'] is None or len(row['positions_m2']) == 0:
+            missing_data['positions_m2'] = True
+        # Check if neural_timeline is None or an empty array
+        if row['neural_timeline'] is None or len(row['neural_timeline']) == 0:
+            missing_data['neural_timeline'] = True
+        # Check if pupil_size_m1 or pupil_size_m2 are None or empty arrays
+        if row['pupil_size_m1'] is None or len(row['pupil_size_m1']) == 0:
+            missing_data['pupil_size_m1'] = True
+        if row['pupil_size_m2'] is None or len(row['pupil_size_m2']) == 0:
+            missing_data['pupil_size_m2'] = True
+        # Check if roi_rects_m1 or roi_rects_m2 are None or empty dictionaries
+        if row['roi_rects_m1'] is None or not bool(row['roi_rects_m1']):  # Empty dict check
+            missing_data['roi_rects_m1'] = True
+        if row['roi_rects_m2'] is None or not bool(row['roi_rects_m2']):
+            missing_data['roi_rects_m2'] = True
+        # If any data is missing, add it to the missing_data_info list
+        if missing_data:
+            missing_data_info.append({
+                'session_name': row['session_name'],
+                'interaction_type': row['interaction_type'],
+                'run_number': row['run_number'],
+                'missing_data': missing_data
+            })
+    if len(missing_data_info) > 0:
+        logger.info(f"Found missing or empty data for {len(missing_data_info)} runs.")
+    else:
+        logger.info("No missing data found.")
+    # Remove rows with any missing data
     gaze_data_df = gaze_data_df.dropna()
-    return gaze_data_df, missing_data_paths
+    
+    return gaze_data_df, missing_data_info
+
+
 
 
 def _load_run_data(session, interaction_type, run, row):
