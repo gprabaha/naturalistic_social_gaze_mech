@@ -407,47 +407,39 @@ def ___extract_roi_dict(agent_roi_data):
     return roi_dict
 
 
-def prune_nan_values_in_timeseries(params, gaze_data_dict):
+def prune_nan_values_in_timeseries(params, gaze_data_df):
     """
-    Prunes NaN values from the time series in the gaze data dictionary and 
+    Prunes NaN values from the time series in the gaze data DataFrame and 
     adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
-    The pruned dictionary is saved to the processed data directory specified in params.
+    The pruned DataFrame is returned.
     Parameters:
-    - gaze_data_dict (dict): The gaze data dictionary containing session, interaction type, and run data.
+    - gaze_data_df (pd.DataFrame): The gaze data DataFrame containing session, interaction type, and run data.
     - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
-    - nan_removed_gaze_data_dict (dict): The pruned gaze data dictionary with NaN values removed.
+    - pruned_gaze_data_df (pd.DataFrame): The pruned gaze data DataFrame with NaN values removed.
     """
-    # Create a copy of the gaze data dictionary to store the pruned version
-    nan_removed_gaze_data_dict = {}
-    # Iterate over the original gaze data dictionary
-    for session, session_dict in gaze_data_dict.items():
-        if session == 'legend':  # Skip the legend entry
-            continue
-        pruned_session_dict = {}
-        for interaction_type, interaction_dict in session_dict.items():
-            pruned_interaction_dict = {}
-            for run, run_dict in interaction_dict.items():
-                # Extract the neural timeline (time series)
-                time_series = run_dict.get('neural_timeline')
-                if time_series is not None:
-                    # Prune NaN values and adjust corresponding time series using the helper function
-                    pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
-                        time_series,
-                        run_dict.get('positions', {}),
-                        run_dict.get('pupil_size', {})
-                    )
-                    # Create a new run dictionary with pruned data
-                    pruned_run_dict = {
-                        'positions': pruned_positions,
-                        'pupil_size': pruned_pupil_size,
-                        'neural_timeline': pruned_time_series,
-                        'roi_rects': run_dict.get('roi_rects')
-                    }
-                    pruned_interaction_dict[run] = pruned_run_dict
-            pruned_session_dict[interaction_type] = pruned_interaction_dict
-        nan_removed_gaze_data_dict[session] = pruned_session_dict
-    return nan_removed_gaze_data_dict
+    logger.info("Pruning NaN values from gaze data time series.")
+    pruned_rows = []
+    for _, row in gaze_data_df.iterrows():
+        # Extract relevant data for m1 and m2
+        time_series = row['neural_timeline']
+        positions = {'m1': row['positions_m1'], 'm2': row['positions_m2']}
+        pupil_size = {'m1': row['pupil_size_m1'], 'm2': row['pupil_size_m2']}
+        if time_series is not None:
+            # Prune NaN values and adjust the corresponding time series
+            pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
+                time_series, positions, pupil_size
+            )
+            # Create a new row with pruned data
+            pruned_row = row.copy()
+            pruned_row['positions_m1'] = pruned_positions.get('m1', None)
+            pruned_row['positions_m2'] = pruned_positions.get('m2', None)
+            pruned_row['pupil_size_m1'] = pruned_pupil_size.get('m1', None)
+            pruned_row['pupil_size_m2'] = pruned_pupil_size.get('m2', None)
+            pruned_row['neural_timeline'] = pruned_time_series
+            pruned_rows.append(pruned_row)    
+    pruned_gaze_data_df = pd.DataFrame(pruned_rows)
+    return pruned_gaze_data_df
 
 
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
@@ -455,7 +447,7 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
     Ensures m1 and m2 data are synchronized with the time series, having no NaNs and the same number of points.
     Parameters:
-    - time_series (np.ndarray): The time series array.
+    - time_series (np.ndarray or list): The time series array or list.
     - positions (dict): A dictionary containing position data with keys 'm1' and optionally 'm2'.
     - pupil_size (dict): A dictionary containing pupil size data with keys 'm1' and optionally 'm2'.
     Returns:
@@ -463,6 +455,9 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     - pruned_pupil_size (dict): The pupil size dictionary with NaN values pruned.
     - pruned_time_series (np.ndarray): The pruned time series array.
     """
+    # Convert list to np.ndarray if necessary
+    if isinstance(time_series, list):
+        time_series = np.array(time_series)
     # Find valid indices in the time series where there are no NaNs
     valid_time_indices = ~np.isnan(time_series).flatten()
     valid_indices = valid_time_indices.copy()  # Initialize valid indices with time series indices
@@ -471,28 +466,29 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
         # Adjust for positions[key] if present, not None, and non-empty
         if key in positions and positions[key] is not None and positions[key].size > 0:
             # Ensure positions[key] is 2D; adjust valid_indices accordingly
-            position_valid_indices = ~np.isnan(positions[key]).any(axis=0)
+            position_valid_indices = ~np.isnan(positions[key]).any(axis=1 if positions[key].shape[0] == 2 else 0)
             valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
         # Adjust for pupil_size[key] if present, not None, and non-empty
         if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0:
-            # Ensure pupil_size[key] is correctly indexed along its second axis
-            pupil_valid_indices = ~np.isnan(pupil_size[key][0, :])  # Index columns correctly
+            # Ensure pupil_size[key] is 1D (N-length), adjust valid_indices accordingly
+            pupil_valid_indices = ~np.isnan(pupil_size[key].flatten())
             valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
     # Prune the time series based on combined valid indices
     pruned_time_series = time_series[valid_indices]
     # Prune positions for m1 and m2 based on the combined valid indices
     pruned_positions = {
-        key: positions[key][:, valid_indices] 
-        for key in ['m1', 'm2'] 
+        key: positions[key][:, valid_indices] if positions[key].shape[0] == 2 else positions[key][valid_indices]
+        for key in ['m1', 'm2']
         if key in positions and positions[key] is not None and positions[key].size > 0 and valid_indices.size > 0
     }
     # Prune pupil size for m1 and m2 based on the combined valid indices
     pruned_pupil_size = {
-        key: pupil_size[key][:, valid_indices] 
-        for key in ['m1', 'm2'] 
+        key: pupil_size[key][valid_indices]
+        for key in ['m1', 'm2']
         if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 and valid_indices.size > 0
     }
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
 
 
 
