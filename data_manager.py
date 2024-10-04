@@ -108,8 +108,8 @@ class DataManager:
 
     def analyze_behavior(self):
         # Path to where the fixation and saccade dictionaries are saved
-        fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_dict.pkl')
-        saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_dict.pkl')
+        fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_df.pkl')
+        saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         # !! Load and compute variables function also saves the variable that it computes !!
         self.fixation_dict, self.saccade_dict = util.compute_or_load_variables(
             fix_and_saccades.detect_fixations_and_saccades,  # Compute function
