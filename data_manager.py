@@ -55,10 +55,9 @@ class DataManager:
 
     def initialize_class_objects(self):
         """Initialize class object attributes."""
-        self.gaze_data_dict = None
-        self.empty_gaze_dict_paths = None
-        self.missing_data_in_dict = None
-        self.nan_removed_gaze_data_dict = None
+        self.gaze_data_df = None
+        self.missing_data_paths = None
+        self.nan_removed_gaze_data_df = None
         self.fixation_dict = None
         self.saccade_dict = None
         self.binary_behav_timeseries = None
@@ -80,33 +79,31 @@ class DataManager:
         This also handles the second output, which is the list of missing data paths.
         """
         # Define path to save/load the gaze data and the missing data paths
-        gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_dict.pkl')
+        gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_df.pkl')
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data and missing data paths
         self.gaze_data_df, self.missing_data_paths = util.compute_or_load_variables(
-            compute_func=curate_data.make_gaze_data_df,  # Function that computes the gaze data DataFrame and missing paths
-            load_func=load_data.get_gaze_data_dict,      # Function to load the saved gaze data and missing paths
-            file_paths=[gaze_data_file_path, missing_data_paths_file_path],  # Paths where the data will be saved/loaded
-            remake_flag_key='remake_gaze_data_dict',     # Parameter key to determine if we should remake or load the data
-            params=self.params                           # The params dictionary containing relevant settings
+            curate_data.make_gaze_data_df,  # Function that computes the gaze data DataFrame and missing paths
+            load_data.get_gaze_data_df,      # Function to load the saved gaze data and missing paths
+            [gaze_data_file_path, missing_data_paths_file_path],  # Paths where the data will be saved/loaded
+            'remake_gaze_data_dict',     # Parameter key to determine if we should remake or load the data
+            self.params,                          # The params dictionary containing relevant settings
+            self.params
         )
 
 
     def prune_data(self):
         processed_data_dir = self.params['processed_data_dir']
-        nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_dict.pkl')
+        nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_df.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
-        # !! Load and compute variables function also saves the variable that it computes !!
-        self.nan_removed_gaze_data_dict = util.compute_or_load_variables(
-            curate_data.prune_nan_values_in_timeseries,     # Positional argument (compute_func)
-            load_data.get_nan_removed_gaze_data_dict,       # Positional argument (load_func)
-            nan_removed_gaze_data_file_path,                # Positional argument (file_paths)
-            'remake_nan_removed_gaze_data_dict',            # Positional argument (remake_flag_key)
-            self.params,                                    # Positional argument (params)
-            self.gaze_data_dict                             # Positional argument (additional arguments)
+        self.nan_removed_gaze_data_df = util.compute_or_load_variables(
+            curate_data.prune_nan_values_in_timeseries,    # Positional argument (compute_func)
+            load_data.get_nan_removed_gaze_data_dict,         # Positional argument (load_func)
+            nan_removed_gaze_data_file_path,                 # Positional argument (file_paths)
+            'remake_nan_removed_gaze_data_dict',        # Positional argument (remake_flag_key)
+            self.params,                                         # Positional argument (params)
+            self.gaze_data_df                                         # This is passed as *args to compute_func
         )
-        pdb.set_trace()
-        return 0
 
 
     def analyze_behavior(self):

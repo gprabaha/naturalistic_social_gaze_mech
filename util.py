@@ -36,13 +36,21 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
     remake_flag = params.get(remake_flag_key, True)  # Check the corresponding remake flag
     if remake_flag:
         logger.info(f"Remake flag '{remake_flag_key}' is set to True. Computing data using {compute_func.__name__}.")
-        # Compute the data
-        computed_vars = compute_func(*args, params=params, **kwargs)  # Pass params as a keyword argument
+        
+        # Check if the compute function accepts params and pass it accordingly
+        try:
+            computed_vars = compute_func(*args, **kwargs)  # First try without params
+        except TypeError:
+            # If TypeError occurs, params might be required in the compute_func
+            logger.info(f"Passing 'params' to {compute_func.__name__}.")
+            computed_vars = compute_func(*args, params=params, **kwargs)
+
         # If the computed_vars is not a tuple or list, make it a single-element list for consistent handling
         is_single_output = not isinstance(computed_vars, (list, tuple))
         if is_single_output:
             computed_vars = [computed_vars]
             file_paths = [file_paths]
+        
         # Save each computed variable to its corresponding file path
         for file_path, var in zip(file_paths, computed_vars):
             try:
@@ -65,6 +73,8 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
         except Exception as e:
             logger.error(f"Failed to load data from {file_paths}: {e}")
             raise
+
+
 
 
 def reshape_to_ensure_data_rows_represent_samples(array):

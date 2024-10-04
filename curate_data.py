@@ -467,12 +467,12 @@ def ___extract_roi_dict(agent_roi_data):
     return roi_dict
 
 
-def prune_nan_values_in_timeseries(params, gaze_data_df):
+def prune_nan_values_in_timeseries(gaze_data_df):
     """
     Prunes NaN values from the time series in the gaze data DataFrame and adjusts positions and pupil_size accordingly.
     The pruned DataFrame is returned.
     Parameters:
-    - gaze_data_df (pd.DataFrame): The gaze data DataFrame containing session, interaction type, and run data.
+    - gaze_data_df (pd.DataFrame): The gaze data DataFrame containing session, interaction type, run, and agent data.
     - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
     - pruned_gaze_data_df (pd.DataFrame): The pruned gaze data DataFrame with NaN values removed.
@@ -484,7 +484,6 @@ def prune_nan_values_in_timeseries(params, gaze_data_df):
         time_series = row['neural_timeline']
         positions = row['positions']
         pupil_size = row['pupil_size']
-        agent = row['agent']
         if time_series is not None:
             # Prune NaN values and adjust the corresponding time series
             pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
@@ -496,6 +495,7 @@ def prune_nan_values_in_timeseries(params, gaze_data_df):
             pruned_row['pupil_size'] = pruned_pupil_size
             pruned_row['neural_timeline'] = pruned_time_series
             pruned_rows.append(pruned_row)
+    # Convert the list of pruned rows into a DataFrame
     pruned_gaze_data_df = pd.DataFrame(pruned_rows)
     return pruned_gaze_data_df
 
@@ -505,7 +505,7 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
     Ensures data is synchronized with the time series, having no NaNs and the same number of points.
     Parameters:
-    - time_series (np.ndarray or list): The time series array or list.
+    - time_series (np.ndarray): The time series array.
     - positions (np.ndarray): The position data array.
     - pupil_size (np.ndarray): The pupil size data array.
     Returns:
@@ -513,29 +513,23 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     - pruned_pupil_size (np.ndarray): The pruned pupil size array.
     - pruned_time_series (np.ndarray): The pruned time series array.
     """
-    # Convert list to np.ndarray if necessary
-    if isinstance(time_series, list):
-        time_series = np.array(time_series)
     # Find valid indices in the time series where there are no NaNs
-    valid_time_indices = ~np.isnan(time_series).flatten()
+    valid_time_indices = ~np.isnan(time_series.flatten())
     valid_indices = valid_time_indices.copy()  # Initialize valid indices with time series indices
-    # Adjust valid indices based on positions
+    # Adjust valid indices based on positions (Nx1 or Nx2)
     if positions is not None and positions.size > 0:
-        # Ensure positions is 2D; adjust valid_indices accordingly
-        position_valid_indices = ~np.isnan(positions).any(axis=1 if positions.shape[0] == 2 else 0)
+        position_valid_indices = ~np.isnan(positions).any(axis=1)  # Check for NaNs row-wise
         valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
-    # Adjust valid indices based on pupil size
+    # Adjust valid indices based on pupil size (Nx1)
     if pupil_size is not None and pupil_size.size > 0:
-        # Ensure pupil_size is 1D (N-length), adjust valid_indices accordingly
-        pupil_valid_indices = ~np.isnan(pupil_size.flatten())
+        pupil_valid_indices = ~np.isnan(pupil_size.flatten())  # Flatten in case it's Nx1
         valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
-    # Prune the time series based on combined valid indices
+    # Prune the time series, positions, and pupil size based on valid indices
     pruned_time_series = time_series[valid_indices]
-    # Prune positions based on the combined valid indices
-    pruned_positions = positions[:, valid_indices] if positions.shape[0] == 2 else positions[valid_indices]
-    # Prune pupil size based on the combined valid indices
+    pruned_positions = positions[valid_indices,:] if positions.ndim == 2 else positions[:, valid_indices]
     pruned_pupil_size = pupil_size[valid_indices]
     return pruned_positions, pruned_pupil_size, pruned_time_series
+
 
 
 def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):

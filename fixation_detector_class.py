@@ -8,6 +8,8 @@ from multiprocessing import Pool
 from functools import partial
 import gc
 
+import util
+
 import pdb
 
 
@@ -88,8 +90,8 @@ class FixationDetector:
             self.logger.info(f"Number of outliers detected: {num_outliers}")
             return {
                 'session_name': self.session_name,
-                'fixationindices': fixation_indices,
-                'fixationtimes': fixation_indices * self.samprate,
+                'fixationindices': util.reshape_to_ensure_data_rows_represent_samples(fixation_indices),
+                'fixationtimes': util.reshape_to_ensure_data_rows_represent_samples(fixation_indices) * self.samprate,
                 'XY': np.array([x, y]),
                 'outlier_info': outlier_info,
                 'variables': self.variables

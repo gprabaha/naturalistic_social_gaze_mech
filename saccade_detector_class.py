@@ -7,6 +7,8 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 import pdb
 
+import util
+
 
 import defaults
 
@@ -142,8 +144,8 @@ class SaccadeDetector:
         microsaccades = np.array(microsaccades)
         self.logger.info(f"Detected {len(saccades)} saccades and {len(microsaccades)} microsaccades")
         return {
-            'saccadeindices': saccades,
-            'microsaccadeindices': microsaccades,
+            'saccadeindices': util.reshape_to_ensure_data_rows_represent_samples(saccades),
+            'microsaccadeindices': util.reshape_to_ensure_data_rows_represent_samples(microsaccades),
             'XY': np.array([x, y]),
             'variables': self.variables
         }
@@ -216,8 +218,8 @@ class SaccadeDetector:
                 saccades.append([start, end])
         self.logger.info(f"Detected {len(saccades)} saccades and {len(microsaccades)} microsaccades using Mayo 2023")
         return {
-            'saccadeindices': np.array(saccades),
-            'microsaccadeindices': np.array(microsaccades),
+            'saccadeindices': util.reshape_to_ensure_data_rows_represent_samples(np.array(saccades)),
+            'microsaccadeindices': util.reshape_to_ensure_data_rows_represent_samples(np.array(microsaccades)),
             'XY': np.array([x, y]),
             'variables': self.variables
         }
@@ -239,8 +241,8 @@ class SaccadeDetector:
         micro_saccade_event_indices = self.find_event_bounds_old_method(micro_saccade_indices)
         self.logger.info(f"Detected {saccade_event_indices.shape[1]} saccades and {micro_saccade_event_indices.shape[1]} microsaccades using old method")
         return {
-            'saccadeindices': saccade_event_indices,
-            'microsaccadeindices': micro_saccade_event_indices,
+            'saccadeindices': util.reshape_to_ensure_data_rows_represent_samples(saccade_event_indices),
+            'microsaccadeindices': util.reshape_to_ensure_data_rows_represent_samples(micro_saccade_event_indices),
             'XY': np.array([x, y]),
             'variables': self.variables
         }
@@ -385,31 +387,25 @@ class SaccadeDetector:
         # Ensure original_saccades and filtered_saccades are 2D arrays with shape (N, 2)
         if original_saccades.ndim != 2 or original_saccades.shape[1] != 2:
             raise ValueError("original_saccades must be a 2D array of shape (N, 2)")
-
         if filtered_saccades.ndim != 2 or filtered_saccades.shape[1] != 2:
             raise ValueError("filtered_saccades must be a 2D array of shape (M, 2)")
-
         # Find the removed saccades by checking which ones are not in the filtered_saccades
         removed_saccades_mask = np.isin(original_saccades, filtered_saccades, invert=True).all(axis=1)
         removed_saccade_indices = original_saccades[removed_saccades_mask]
-
         # Initialize the outlier info dictionary
         outlier_info = {
             'start_stop_indices': [],  # list of start and stop indices for each removed saccade
             'times': [],  # list of start and stop times for each removed saccade
             'XY': []  # list of (x, y) coordinates for each removed saccade
         }
-
         # Process each removed saccade
         for saccade in removed_saccade_indices:
             start, end = saccade
             outlier_info['start_stop_indices'].append([start, end])
             outlier_info['times'].append([start * self.samprate, end * self.samprate])
-
             # Extract the corresponding XY points for the outlier saccade
             outlier_x = x[start:end+1]
             outlier_y = y[start:end+1]
             outlier_info['XY'].append([outlier_x, outlier_y])
-
         return outlier_info
 
