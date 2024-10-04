@@ -44,7 +44,7 @@ def get_gaze_data_df(gaze_data_file_path, missing_data_file_path):
         raise
 
 
-def get_nan_removed_gaze_data_dict(nan_removed_gaze_data_file_path):
+def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
     Parameters:
