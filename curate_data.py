@@ -132,7 +132,7 @@ def add_paths_to_all_data_files_to_params(params):
             # Check and log missing values
     for key, paths in collected_paths.items():
         if any(value is None for value in paths.values()):  # Explicitly check for None
-            logger.warning(f"Filepaths of certain types not found for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}")
+            logger.warning(f"Missing data for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}; will be pruned out of paths df")
     # Filter out entries that contain None values explicitly
     complete_paths_list = [
         {
@@ -181,12 +181,12 @@ def prune_data_file_paths_with_pos_time_filename_mismatch(params):
 
 def _check_filenames_consistency_within_run(group):
     """
-    Checks if the filenames of positions, neural timeline, and pupil size are consistent for a given run.
+    Checks if the filenames of positions, neural timeline, pupil size, and roi_rects are consistent for a given run.
     Parameters:
     - group (pd.Series): A row from the DataFrame representing a single run with 'positions', 'neural_timeline', 
-      and 'pupil_size' fields.
+      'pupil_size', and 'roi_rects' fields.
     Returns:
-    - bool: True if filenames are consistent, otherwise False.
+    - bool: True if filenames are consistent and none are missing, otherwise False.
     """
     # Extract filenames from the full paths
     filenames = [
@@ -195,23 +195,24 @@ def _check_filenames_consistency_within_run(group):
         os.path.basename(group['pupil_size']) if group['pupil_size'] else None,
         os.path.basename(group['roi_rects']) if group['roi_rects'] else None
     ]
-    if len(set(filenames)) != 1:
-        pdb.set_trace()
-    # Return True if all filenames are the same or None
+    # Return False if any filename is missing (None)
+    if any(filename is None for filename in filenames):
+        return False
+    # Return True if all filenames are the same, otherwise False
     return len(set(filenames)) == 1
 
 
 def make_gaze_data_df(params):
     """
     Loads position, neural timeline, pupil size, and ROI rects data from the specified paths into a structured DataFrame
-    with optional parallel processing based on `use_parallel`. Saves the resulting DataFrame and 
-    missing data paths as separate pickle files.
+    with optional parallel processing based on `use_parallel`. Each agent ('m1' or 'm2') will have its own row 
+    for positions, pupil size, and ROI rects, while neural timeline is the same for both agents.
     Parameters:
     - params (dict): A dictionary containing configuration parameters, including 'data_file_paths_df', 
       'use_parallel', and 'processed_data_dir'.
     Returns:
-    - gaze_data_df (pd.DataFrame): DataFrame structured with columns ['session_name', 'interaction_type', 
-      'run_number', 'positions_m1', 'positions_m2', 'neural_timeline', 'pupil_size_m1', 'pupil_size_m2', 'roi_rects_m1', 'roi_rects_m2'].
+    - gaze_data_df (pd.DataFrame): DataFrame structured with columns ['session_name', 'interaction_type', 'run_number', 
+      'agent', 'positions', 'neural_timeline', 'pupil_size', 'roi_rects'].
     - missing_data_info (list): List of dictionaries containing paths and information about which data is missing.
     """
     logger.info("Starting to load gaze data from specified paths.")
@@ -244,53 +245,62 @@ def make_gaze_data_df(params):
                 temp_results.append(result)
                 pbar.update(1)
     pbar.close()
-    # Convert the results into a DataFrame
-    gaze_data_df = pd.DataFrame(temp_results, columns=[
-        'session_name', 'interaction_type', 'run_number', 
-        'positions_m1', 'positions_m2',
-        'neural_timeline',
-        'pupil_size_m1', 'pupil_size_m2',
-        'roi_rects_m1', 'roi_rects_m2'
-    ])
+    # Process the results into a DataFrame
+    rows = []
+    for result in temp_results:
+        session_name, interaction_type, run_number, \
+            positions_m1, positions_m2, \
+                neural_timeline, \
+                    pupil_size_m1, pupil_size_m2, \
+                        roi_rects_m1, roi_rects_m2 = result
+        # Add a row for agent 'm1'
+        rows.append({
+            'session_name': session_name,
+            'interaction_type': interaction_type,
+            'run_number': run_number,
+            'agent': 'm1',
+            'positions': positions_m1,
+            'neural_timeline': neural_timeline,
+            'pupil_size': pupil_size_m1,
+            'roi_rects': roi_rects_m1
+        })
+        # Add a row for agent 'm2'
+        rows.append({
+            'session_name': session_name,
+            'interaction_type': interaction_type,
+            'run_number': run_number,
+            'agent': 'm2',
+            'positions': positions_m2,
+            'neural_timeline': neural_timeline,  # Same neural timeline for both agents
+            'pupil_size': pupil_size_m2,
+            'roi_rects': roi_rects_m2
+        })
+    gaze_data_df = pd.DataFrame(rows)
     # Identify and log which data is missing for each session
     for idx, row in gaze_data_df.iterrows():
         missing_data = {}
-        # Check if positions_m1 or positions_m2 are None or empty arrays
-        if row['positions_m1'] is None or len(row['positions_m1']) == 0:
-            missing_data['positions_m1'] = True
-        if row['positions_m2'] is None or len(row['positions_m2']) == 0:
-            missing_data['positions_m2'] = True
-        # Check if neural_timeline is None or an empty array
+        if row['positions'] is None or len(row['positions']) == 0:
+            missing_data['positions'] = True
         if row['neural_timeline'] is None or len(row['neural_timeline']) == 0:
             missing_data['neural_timeline'] = True
-        # Check if pupil_size_m1 or pupil_size_m2 are None or empty arrays
-        if row['pupil_size_m1'] is None or len(row['pupil_size_m1']) == 0:
-            missing_data['pupil_size_m1'] = True
-        if row['pupil_size_m2'] is None or len(row['pupil_size_m2']) == 0:
-            missing_data['pupil_size_m2'] = True
-        # Check if roi_rects_m1 or roi_rects_m2 are None or empty dictionaries
-        if row['roi_rects_m1'] is None or not bool(row['roi_rects_m1']):  # Empty dict check
-            missing_data['roi_rects_m1'] = True
-        if row['roi_rects_m2'] is None or not bool(row['roi_rects_m2']):
-            missing_data['roi_rects_m2'] = True
-        # If any data is missing, add it to the missing_data_info list
+        if row['pupil_size'] is None or len(row['pupil_size']) == 0:
+            missing_data['pupil_size'] = True
+        if row['roi_rects'] is None or not bool(row['roi_rects']):
+            missing_data['roi_rects'] = True
         if missing_data:
             missing_data_info.append({
                 'session_name': row['session_name'],
                 'interaction_type': row['interaction_type'],
                 'run_number': row['run_number'],
-                'missing_data': missing_data
+                'agent': row['agent']
             })
     if len(missing_data_info) > 0:
-        logger.info(f"Found missing or empty data for {len(missing_data_info)} runs.")
+        logger.info(f"Found missing or empty data for {len(missing_data_info)} runs:\n{missing_data_info}")
     else:
         logger.info("No missing data found.")
     # Remove rows with any missing data
-    gaze_data_df = gaze_data_df.dropna()
-    
+    gaze_data_df = gaze_data_df.dropna(subset=['positions', 'neural_timeline', 'pupil_size', 'roi_rects'])
     return gaze_data_df, missing_data_info
-
-
 
 
 def _load_run_data(session, interaction_type, run, row):
@@ -452,8 +462,7 @@ def ___extract_roi_dict(agent_roi_data):
 
 def prune_nan_values_in_timeseries(params, gaze_data_df):
     """
-    Prunes NaN values from the time series in the gaze data DataFrame and 
-    adjusts positions and pupil_size for m1 and m2 (if present) accordingly.
+    Prunes NaN values from the time series in the gaze data DataFrame and adjusts positions and pupil_size accordingly.
     The pruned DataFrame is returned.
     Parameters:
     - gaze_data_df (pd.DataFrame): The gaze data DataFrame containing session, interaction type, and run data.
@@ -464,10 +473,11 @@ def prune_nan_values_in_timeseries(params, gaze_data_df):
     logger.info("Pruning NaN values from gaze data time series.")
     pruned_rows = []
     for _, row in gaze_data_df.iterrows():
-        # Extract relevant data for m1 and m2
+        # Extract relevant data
         time_series = row['neural_timeline']
-        positions = {'m1': row['positions_m1'], 'm2': row['positions_m2']}
-        pupil_size = {'m1': row['pupil_size_m1'], 'm2': row['pupil_size_m2']}
+        positions = row['positions']
+        pupil_size = row['pupil_size']
+        agent = row['agent']
         if time_series is not None:
             # Prune NaN values and adjust the corresponding time series
             pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
@@ -475,12 +485,10 @@ def prune_nan_values_in_timeseries(params, gaze_data_df):
             )
             # Create a new row with pruned data
             pruned_row = row.copy()
-            pruned_row['positions_m1'] = pruned_positions.get('m1', None)
-            pruned_row['positions_m2'] = pruned_positions.get('m2', None)
-            pruned_row['pupil_size_m1'] = pruned_pupil_size.get('m1', None)
-            pruned_row['pupil_size_m2'] = pruned_pupil_size.get('m2', None)
+            pruned_row['positions'] = pruned_positions
+            pruned_row['pupil_size'] = pruned_pupil_size
             pruned_row['neural_timeline'] = pruned_time_series
-            pruned_rows.append(pruned_row)    
+            pruned_rows.append(pruned_row)
     pruned_gaze_data_df = pd.DataFrame(pruned_rows)
     return pruned_gaze_data_df
 
@@ -488,14 +496,14 @@ def prune_nan_values_in_timeseries(params, gaze_data_df):
 def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     """
     Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
-    Ensures m1 and m2 data are synchronized with the time series, having no NaNs and the same number of points.
+    Ensures data is synchronized with the time series, having no NaNs and the same number of points.
     Parameters:
     - time_series (np.ndarray or list): The time series array or list.
-    - positions (dict): A dictionary containing position data with keys 'm1' and optionally 'm2'.
-    - pupil_size (dict): A dictionary containing pupil size data with keys 'm1' and optionally 'm2'.
+    - positions (np.ndarray): The position data array.
+    - pupil_size (np.ndarray): The pupil size data array.
     Returns:
-    - pruned_positions (dict): The positions dictionary with NaN values pruned.
-    - pruned_pupil_size (dict): The pupil size dictionary with NaN values pruned.
+    - pruned_positions (np.ndarray): The pruned positions array.
+    - pruned_pupil_size (np.ndarray): The pruned pupil size array.
     - pruned_time_series (np.ndarray): The pruned time series array.
     """
     # Convert list to np.ndarray if necessary
@@ -504,35 +512,23 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     # Find valid indices in the time series where there are no NaNs
     valid_time_indices = ~np.isnan(time_series).flatten()
     valid_indices = valid_time_indices.copy()  # Initialize valid indices with time series indices
-    # Adjust valid indices based on positions and pupil sizes for m1 and m2
-    for key in ['m1', 'm2']:
-        # Adjust for positions[key] if present, not None, and non-empty
-        if key in positions and positions[key] is not None and positions[key].size > 0:
-            # Ensure positions[key] is 2D; adjust valid_indices accordingly
-            position_valid_indices = ~np.isnan(positions[key]).any(axis=1 if positions[key].shape[0] == 2 else 0)
-            valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
-        # Adjust for pupil_size[key] if present, not None, and non-empty
-        if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0:
-            # Ensure pupil_size[key] is 1D (N-length), adjust valid_indices accordingly
-            pupil_valid_indices = ~np.isnan(pupil_size[key].flatten())
-            valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
+    # Adjust valid indices based on positions
+    if positions is not None and positions.size > 0:
+        # Ensure positions is 2D; adjust valid_indices accordingly
+        position_valid_indices = ~np.isnan(positions).any(axis=1 if positions.shape[0] == 2 else 0)
+        valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
+    # Adjust valid indices based on pupil size
+    if pupil_size is not None and pupil_size.size > 0:
+        # Ensure pupil_size is 1D (N-length), adjust valid_indices accordingly
+        pupil_valid_indices = ~np.isnan(pupil_size.flatten())
+        valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
     # Prune the time series based on combined valid indices
     pruned_time_series = time_series[valid_indices]
-    # Prune positions for m1 and m2 based on the combined valid indices
-    pruned_positions = {
-        key: positions[key][:, valid_indices] if positions[key].shape[0] == 2 else positions[key][valid_indices]
-        for key in ['m1', 'm2']
-        if key in positions and positions[key] is not None and positions[key].size > 0 and valid_indices.size > 0
-    }
-    # Prune pupil size for m1 and m2 based on the combined valid indices
-    pruned_pupil_size = {
-        key: pupil_size[key][valid_indices]
-        for key in ['m1', 'm2']
-        if key in pupil_size and pupil_size[key] is not None and pupil_size[key].size > 0 and valid_indices.size > 0
-    }
+    # Prune positions based on the combined valid indices
+    pruned_positions = positions[:, valid_indices] if positions.shape[0] == 2 else positions[valid_indices]
+    # Prune pupil size based on the combined valid indices
+    pruned_pupil_size = pupil_size[valid_indices]
     return pruned_positions, pruned_pupil_size, pruned_time_series
-
-
 
 
 def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):

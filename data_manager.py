@@ -90,22 +90,9 @@ class DataManager:
             remake_flag_key='remake_gaze_data_dict',     # Parameter key to determine if we should remake or load the data
             params=self.params                           # The params dictionary containing relevant settings
         )
-        pdb.set_trace()
-        # After loading or computing, log the number of sessions loaded
-        if self.gaze_data_dict:
-            self.logger.info(f"Successfully loaded or computed gaze data for {len(self.gaze_data_dict)} sessions.")
-        else:
-            self.logger.warning("No gaze data was loaded or computed.")
-        # Log the missing data paths if any
-        if self.missing_data_paths:
-            self.logger.info(f"Found missing data paths for {len(self.missing_data_paths)} sessions.")
-        else:
-            self.logger.info("No missing data paths found.")
-
 
 
     def prune_data(self):
-        self.gaze_data_dict, self.missing_data_in_dict = curate_data.clean_and_log_missing_dict_leaves(self.gaze_data_dict)
         processed_data_dir = self.params['processed_data_dir']
         nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_dict.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
@@ -118,6 +105,8 @@ class DataManager:
             self.params,                                    # Positional argument (params)
             self.gaze_data_dict                             # Positional argument (additional arguments)
         )
+        pdb.set_trace()
+        return 0
 
 
     def analyze_behavior(self):
