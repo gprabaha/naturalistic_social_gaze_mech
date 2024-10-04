@@ -253,6 +253,12 @@ def make_gaze_data_df(params):
                 neural_timeline, \
                     pupil_size_m1, pupil_size_m2, \
                         roi_rects_m1, roi_rects_m2 = result
+        # Ensure positions, pupil sizes, and neural timeline are reshaped using the general reshaping function
+        positions_m1 = util.reshape_to_ensure_data_rows_represent_samples(positions_m1)
+        positions_m2 = util.reshape_to_ensure_data_rows_represent_samples(positions_m2)
+        neural_timeline = util.reshape_to_ensure_data_rows_represent_samples(neural_timeline)
+        pupil_size_m1 = util.reshape_to_ensure_data_rows_represent_samples(pupil_size_m1)
+        pupil_size_m2 = util.reshape_to_ensure_data_rows_represent_samples(pupil_size_m2)
         # Add a row for agent 'm1'
         rows.append({
             'session_name': session_name,
@@ -301,6 +307,7 @@ def make_gaze_data_df(params):
     # Remove rows with any missing data
     gaze_data_df = gaze_data_df.dropna(subset=['positions', 'neural_timeline', 'pupil_size', 'roi_rects'])
     return gaze_data_df, missing_data_info
+
 
 
 def _load_run_data(session, interaction_type, run, row):
