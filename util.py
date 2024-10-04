@@ -67,6 +67,38 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
             raise
 
 
+def reshape_to_ensure_data_rows_represent_samples(array):
+    """
+    Ensures that the rows of the array represent samples, i.e., reshapes any axN matrix into Nxa,
+    but keeps an Nxa input unchanged.
+    Parameters:
+    - array (np.ndarray): The array to reshape. Should be a 2D matrix.
+    Returns:
+    - reshaped_array (np.ndarray): The reshaped array, with rows representing samples (Nx1 or Nx2).
+    """
+    if array is None:
+        return None
+    # Check if it's a 2D array (axN) and reshape to Nxa if necessary
+    if array.ndim == 2:
+        if array.shape[0] < array.shape[1]:
+            return array.T  # Transpose if it's axN to make it Nxa
+        else:
+            return array  # Return as is if it's already Nxa
+    # If it's a 1D array, reshape to Nx1
+    if array.ndim == 1:
+        return array.reshape(-1, 1)
+    # Return the array as-is for other cases (if any)
+    return array
+
+
+
+
+
+
+
+
+
+
 def generate_behav_dict_legend(data_dict, max_examples=2):
     """
     Generates a concise legend describing the nested structure of the given data dictionary.
