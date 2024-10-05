@@ -63,25 +63,25 @@ def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
         raise
 
 
-def load_fixation_and_saccade_dicts(fixation_file_path, saccade_file_path):
+def load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path):
     """
-    Loads the fixation and saccade dictionaries from the processed data directory.
+    Loads the fixation and saccade dataframes from the processed data directory.
     Parameters:
     - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
-    - fixation_dict (dict): The fixation data loaded from the saved pickle file.
-    - saccade_dict (dict): The saccade data loaded from the saved pickle file.
+    - fixation_df (dataframe): The fixation data loaded from the saved pickle file.
+    - saccade_df (dataframe): The saccade data loaded from the saved pickle file.
     """
     try:
         # Load fixation dictionary
         with open(fixation_file_path, 'rb') as f:
-            fixation_dict = pickle.load(f)
+            fixation_df = pickle.load(f)
         logger.info(f"Successfully loaded fixation data from {fixation_file_path}")
         # Load saccade dictionary
         with open(saccade_file_path, 'rb') as f:
-            saccade_dict = pickle.load(f)
+            saccade_df = pickle.load(f)
         logger.info(f"Successfully loaded saccade data from {saccade_file_path}")
-        return fixation_dict, saccade_dict
+        return fixation_df, saccade_df
     except Exception as e:
         logger.error(f"Failed to load fixation or saccade data: {e}")
         raise
