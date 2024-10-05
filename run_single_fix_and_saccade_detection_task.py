@@ -3,6 +3,8 @@ import sys
 import os
 import logging
 
+import pandas as pd
+
 import load_data
 import fix_and_saccades
 
@@ -38,28 +40,44 @@ def main(task_key, params_file_path):
     # Load gaze data dictionary
     try:
         nan_removed_gaze_data_df = load_data.get_nan_removed_gaze_data_df(nan_removed_gaze_data_df_path)
-        logger.info("Gaze data dictionary loaded successfully.")
+        logger.info("Gaze data dataframe loaded successfully.")
     except Exception as e:
-        logger.error(f"Failed to load gaze data from {nan_removed_gaze_data_df}: {e}")
+        logger.error(f"Failed to load gaze data from {nan_removed_gaze_data_df_path}: {e}")
         sys.exit(1)
     # Parse task_key to fetch the required positions array
     try:
+        # Parse the task key to get session, interaction type, run, and agent
         session, interaction_type, run, agent = task_key.split(',')
         session = session.strip()
         interaction_type = interaction_type.strip()
-        run = int(run.strip())
+        run = int(run.strip())  # Ensure run is an integer
         agent = agent.strip()
         logger.info(f"Parsed task key successfully: session: {session}; interaction_type: {interaction_type}; run: {str(run)}; agent: {agent}")
     except Exception as e:
         logger.error(f"Failed to parse task key {task_key}: {e}")
         sys.exit(1)
-    # Run fixation and saccade detection
+    # Filter the DataFrame to get the matching row
     try:
-        fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(session, nan_removed_gaze_data_df, params)
+        # Filter the DataFrame for the specific task
+        filtered_df = nan_removed_gaze_data_df[
+            (nan_removed_gaze_data_df['session_name'] == session) &
+            (nan_removed_gaze_data_df['interaction_type'] == interaction_type) &
+            (nan_removed_gaze_data_df['run_number'] == run) &
+            (nan_removed_gaze_data_df['agent'] == agent)
+        ]
+        if filtered_df.empty:
+            logger.error(f"No data found for task key: {task_key}")
+            sys.exit(1)
+        # Extract positions
+        positions = filtered_df['positions'].iloc[0]  # Assuming 'positions' is a single column per row
+        logger.info("Successfully extracted positions for fixation and saccade detection.")
+        # Run fixation and saccade detection
+        fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(session, positions, params)
         logger.info("Fixation and saccade detection completed successfully.")
     except Exception as e:
         logger.error(f"Failed during fixation and saccade detection: {e}")
         sys.exit(1)
+
     # Save results
     try:
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')

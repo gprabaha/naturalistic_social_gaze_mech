@@ -98,7 +98,7 @@ class DataManager:
         # Use the compute_or_load_variables function to compute or load the gaze data
         self.nan_removed_gaze_data_df = util.compute_or_load_variables(
             curate_data.prune_nan_values_in_timeseries,    # Positional argument (compute_func)
-            load_data.get_nan_removed_gaze_data_dict,         # Positional argument (load_func)
+            load_data.get_nan_removed_gaze_data_df,         # Positional argument (load_func)
             nan_removed_gaze_data_file_path,                 # Positional argument (file_paths)
             'remake_nan_removed_gaze_data_dict',        # Positional argument (remake_flag_key)
             self.params,                                         # Positional argument (params)
@@ -117,7 +117,8 @@ class DataManager:
             [fixation_file_path, saccade_file_path],         # File paths
             'remake_fix_and_sacc',                           # Remake flag key
             self.params,                                     # Params
-            self.nan_removed_gaze_data_dict                  # Passed as the first positional argument
+            self.nan_removed_gaze_data_df,                   # Passed as the first positional argument
+            self.params
         )
         print('Fix dict:')
         util.print_dict_keys(self.fixation_dict)
@@ -162,6 +163,6 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        # self.analyze_behavior()
+        self.analyze_behavior()
         # self.plot_behavior()
 

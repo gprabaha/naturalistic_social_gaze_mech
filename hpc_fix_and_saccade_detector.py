@@ -3,6 +3,8 @@ import subprocess
 import logging
 import time
 
+import pdb
+
 class HPCFixAndSaccadeDetector:
     def __init__(self, params):
         self.params = params
@@ -20,7 +22,7 @@ class HPCFixAndSaccadeDetector:
         env_name = 'gaze_otnal' if self.params['is_grace'] else 'gaze_processing'
         with open(job_file_path, 'w') as file:
             for task in tasks:
-                session, interaction_type, run, agent = task
+                session, interaction_type, run, agent, _ = task
                 task_key = f"{session},{interaction_type},{run},{agent}"
                 command = (
                     f"module load miniconda; "
