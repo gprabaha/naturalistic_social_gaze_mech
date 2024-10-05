@@ -11,6 +11,7 @@ import os
 import multiprocessing
 from datetime import datetime
 from tqdm import tqdm
+import pandas as pd
 
 import util
 import curate_data
@@ -111,23 +112,21 @@ class DataManager:
         fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_df.pkl')
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         # !! Load and compute variables function also saves the variable that it computes !!
-        self.fixation_dict, self.saccade_dict = util.compute_or_load_variables(
+        self.fixation_df, self.saccade_df = util.compute_or_load_variables(
             fix_and_saccades.detect_fixations_and_saccades,  # Compute function
-            load_data.load_fixation_and_saccade_dicts,       # Load function
+            load_data.load_fixation_and_saccade_dfs,       # Load function
             [fixation_file_path, saccade_file_path],         # File paths
             'remake_fix_and_sacc',                           # Remake flag key
             self.params,                                     # Params
             self.nan_removed_gaze_data_df,                   # Passed as the first positional argument
             self.params
         )
-        print('Fix dict:')
-        util.print_dict_keys(self.fixation_dict)
-        print('Sacc dict:')
-        util.print_dict_keys(self.saccade_dict)
-        self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
-        util.print_dict_keys_and_values(self.binary_behav_timeseries)
-
-
+        print('Fix df:')
+        print(self.fixation_df.head())
+        print('Sacc df:')
+        print(self.saccade_df.head())
+        # self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
+        # util.print_dict_keys_and_values(self.binary_behav_timeseries)
 
 
 

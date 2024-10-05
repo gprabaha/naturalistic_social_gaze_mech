@@ -39,6 +39,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     use_one_run = params.get('try_using_single_run')
     if use_one_run:
         df_keys_for_tasks = [df_keys_for_tasks[3]]
+        logger.warning(f"!! Testing using positions data from single run: {df_keys_for_tasks[0]}!!")
     # Save params for HPC job submission if needed
     params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
