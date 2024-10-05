@@ -56,8 +56,8 @@ def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
     """
     try:
         with open(nan_removed_gaze_data_file_path, 'rb') as f:
-            gaze_data_dict = pickle.load(f)
-        return gaze_data_dict
+            gaze_data_df = pickle.load(f)
+        return gaze_data_df
     except Exception as e:
         logger.error(f"Failed to load gaze data: {e}")
         raise

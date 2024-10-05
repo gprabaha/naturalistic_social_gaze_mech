@@ -18,6 +18,7 @@ import hpc_fix_and_saccade_detector
 import fixation_detector_class
 import saccade_detector_class
 
+import pdb
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,9 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     logger.info(f"Starting detection for {len(nan_removed_gaze_data_df)} runs.")
     # Collect all rows to process for both agents
     df_keys_for_tasks = nan_removed_gaze_data_df[['session_name', 'interaction_type', 'run_number', 'agent', 'positions']].values.tolist()
+    use_one_run = params.get('try_using_single_run')
+    if use_one_run:
+        df_keys_for_tasks = [df_keys_for_tasks[3]]
     # Save params for HPC job submission if needed
     params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
@@ -128,6 +132,8 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     - fixation_start_stop (np.ndarray): Nx2 array of start-stop indices for fixations.
     - saccade_start_stop (np.ndarray): Nx2 array of start-stop indices for saccades.
     """
+    print(session_name)
+    print(positions)
     # Initialize fixation and saccade detectors
     fixation_detector = fixation_detector_class.FixationDetector(
         session_name=session_name,
