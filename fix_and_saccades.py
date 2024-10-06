@@ -159,7 +159,6 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     return fixation_results, saccade_results
 
 
-
 def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, event_type, use_parallel=False, num_cpus=4):
     """
     Adds binary vectors (fixation or saccade) to the behavioral dataframe.
@@ -179,20 +178,10 @@ def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, ev
     behav_df = behav_df.copy()  # Avoid SettingWithCopyWarning by working on a copy of the DataFrame
     behav_df.loc[:, event_col_name] = None  # Explicitly assign a new column
     args = [(idx, row, event_df, nan_removed_gaze_data_df, event_type) for idx, row in behav_df.iterrows()]
-    if use_parallel:
-        with Pool(processes=num_cpus) as pool:
-            results = []
-            for result in tqdm(pool.imap_unordered(make_binary_vector_for_run, args), total=len(args), desc="Making binary vecs in parallel"):
-                results.append(result)
-        for idx, binary_vector in results:
-            if binary_vector is not None:
-                # Ensure that the binary_vector length matches the neural timeline
-                behav_df.at[idx, event_col_name] = binary_vector  # Update with .loc[] to avoid the warning
-    else:
-        for idx, result in tqdm(map(make_binary_vector_for_run, args), total=len(args), desc="Making binary vecs serially"):
-            if result is not None:
-                # Ensure that the binary_vector length matches the neural timeline
-                behav_df.at[idx, event_col_name] = result  # Update with .loc[] to avoid the warning
+    for idx, result in tqdm(map(make_binary_vector_for_run, args), total=len(args), desc="Making binary vecs serially"):
+        if result is not None:
+            # Ensure that the binary_vector length matches the neural timeline
+            behav_df.at[idx, event_col_name] = result  # Update with .loc[] to avoid the warning
     return behav_df
 
 
