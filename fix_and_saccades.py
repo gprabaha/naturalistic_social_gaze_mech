@@ -159,6 +159,7 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     return fixation_results, saccade_results
 
 
+
 def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, event_type, use_parallel=False, num_cpus=4):
     """
     Adds binary vectors (fixation or saccade) to the behavioral dataframe.
@@ -175,19 +176,23 @@ def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, ev
     pd.DataFrame - `behav_df` with an added column `<event_type>_binary_vector` for each run.
     """
     event_col_name = f'{event_type}_binary_vector'
-    behav_df[event_col_name] = None
+    behav_df = behav_df.copy()  # Avoid SettingWithCopyWarning by working on a copy of the DataFrame
+    behav_df.loc[:, event_col_name] = None  # Explicitly assign a new column
     args = [(idx, row, event_df, nan_removed_gaze_data_df, event_type) for idx, row in behav_df.iterrows()]
     if use_parallel:
         with Pool(processes=num_cpus) as pool:
-            results = pool.map(make_binary_vector_for_run, args)
+            results = []
+            for result in tqdm(pool.imap_unordered(make_binary_vector_for_run, args), total=len(args), desc="Making binary vecs in parallel"):
+                results.append(result)
         for idx, binary_vector in results:
             if binary_vector is not None:
-                behav_df.at[idx, event_col_name] = binary_vector
+                # Ensure that the binary_vector length matches the neural timeline
+                behav_df.at[idx, event_col_name] = binary_vector  # Update with .loc[] to avoid the warning
     else:
-        for result in map(make_binary_vector_for_run, args):
-            idx, binary_vector = result
-            if binary_vector is not None:
-                behav_df.at[idx, event_col_name] = binary_vector
+        for idx, result in tqdm(map(make_binary_vector_for_run, args), total=len(args), desc="Making binary vecs serially"):
+            if result is not None:
+                # Ensure that the binary_vector length matches the neural timeline
+                behav_df.at[idx, event_col_name] = result  # Update with .loc[] to avoid the warning
     return behav_df
 
 
@@ -199,27 +204,34 @@ def make_binary_vector_for_run(args):
     args : tuple - Contains index, `behav_df` row, event dataframe, gaze data, and event type.
     Returns:
     --------
-    tuple - Contains index and the binary vector for that run (or None if no events found).
+    tuple - (idx, binary_vector) where idx is the row index and binary_vector is the created binary vector.
     """
     idx, row, event_df, nan_removed_gaze_data_df, event_type = args
     event_start_stop_col = f'{event_type}_start_stop'
-    session, interaction, run, agent = row['session_name'], row['interaction_type'], row['run_number'], row['agent']
-    event_row = event_df[(event_df['session_name'] == session) &
-                         (event_df['interaction_type'] == interaction) &
-                         (event_df['run_number'] == run) &
-                         (event_df['agent'] == agent)]
+    session, interaction, run, agent = row['session_name'], row['interaction_type'], row['run_number'], row['agent'] 
+    # Ensure event intervals are retrieved properly
+    event_row = event_df[
+        (event_df['session_name'] == session) &
+        (event_df['interaction_type'] == interaction) &
+        (event_df['run_number'] == run) &
+        (event_df['agent'] == agent)
+    ]
     if not event_row.empty:
         event_intervals = np.array(event_row[event_start_stop_col].values[0])
-        neural_timeline = nan_removed_gaze_data_df[(nan_removed_gaze_data_df['session_name'] == session) &
-                                                   (nan_removed_gaze_data_df['interaction_type'] == interaction) & 
-                                                   (nan_removed_gaze_data_df['run_number'] == run) &
-                                                   (nan_removed_gaze_data_df['agent'] == agent)]['neural_timeline'].values[0]
+        neural_timeline = nan_removed_gaze_data_df[
+            (nan_removed_gaze_data_df['session_name'] == session) &
+            (nan_removed_gaze_data_df['interaction_type'] == interaction) &
+            (nan_removed_gaze_data_df['run_number'] == run) &
+            (nan_removed_gaze_data_df['agent'] == agent)
+        ]['neural_timeline'].values[0]   
         if event_intervals.size > 0:
             binary_vector = np.zeros(len(neural_timeline), dtype=int)
-            idx = np.r_[[np.arange(start, stop + 1) for start, stop in event_intervals]]
-            binary_vector[idx] = 1
-        return idx, binary_vector
-    return idx, None
+            index_ranges = np.concatenate([np.arange(start, stop + 1) for start, stop in event_intervals]).astype(int)
+            binary_vector[index_ranges] = 1
+            return idx, binary_vector  # Return the original idx along with the binary_vector
+    return idx, None  # Return idx and None if no events were found
+
+
 
 
 
