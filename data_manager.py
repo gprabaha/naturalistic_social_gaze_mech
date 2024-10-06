@@ -17,6 +17,7 @@ import util
 import curate_data
 import load_data
 import fix_and_saccades
+import analyze_data
 import plotter
 
 import pdb
@@ -136,6 +137,7 @@ class DataManager:
             event_type='saccade',
             use_parallel=self.params['use_parallel'],
             num_cpus=self.params['num_cpus'])
+        self.binary_timeseries_autocorr_df = analyze_data.compute_scaled_autocorrelations_for_behav_df(self.binary_behav_timeseries_df)
         pdb.set_trace()
         return 0
         
