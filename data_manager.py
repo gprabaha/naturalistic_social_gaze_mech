@@ -121,13 +121,15 @@ class DataManager:
             self.nan_removed_gaze_data_df,                      # Passed as the first positional argument
             self.params                                         # Passed as the second positional argument
         )
-        # print('Fix df:')
-        # print(self.fixation_df.head())
-        # print('Sacc df:')
-        # print(self.saccade_df.head())
+        self.binary_behav_timeseries_df = util.initiate_behav_df_label_cols(self.nan_removed_gaze_data_df)
+        self.binary_behav_timeseries_df = fix_and_saccades.add_fixation_bin_vectors_to_behav_df(
+            self.binary_behav_timeseries_df,
+            self.fixation_df,
+            self.nan_removed_gaze_data_df,
+            use_parallel=self.params['use_parallel'],
+            num_cpus=self.params['num_cpus'])
         pdb.set_trace()
-        behav_df = util.initiate_behav_df_label_cols(self.nan_removed_gaze_data_df)
-        self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
+        return 0
         
 
 
