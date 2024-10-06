@@ -161,63 +161,69 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     return fixation_results, saccade_results
 
 
-def add_fixation_bin_vectors_to_behav_df(behav_df, fixation_df, nan_removed_gaze_data_df, use_parallel=False, num_cpus=4):
-    # Initialize the fixation_binary_vector column with None
-    behav_df['fixation_binary_vector'] = None
-    # Create a list of arguments for parallel/serial processing
-    args = [(idx, row, fixation_df, nan_removed_gaze_data_df) for idx, row in behav_df.iterrows()]
+def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, event_type, use_parallel=False, num_cpus=4):
+    """
+    Adds binary vectors (fixation or saccade) to the behavioral dataframe.
+    Parameters:
+    -----------
+    behav_df : pd.DataFrame - Behavioral data for each session, interaction type, agent, and run.
+    event_df : pd.DataFrame - Fixation or saccade start-stop intervals for each session, interaction type, agent, and run.
+    nan_removed_gaze_data_df : pd.DataFrame - Gaze data with `neural_timeline` column.
+    event_type : str - Type of event, 'fixation' or 'saccade'.
+    use_parallel : bool - Whether to use parallel processing (default: False).
+    num_cpus : int - Number of CPUs to use in parallel processing (default: 4).
+    Returns:
+    --------
+    pd.DataFrame - `behav_df` with an added column `<event_type>_binary_vector` for each run.
+    """
+    event_col_name = f'{event_type}_binary_vector'
+    behav_df[event_col_name] = None
+    args = [(idx, row, event_df, nan_removed_gaze_data_df, event_type) for idx, row in behav_df.iterrows()]
     if use_parallel:
-        # Use parallel processing to speed up binary vector creation
         with Pool(processes=num_cpus) as pool:
-            results = pool.map(make_fixation_binary_vector_for_run, args)
-        # Update the dataframe in place with the results
+            results = pool.map(make_binary_vector_for_run, args)
         for idx, binary_vector in results:
             if binary_vector is not None:
-                behav_df.at[idx, 'fixation_binary_vector'] = binary_vector
+                behav_df.at[idx, event_col_name] = binary_vector
     else:
-        # Serial processing
-        for result in map(make_fixation_binary_vector_for_run, args):
+        for result in map(make_binary_vector_for_run, args):
             idx, binary_vector = result
             if binary_vector is not None:
-                behav_df.at[idx, 'fixation_binary_vector'] = binary_vector
+                behav_df.at[idx, event_col_name] = binary_vector
     return behav_df
 
 
-def make_fixation_binary_vector_for_run(args):
-    # Unpack the arguments
-    idx, row, fixation_df, nan_removed_gaze_data_df = args
-    # Get the corresponding session, interaction, run, and agent details
-    session = row['session_name']
-    interaction = row['interaction_type']
-    run = row['run_number']
-    agent = row['agent']
-    # Get the corresponding fixation data for this session, run, and agent
-    fixation_row = fixation_df[
-        (fixation_df['session_name'] == session) & 
-        (fixation_df['interaction_type'] == interaction) & 
-        (fixation_df['run_number'] == run) & 
-        (fixation_df['agent'] == agent)
-    ]
-    if not fixation_row.empty:
-        fixation_intervals = fixation_row['fixation_start_stop'].values[0]   
-        # Get the neural timeline for this session and run
-        neural_timeline = nan_removed_gaze_data_df[
-            (nan_removed_gaze_data_df['session_name'] == session) & 
-            (nan_removed_gaze_data_df['interaction_type'] == interaction) & 
-            (nan_removed_gaze_data_df['run_number'] == run) & 
-            (nan_removed_gaze_data_df['agent'] == agent)
-        ]['neural_timeline'].values[0]
-        # Initialize a NumPy array of zeros with the same length as the neural timeline
-        binary_vector = np.zeros(len(neural_timeline), dtype=int)
-        # Mark the fixation start and stop indices with 1s using NumPy
-            # Initialize binary vector of length N with all 0s
-        binary_vector = np.zeros(N, dtype=int)
-        # Vectorize the creation of index ranges using np.r_
-        idx = np.r_[[np.arange(start, stop) for start, stop in ranges]]
-        # Set the corresponding indices to 1
-        binary_vector[idx] = 1
+def make_binary_vector_for_run(args):
+    """
+    Creates a binary vector for a specific run based on event start-stop intervals.
+    Parameters:
+    -----------
+    args : tuple - Contains index, `behav_df` row, event dataframe, gaze data, and event type.
+    Returns:
+    --------
+    tuple - Contains index and the binary vector for that run (or None if no events found).
+    """
+    idx, row, event_df, nan_removed_gaze_data_df, event_type = args
+    event_start_stop_col = f'{event_type}_start_stop'
+    session, interaction, run, agent = row['session_name'], row['interaction_type'], row['run_number'], row['agent']
+    event_row = event_df[(event_df['session_name'] == session) &
+                         (event_df['interaction_type'] == interaction) &
+                         (event_df['run_number'] == run) &
+                         (event_df['agent'] == agent)]
+    if not event_row.empty:
+        event_intervals = np.array(event_row[event_start_stop_col].values[0])
+        neural_timeline = nan_removed_gaze_data_df[(nan_removed_gaze_data_df['session_name'] == session) &
+                                                   (nan_removed_gaze_data_df['interaction_type'] == interaction) & 
+                                                   (nan_removed_gaze_data_df['run_number'] == run) &
+                                                   (nan_removed_gaze_data_df['agent'] == agent)]['neural_timeline'].values[0]
+        if event_intervals.size > 0:
+            binary_vector = np.zeros(len(neural_timeline), dtype=int)
+            idx = np.r_[[np.arange(start, stop + 1) for start, stop in event_intervals]]
+            binary_vector[idx] = 1
         return idx, binary_vector
     return idx, None
+
+
 
 
 

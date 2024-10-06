@@ -122,10 +122,18 @@ class DataManager:
             self.params                                         # Passed as the second positional argument
         )
         self.binary_behav_timeseries_df = util.initiate_behav_df_label_cols(self.nan_removed_gaze_data_df)
-        self.binary_behav_timeseries_df = fix_and_saccades.add_fixation_bin_vectors_to_behav_df(
+        self.binary_behav_timeseries_df = fix_and_saccades.add_bin_vectors_to_behav_df(
             self.binary_behav_timeseries_df,
             self.fixation_df,
             self.nan_removed_gaze_data_df,
+            event_type='fixation',
+            use_parallel=self.params['use_parallel'],
+            num_cpus=self.params['num_cpus'])
+        self.binary_behav_timeseries_df = fix_and_saccades.add_bin_vectors_to_behav_df(
+            self.binary_behav_timeseries_df,
+            self.saccade_df,
+            self.nan_removed_gaze_data_df,
+            event_type='saccade',
             use_parallel=self.params['use_parallel'],
             num_cpus=self.params['num_cpus'])
         pdb.set_trace()
