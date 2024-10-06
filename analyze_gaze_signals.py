@@ -23,7 +23,7 @@ def main():
     params.update({
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': True,
+        'use_parallel': False,
         'submit_separate_jobs_for_sessions': True,
         'use_toy_data': False,
         'remake_toy_data': False,
