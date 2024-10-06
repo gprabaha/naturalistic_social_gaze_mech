@@ -135,8 +135,6 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     - fixation_start_stop (np.ndarray): Nx2 array of start-stop indices for fixations.
     - saccade_start_stop (np.ndarray): Nx2 array of start-stop indices for saccades.
     """
-    print(session_name)
-    print(positions)
     # Initialize fixation and saccade detectors
     fixation_detector = fixation_detector_class.FixationDetector(
         session_name=session_name,
@@ -222,6 +220,9 @@ def make_binary_vector_for_run(args):
             binary_vector[idx] = 1
         return idx, binary_vector
     return idx, None
+
+
+
 
 
 
