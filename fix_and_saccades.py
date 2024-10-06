@@ -13,6 +13,8 @@ from multiprocessing import Pool, cpu_count
 import pickle
 import os
 import pandas as pd
+import numpy as np
+from multiprocessing import Pool
 
 import hpc_fix_and_saccade_detector
 import fixation_detector_class
@@ -157,6 +159,81 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
         (positions[:, 0], positions[:, 1])
     )
     return fixation_results, saccade_results
+
+
+def add_fixation_bin_vectors_to_behav_df(behav_df, fixation_df, nan_removed_gaze_data_df, use_parallel=False, num_cpus=4):
+    # Initialize the fixation_binary_vector column with None
+    behav_df['fixation_binary_vector'] = None
+    # Create a list of arguments for parallel/serial processing
+    args = [(idx, row, fixation_df, nan_removed_gaze_data_df) for idx, row in behav_df.iterrows()]
+    if use_parallel:
+        # Use parallel processing to speed up binary vector creation
+        with Pool(processes=num_cpus) as pool:
+            results = pool.map(make_fixation_binary_vector_for_run, args)
+        # Update the dataframe in place with the results
+        for idx, binary_vector in results:
+            if binary_vector is not None:
+                behav_df.at[idx, 'fixation_binary_vector'] = binary_vector
+    else:
+        # Serial processing
+        for result in map(make_fixation_binary_vector_for_run, args):
+            idx, binary_vector = result
+            if binary_vector is not None:
+                behav_df.at[idx, 'fixation_binary_vector'] = binary_vector
+    return behav_df
+
+
+def make_fixation_binary_vector_for_run(args):
+    # Unpack the arguments
+    idx, row, fixation_df, nan_removed_gaze_data_df = args
+    # Get the corresponding session, interaction, run, and agent details
+    session = row['session_name']
+    interaction = row['interaction_type']
+    run = row['run_number']
+    agent = row['agent']
+    # Get the corresponding fixation data for this session, run, and agent
+    fixation_row = fixation_df[
+        (fixation_df['session_name'] == session) & 
+        (fixation_df['interaction_type'] == interaction) & 
+        (fixation_df['run_number'] == run) & 
+        (fixation_df['agent'] == agent)
+    ]
+    if not fixation_row.empty:
+        fixation_intervals = fixation_row['fixation_start_stop'].values[0]   
+        # Get the neural timeline for this session and run
+        neural_timeline = nan_removed_gaze_data_df[
+            (nan_removed_gaze_data_df['session_name'] == session) & 
+            (nan_removed_gaze_data_df['interaction_type'] == interaction) & 
+            (nan_removed_gaze_data_df['run_number'] == run) & 
+            (nan_removed_gaze_data_df['agent'] == agent)
+        ]['neural_timeline'].values[0]
+        # Initialize a NumPy array of zeros with the same length as the neural timeline
+        binary_vector = np.zeros(len(neural_timeline), dtype=int)
+        # Mark the fixation start and stop indices with 1s using NumPy
+            # Initialize binary vector of length N with all 0s
+        binary_vector = np.zeros(N, dtype=int)
+        # Vectorize the creation of index ranges using np.r_
+        idx = np.r_[[np.arange(start, stop) for start, stop in ranges]]
+        # Set the corresponding indices to 1
+        binary_vector[idx] = 1
+        return idx, binary_vector
+    return idx, None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
