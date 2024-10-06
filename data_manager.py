@@ -59,9 +59,9 @@ class DataManager:
         self.gaze_data_df = None
         self.missing_data_paths = None
         self.nan_removed_gaze_data_df = None
-        self.fixation_dict = None
-        self.saccade_dict = None
-        self.binary_behav_timeseries = None
+        self.fixation_df = None
+        self.saccade_df = None
+        self.binary_behav_timeseries_df = None
 
 
     def populate_params_with_data_paths(self):
@@ -84,12 +84,12 @@ class DataManager:
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data and missing data paths
         self.gaze_data_df, self.missing_data_paths = util.compute_or_load_variables(
-            curate_data.make_gaze_data_df,  # Function that computes the gaze data DataFrame and missing paths
-            load_data.get_gaze_data_df,      # Function to load the saved gaze data and missing paths
-            [gaze_data_file_path, missing_data_paths_file_path],  # Paths where the data will be saved/loaded
-            'remake_gaze_data_dict',     # Parameter key to determine if we should remake or load the data
-            self.params,                          # The params dictionary containing relevant settings
-            self.params
+            curate_data.make_gaze_data_df,                          # Positional argument (compute_func)
+            load_data.get_gaze_data_df,                             # Positional argument (load_func)
+            [gaze_data_file_path, missing_data_paths_file_path],    # Positional argument (file_paths)
+            'remake_gaze_data_dict',                                # Positional argument (remake_flag_key)
+            self.params,                                            # Positional argument (params)
+            self.params                                             # This is passed as *args to compute_func
         )
 
 
@@ -98,12 +98,12 @@ class DataManager:
         nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_df.pkl')
         # Use the compute_or_load_variables function to compute or load the gaze data
         self.nan_removed_gaze_data_df = util.compute_or_load_variables(
-            curate_data.prune_nan_values_in_timeseries,    # Positional argument (compute_func)
+            curate_data.prune_nan_values_in_timeseries,     # Positional argument (compute_func)
             load_data.get_nan_removed_gaze_data_df,         # Positional argument (load_func)
-            nan_removed_gaze_data_file_path,                 # Positional argument (file_paths)
-            'remake_nan_removed_gaze_data_dict',        # Positional argument (remake_flag_key)
-            self.params,                                         # Positional argument (params)
-            self.gaze_data_df                                         # This is passed as *args to compute_func
+            nan_removed_gaze_data_file_path,                # Positional argument (file_paths)
+            'remake_nan_removed_gaze_data_dict',            # Positional argument (remake_flag_key)
+            self.params,                                    # Positional argument (params)
+            self.gaze_data_df                               # This is passed as *args to compute_func
         )
 
 
@@ -113,20 +113,22 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         # !! Load and compute variables function also saves the variable that it computes !!
         self.fixation_df, self.saccade_df = util.compute_or_load_variables(
-            fix_and_saccades.detect_fixations_and_saccades,  # Compute function
-            load_data.load_fixation_and_saccade_dfs,       # Load function
-            [fixation_file_path, saccade_file_path],         # File paths
-            'remake_fix_and_sacc',                           # Remake flag key
-            self.params,                                     # Params
-            self.nan_removed_gaze_data_df,                   # Passed as the first positional argument
-            self.params
+            fix_and_saccades.detect_fixations_and_saccades,     # Compute function
+            load_data.load_fixation_and_saccade_dfs,            # Load function
+            [fixation_file_path, saccade_file_path],            # File paths
+            'remake_fix_and_sacc',                              # Remake flag key
+            self.params,                                        # Params
+            self.nan_removed_gaze_data_df,                      # Passed as the first positional argument
+            self.params                                         # Passed as the second positional argument
         )
-        print('Fix df:')
-        print(self.fixation_df.head())
-        print('Sacc df:')
-        print(self.saccade_df.head())
-        # self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
-        # util.print_dict_keys_and_values(self.binary_behav_timeseries)
+        # print('Fix df:')
+        # print(self.fixation_df.head())
+        # print('Sacc df:')
+        # print(self.saccade_df.head())
+        pdb.set_trace()
+        behav_df = util.initiate_behav_df_label_cols(self.nan_removed_gaze_data_df)
+        self.binary_behav_timeseries = curate_data.generate_binary_behav_timeseries_dicts(self.fixation_dict, self.saccade_dict)
+        
 
 
 
