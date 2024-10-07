@@ -2,8 +2,8 @@
 #SBATCH --job-name=gaze_processing
 #SBATCH --partition=psych_day
 #SBATCH --time=1:00:00                # 1 hour time limit
-#SBATCH --cpus-per-task=16            # 16 CPUs
-#SBATCH --mem=32G                     # 16GB of memory
+#SBATCH --cpus-per-task=48            # 80 CPUs
+#SBATCH --mem=64G                     # 10GB of memory per CPU
 #SBATCH --output=gaze_processing.out  # Output file
 #SBATCH --error=gaze_processing.err   # Error file
 
