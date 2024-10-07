@@ -68,19 +68,21 @@ def _compute_autocorr_for_row(row):
     return fixation_autocorr, saccade_autocorr
 
 
-# Subfunction to calculate scaled autocorrelations for a binary vector
 def _compute_scaled_autocorr(binary_vector):
     """
-    Computes the scaled autocorrelation for a given binary vector.
+    Computes the scaled autocorrelation for a given binary vector using np.correlate.
     Parameters:
     binary_vector (list): A binary vector representing either fixation or saccade events.
     Returns:
     list: A list of scaled autocorrelation values.
     """
     n = len(binary_vector)
-    autocorrs = []
-    for lag in range(n):
-        valid_length = n - lag  # Number of overlapping elements after the shift
-        dot_product = np.dot(binary_vector[:valid_length], binary_vector[lag:])  # Dot product of overlapping elements
-        autocorrs.append(dot_product / valid_length)  # Scale by the valid length
-    return autocorrs
+    # Compute full autocorrelation using np.correlate
+    autocorr_full = np.correlate(binary_vector, binary_vector, mode='full')
+    # Take the second half (starting from the middle) for the positive lags
+    autocorrs = autocorr_full[n-1:]
+    # Scale the autocorrelation values by the valid number of elements for each lag
+    valid_lengths = np.arange(n, 0, -1)
+    scaled_autocorrs = autocorrs / valid_lengths
+    return scaled_autocorrs
+
