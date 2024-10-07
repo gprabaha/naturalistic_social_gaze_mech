@@ -63,6 +63,7 @@ class DataManager:
         self.fixation_df = None
         self.saccade_df = None
         self.binary_behav_timeseries_df = None
+        self.binary_timeseries_scaled_autocorr_df = None
 
 
     def populate_params_with_data_paths(self):
@@ -112,7 +113,7 @@ class DataManager:
         # Path to where the fixation and saccade dictionaries are saved
         fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_df.pkl')
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
-        # !! Load and compute variables function also saves the variable that it computes !!
+        # Load or compute fixation and saccade DataFrames
         self.fixation_df, self.saccade_df = util.compute_or_load_variables(
             fix_and_saccades.detect_fixations_and_saccades,     # Compute function
             load_data.load_fixation_and_saccade_dfs,            # Load function
@@ -122,23 +123,33 @@ class DataManager:
             self.nan_removed_gaze_data_df,                      # Passed as the first positional argument
             self.params                                         # Passed as the second positional argument
         )
-        self.binary_behav_timeseries_df = util.initiate_behav_df_label_cols(self.nan_removed_gaze_data_df)
-        self.binary_behav_timeseries_df = fix_and_saccades.add_bin_vectors_to_behav_df(
-            self.binary_behav_timeseries_df,
-            self.fixation_df,
-            self.nan_removed_gaze_data_df,
-            event_type='fixation',
-            use_parallel=self.params['use_parallel'],
-            num_cpus=self.params['num_cpus'])
-        self.binary_behav_timeseries_df = fix_and_saccades.add_bin_vectors_to_behav_df(
-            self.binary_behav_timeseries_df,
-            self.saccade_df,
-            self.nan_removed_gaze_data_df,
-            event_type='saccade',
-            use_parallel=self.params['use_parallel'],
-            num_cpus=self.params['num_cpus'])
-        self.binary_timeseries_autocorr_df = analyze_data.compute_and_save_scaled_autocorrelations_for_behavior_df(
-            self.binary_behav_timeseries_df, self.params)
+        # Path for saving the binary timeseries DataFrame
+        binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
+        # Load or compute binary behavior timeseries DataFrame
+        self.binary_behav_timeseries_df = util.compute_or_load_variables(
+            analyze_data.create_binary_behav_timeseries_df,      # Compute function
+            load_data.load_binary_timeseries_df,                 # Load function
+            binary_timeseries_file_path,                         # File path
+            'remake_binary_timeseries',                          # Remake flag key
+            self.params,                                         # Params
+            self.fixation_df,                                    # Positional arg (fixation data)
+            self.saccade_df,                                     # Positional arg (saccade data)
+            self.nan_removed_gaze_data_df,                       # Positional arg (gaze data)
+            self.params                                          # Positional arg (params)
+        )
+        # Path for saving the binary timeseries autocorrelation DataFrame
+        autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
+        # Load or compute binary timeseries autocorrelation DataFrame
+        self.binary_timeseries_scaled_autocorr_df = util.compute_or_load_variables(
+            analyze_data.compute_scaled_autocorrelations_for_behavior_df,  # Compute function
+            load_data.load_binary_autocorr_df,                                      # Load function
+            autocorr_file_path,                                                     # File path
+            'remake_scaled_autocorr',                                               # Remake flag key
+            self.params,                                                            # Params
+            self.binary_behav_timeseries_df,                                        # Positional arg (binary timeseries)
+            self.params                                                             # Positional arg (params)
+        )
+
         
 
 

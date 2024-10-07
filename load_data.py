@@ -87,6 +87,32 @@ def load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path):
         raise
 
 
+# Function to load binary behavior timeseries DataFrame
+def load_binary_timeseries_df(file_path):
+    """
+    Loads the binary behavior timeseries DataFrame from a pickle file.
+    Parameters:
+    file_path (str): The file path to the pickle file.
+    Returns:
+    pd.DataFrame: The binary behavior timeseries DataFrame.
+    """
+    with open(file_path, 'rb') as f:
+        binary_timeseries_df = pickle.load(f)
+    return binary_timeseries_df
+
+
+# Function to load binary timeseries autocorrelation DataFrame
+def load_binary_autocorr_df(file_path):
+    """
+    Loads the binary timeseries autocorrelation DataFrame from a pickle file.
+    Parameters:
+    file_path (str): The file path to the pickle file.
+    Returns:
+    pd.DataFrame: The binary timeseries autocorrelation DataFrame.
+    """
+    with open(file_path, 'rb') as f:
+        binary_autocorr_df = pickle.load(f)
+    return binary_autocorr_df
 
 
 
