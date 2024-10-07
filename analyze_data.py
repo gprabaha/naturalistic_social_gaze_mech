@@ -4,6 +4,7 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import pickle
 import os
+from scipy.signal import fftconvolve
 
 
 # Main function with optional parallel processing and pickling
@@ -25,14 +26,14 @@ def compute_and_save_scaled_autocorrelations_for_behavior_df(df, params):
     if use_parallel:
         # Run the computation in parallel using joblib and tqdm for progress tracking
         results = Parallel(n_jobs=num_cpus)(
-            delayed(_compute_autocorr_for_row)(row) for _, row in tqdm(
+            delayed(_compute_autocorr_for_row)(row, index) for index, row in tqdm(
                 df.iterrows(),
                 total=len(df),
                 desc="Making autocorrelations for df rows (Parallel)")
         )
     else:
         # Run the computation in serial mode with progress bar
-        results = [_compute_autocorr_for_row(row) for _, row in tqdm(
+        results = [_compute_autocorr_for_row(row, index) for index, row in tqdm(
             df.iterrows(),
             total=len(df),
             desc="Making autocorrelations for df rows (Serial)")
@@ -43,9 +44,11 @@ def compute_and_save_scaled_autocorrelations_for_behavior_df(df, params):
     autocorr_df['interaction_type'] = df['interaction_type']
     autocorr_df['run_number'] = df['run_number']
     autocorr_df['agent'] = df['agent']
-    # Store the autocorrelation results
-    autocorr_df['fixation_scaled_autocorr'] = [r[0] for r in results]
-    autocorr_df['saccade_scaled_autocorr'] = [r[1] for r in results]
+    # Store the autocorrelation results, ensuring correct alignment with rows
+    for result in results:
+        index, fixation_autocorr, saccade_autocorr = result
+        autocorr_df.at[index, 'fixation_scaled_autocorr'] = fixation_autocorr
+        autocorr_df.at[index, 'saccade_scaled_autocorr'] = saccade_autocorr
     # Pickle the resulting DataFrame
     output_path = os.path.join(processed_data_dir, 'scaled_autocorrelations.pkl')
     with open(output_path, 'wb') as f:
@@ -54,31 +57,33 @@ def compute_and_save_scaled_autocorrelations_for_behavior_df(df, params):
     return autocorr_df
 
 
-# Helper function to process a single row of the DataFrame
-def _compute_autocorr_for_row(row):
+# Helper function to process a single row of the DataFrame, now includes index
+def _compute_autocorr_for_row(row, index):
     """
     Computes scaled autocorrelations for both fixation and saccade binary vectors for a given row.
     Parameters:
     row (pd.Series): A single row from the DataFrame.
+    index (int): The index of the row in the DataFrame.
     Returns:
-    tuple: A tuple containing scaled autocorrelations for fixation and saccade binary vectors.
+    tuple: A tuple containing the index and scaled autocorrelations for fixation and saccade binary vectors.
     """
-    fixation_autocorr = _compute_scaled_autocorr(row['fixation_binary_vector'])
-    saccade_autocorr = _compute_scaled_autocorr(row['saccade_binary_vector'])
-    return fixation_autocorr, saccade_autocorr
+    fixation_autocorr = _compute_scaled_autocorr_fft(row['fixation_binary_vector'])
+    saccade_autocorr = _compute_scaled_autocorr_fft(row['saccade_binary_vector'])
+    return index, fixation_autocorr, saccade_autocorr
 
 
-def _compute_scaled_autocorr(binary_vector):
+# FFT-based autocorrelation computation
+def _compute_scaled_autocorr_fft(binary_vector):
     """
-    Computes the scaled autocorrelation for a given binary vector using np.correlate.
+    Computes the scaled autocorrelation for a given binary vector using FFT for faster computation.
     Parameters:
     binary_vector (list): A binary vector representing either fixation or saccade events.
     Returns:
     list: A list of scaled autocorrelation values.
     """
     n = len(binary_vector)
-    # Compute full autocorrelation using np.correlate
-    autocorr_full = np.correlate(binary_vector, binary_vector, mode='full')
+    # Compute full autocorrelation using FFT-based convolution
+    autocorr_full = fftconvolve(binary_vector, binary_vector[::-1], mode='full')
     # Take the second half (starting from the middle) for the positive lags
     autocorrs = autocorr_full[n-1:]
     # Scale the autocorrelation values by the valid number of elements for each lag
