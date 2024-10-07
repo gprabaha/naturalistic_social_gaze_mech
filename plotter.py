@@ -38,28 +38,33 @@ def plot_fixations_and_saccades(nan_removed_gaze_data_df, fixation_df, saccade_d
     today_date = datetime.now().strftime('%Y-%m-%d')
     base_plot_dir = os.path.join(params['root_data_dir'], 'plots', 'fixations_and_saccades', today_date)
     os.makedirs(base_plot_dir, exist_ok=True)
-    # Loop through each session in the DataFrame
+
+    # Gather tasks across all sessions, interactions, and runs
+    tasks = []
     for session in nan_removed_gaze_data_df['session_name'].unique():
         session_dir = os.path.join(base_plot_dir, session)
         os.makedirs(session_dir, exist_ok=True)
+        
         # Filter data for the current session
         session_gaze_data = nan_removed_gaze_data_df[nan_removed_gaze_data_df['session_name'] == session]
         session_fixation_data = fixation_df[fixation_df['session_name'] == session]
         session_saccade_data = saccade_df[saccade_df['session_name'] == session]
-        # Gather the list of runs and interactions
-        tasks = []
+
+        # Collect tasks for all runs and interactions within the session
         for interaction in session_gaze_data['interaction_type'].unique():
             for run in session_gaze_data['run_number'].unique():
                 tasks.append((session, interaction, run, session_gaze_data, session_fixation_data, session_saccade_data, session_dir))
-        # Plot either in parallel or serial based on the use_parallel flag
-        if params.get('use_parallel', False):
-            logger.info(f"Plotting in parallel using {params['num_cpus']} CPUs.")
-            with Pool(processes=params['num_cpus']) as pool:
-                list(tqdm(pool.imap(_plot_fix_sac_run_wrapper, tasks), total=len(tasks), desc=f"Plotting {session} runs (Parallel)"))
-        else:
-            logger.info(f"Plotting serially.")
-            for task in tqdm(tasks, total=len(tasks), desc=f"Plotting {session} runs (Serial)"):
-                _plot_fix_sac_for_run(*task)
+
+    # Plot either in parallel or serial based on the use_parallel flag
+    if params.get('use_parallel', False):
+        logger.info(f"Plotting across all tasks in parallel using {params['num_cpus']} CPUs.")
+        with Pool(processes=params['num_cpus']) as pool:
+            list(tqdm(pool.imap(_plot_fix_sac_run_wrapper, tasks), total=len(tasks), desc="Plotting fixation and saccades for runs (Parallel)"))
+    else:
+        logger.info(f"Plotting all tasks serially.")
+        for task in tqdm(tasks, total=len(tasks), desc="Plotting fixation and saccades for runs (Serial)"):
+            _plot_fix_sac_for_run(*task)
+
 
 
 def _plot_fix_sac_run_wrapper(args):
@@ -149,7 +154,7 @@ def _plot_fixation_points_and_means(points, means, ax, title):
     """
     ax.set_title(title)
     # Plot all fixation points at 10% opacity
-    ax.scatter(points[:, 0], points[:, 1], c='gray', alpha=0.1)
+    ax.scatter(points[:, 0], points[:, 1], color='gray', alpha=0.1)
     # Plot mean fixation points, color-coded by time
     for mean_x, mean_y, time_color in means:
         ax.scatter(mean_x, mean_y, color=cm.viridis(time_color), edgecolor='black', s=100)
@@ -161,7 +166,7 @@ def _plot_saccade_points_and_arrows(points, arrows, ax, title):
     """
     ax.set_title(title)
     # Plot all saccade points at 10% opacity
-    ax.scatter(points[:, 0], points[:, 1], c='gray', alpha=0.1)
+    ax.scatter(points[:, 0], points[:, 1], color='gray', alpha=0.1)
     # Plot arrows for each saccade (start to end), color-coded by time
     for start, stop, time_color in arrows:
         ax.arrow(start[0], start[1], stop[0] - start[0], stop[1] - start[1],
@@ -175,7 +180,7 @@ def _plot_combined(means, arrows, ax, title):
     ax.set_title(title)
     # Plot mean fixation points
     for mean_x, mean_y, time_color in means:
-        ax.scatter(mean_x, mean_y, c=cm.viridis(time_color), edgecolor='black', s=100)
+        ax.scatter(mean_x, mean_y, color=cm.viridis(time_color), edgecolor='black', s=100)
     # Plot saccade arrows
     for start, stop, time_color in arrows:
         ax.arrow(start[0], start[1], stop[0] - start[0], stop[1] - start[1],
