@@ -177,6 +177,7 @@ class DataManager:
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
+        self.plot_behavior()
         pdb.set_trace()
         return 0
         # self.plot_behavior()  # Plot behavior is disabled for now
