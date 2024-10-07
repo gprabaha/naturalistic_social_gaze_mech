@@ -164,11 +164,8 @@ class DataManager:
         )
 
 
-
     def plot_behavior(self):
-        plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.binary_behav_timeseries_df, self.params)
-        
-
+        plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
 
 
     def run(self):
