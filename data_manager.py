@@ -26,6 +26,7 @@ import pdb
 
 class DataManager:
     def __init__(self, params):
+        """Initialize the DataManager with parameters, logger setup, and CPU detection."""
         self.setup_logger()
         self.params = params
         self.find_n_cores()
@@ -38,7 +39,8 @@ class DataManager:
 
 
     def find_n_cores(self):
-        """Determine the number of CPU cores available, prioritizing SLURM if available."""
+        """Determine the number of CPU cores available, prioritizing SLURM if available, 
+        and update params with the detected core count."""
         try:
             slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
             num_cpus = int(slurm_cpus)
@@ -56,7 +58,7 @@ class DataManager:
 
 
     def initialize_class_objects(self):
-        """Initialize class object attributes."""
+        """Initialize class object attributes to None."""
         self.gaze_data_df = None
         self.missing_data_paths = None
         self.nan_removed_gaze_data_df = None
@@ -67,6 +69,7 @@ class DataManager:
 
 
     def populate_params_with_data_paths(self):
+        """Populate the params dictionary with various data paths needed for processing."""
         self.params = curate_data.add_root_data_to_params(self.params)
         self.params = curate_data.add_processed_data_to_params(self.params)
         self.params = curate_data.add_raw_data_dir_to_params(self.params)
@@ -76,81 +79,89 @@ class DataManager:
 
     def get_data(self):
         """
-        Loads gaze data into a dictionary format from the available position, time, and pupil size files.
-        If the data already exists and `remake_gaze_data_dict` is False, it will load the data from a saved pickle file.
-        Otherwise, it will recompute the gaze data using the defined function and save the result.
-        This also handles the second output, which is the list of missing data paths.
+        Loads gaze data from files or recomputes it if necessary.
+        Uses compute_or_load_variables to load the gaze data and missing data paths.
         """
-        # Define path to save/load the gaze data and the missing data paths
         gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_df.pkl')
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
-        # Use the compute_or_load_variables function to compute or load the gaze data and missing data paths
+        # Load or compute gaze data and missing paths
         self.gaze_data_df, self.missing_data_paths = util.compute_or_load_variables(
-            curate_data.make_gaze_data_df,                          # Positional argument (compute_func)
-            load_data.get_gaze_data_df,                             # Positional argument (load_func)
-            [gaze_data_file_path, missing_data_paths_file_path],    # Positional argument (file_paths)
-            'remake_gaze_data_dict',                                # Positional argument (remake_flag_key)
-            self.params,                                            # Positional argument (params)
-            self.params                                             # This is passed as *args to compute_func
+            curate_data.make_gaze_data_df,                          # Compute function
+            load_data.get_gaze_data_df,                             # Load function
+            [gaze_data_file_path, missing_data_paths_file_path],    # File paths
+            'remake_gaze_data_dict',                                # Remake flag key
+            self.params,                                            # Params
+            self.params                                             # Gaze data is recomputed based on params
         )
 
 
     def prune_data(self):
-        processed_data_dir = self.params['processed_data_dir']
-        nan_removed_gaze_data_file_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_df.pkl')
-        # Use the compute_or_load_variables function to compute or load the gaze data
+        """Prune NaN values from gaze data using compute_or_load_variables."""
+        nan_removed_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'nan_removed_gaze_data_df.pkl')
+        # Load or compute pruned gaze data
         self.nan_removed_gaze_data_df = util.compute_or_load_variables(
-            curate_data.prune_nan_values_in_timeseries,     # Positional argument (compute_func)
-            load_data.get_nan_removed_gaze_data_df,         # Positional argument (load_func)
-            nan_removed_gaze_data_file_path,                # Positional argument (file_paths)
-            'remake_nan_removed_gaze_data_dict',            # Positional argument (remake_flag_key)
-            self.params,                                    # Positional argument (params)
-            self.gaze_data_df                               # This is passed as *args to compute_func
+            curate_data.prune_nan_values_in_timeseries,     # Compute function
+            load_data.get_nan_removed_gaze_data_df,         # Load function
+            nan_removed_gaze_data_file_path,                # File path
+            'remake_nan_removed_gaze_data_dict',            # Remake flag key
+            self.params,                                    # Params
+            self.gaze_data_df                               # Gaze data as argument for compute function
         )
 
 
     def analyze_behavior(self):
-        # Path to where the fixation and saccade dictionaries are saved
+        """Analyze behavior by detecting fixations and saccades, and compute binary timeseries and autocorrelations."""
+        # Load or compute fixation and saccade DataFrames
+        self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        # Load or compute binary behavior timeseries DataFrame
+        self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
+        # Load or compute binary timeseries autocorrelation DataFrame
+        self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
+
+
+    def _load_or_compute_fixations_and_saccades(self):
+        """Helper to load or compute fixation and saccade DataFrames."""
         fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_df.pkl')
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
-        # Load or compute fixation and saccade DataFrames
-        self.fixation_df, self.saccade_df = util.compute_or_load_variables(
+        return util.compute_or_load_variables(
             fix_and_saccades.detect_fixations_and_saccades,     # Compute function
             load_data.load_fixation_and_saccade_dfs,            # Load function
             [fixation_file_path, saccade_file_path],            # File paths
             'remake_fix_and_sacc',                              # Remake flag key
             self.params,                                        # Params
-            self.nan_removed_gaze_data_df,                      # Passed as the first positional argument
-            self.params                                         # Passed as the second positional argument
+            self.nan_removed_gaze_data_df,                      # Gaze data as argument
+            self.params                                         # Params again as argument
         )
-        # Path for saving the binary timeseries DataFrame
+
+
+    def _load_or_compute_binary_behav_timeseries(self):
+        """Helper to load or compute binary behavior timeseries DataFrame."""
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
-        # Load or compute binary behavior timeseries DataFrame
-        self.binary_behav_timeseries_df = util.compute_or_load_variables(
+        return util.compute_or_load_variables(
             analyze_data.create_binary_behav_timeseries_df,      # Compute function
             load_data.load_binary_timeseries_df,                 # Load function
             binary_timeseries_file_path,                         # File path
             'remake_binary_timeseries',                          # Remake flag key
             self.params,                                         # Params
-            self.fixation_df,                                    # Positional arg (fixation data)
-            self.saccade_df,                                     # Positional arg (saccade data)
-            self.nan_removed_gaze_data_df,                       # Positional arg (gaze data)
-            self.params                                          # Positional arg (params)
-        )
-        # Path for saving the binary timeseries autocorrelation DataFrame
-        autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
-        # Load or compute binary timeseries autocorrelation DataFrame
-        self.binary_timeseries_scaled_autocorr_df = util.compute_or_load_variables(
-            analyze_data.compute_scaled_autocorrelations_for_behavior_df,  # Compute function
-            load_data.load_binary_autocorr_df,                                      # Load function
-            autocorr_file_path,                                                     # File path
-            'remake_scaled_autocorr',                                               # Remake flag key
-            self.params,                                                            # Params
-            self.binary_behav_timeseries_df,                                        # Positional arg (binary timeseries)
-            self.params                                                             # Positional arg (params)
+            self.fixation_df,                                    # Fixation data
+            self.saccade_df,                                     # Saccade data
+            self.nan_removed_gaze_data_df,                       # Gaze data
+            self.params                                          # Params
         )
 
-        
+
+    def _load_or_compute_binary_timeseries_autocorr(self):
+        """Helper to load or compute binary timeseries autocorrelation DataFrame."""
+        autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
+        return util.compute_or_load_variables(
+            analyze_data.compute_scaled_autocorrelations_for_behavior_df,  # Compute function
+            load_data.load_binary_autocorr_df,                             # Load function
+            autocorr_file_path,                                            # File path
+            'remake_scaled_autocorr',                                      # Remake flag key
+            self.params,                                                   # Params
+            self.binary_behav_timeseries_df,                               # Binary timeseries data
+            self.params                                                    # Params
+        )
 
 
 
@@ -182,10 +193,14 @@ class DataManager:
                 plotter.plot_agent_behavior(*task)
 
 
+
     def run(self):
+        """Runs the data processing steps in sequence."""
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
-        # self.plot_behavior()
+        # self.plot_behavior()  # Plot behavior is disabled for now
 
+
+       
