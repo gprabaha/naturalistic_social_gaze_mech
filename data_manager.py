@@ -166,31 +166,8 @@ class DataManager:
 
 
     def plot_behavior(self):
-        # Create the base directory under 'fixations_and_saccades' with today's date
-        today_date = datetime.now().strftime('%Y-%m-%d')
-        base_plot_dir = os.path.join(self.params['root_data_dir'], 'plots', 'fixations_and_saccades', today_date)
-        # Call helper function to gather tasks
-        tasks = plotter.gather_plotting_tasks(
-            self.fixation_dict,
-            self.saccade_dict,
-            self.nan_removed_gaze_data_dict,
-            base_plot_dir,
-            self.params)
-        # Execute tasks either in parallel or serial based on use_parallel flag
-        if self.params.get('use_parallel', False):
-            with multiprocessing.Pool(processes=self.params['num_cpus']) as pool:
-                # Initialize the progress bar
-                pbar = tqdm(total=len(tasks), desc="Plotting fix and saccades in parallel")
-                # Submit tasks individually using apply_async and update progress after each task completes
-                results = [pool.apply_async(plotter.plot_agent_behavior, args=task, callback=lambda _: pbar.update(1)) for task in tasks]
-                # Ensure all tasks are completed
-                for result in results:
-                    result.wait()  # Wait for each task to complete
-                # Close the progress bar when done
-                pbar.close()
-        else:
-            for task in tqdm(tasks, desc="Plotting fix and saccades in serial"):
-                plotter.plot_agent_behavior(*task)
+        plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.binary_behav_timeseries_df, self.params)
+        
 
 
 
@@ -200,6 +177,8 @@ class DataManager:
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
+        pdb.set_trace()
+        return 0
         # self.plot_behavior()  # Plot behavior is disabled for now
 
 
