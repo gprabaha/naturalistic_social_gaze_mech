@@ -14,7 +14,8 @@ def main():
     # Configure the root logger
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='\n %(name)s - %(message)s',
         handlers=[
             logging.StreamHandler()
         ]

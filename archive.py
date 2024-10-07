@@ -6,7 +6,25 @@ Created on Wed May 22 16:04:31 2024
 @author: pg496
 """
 
+# analyze_data.py
 
+def _compute_scaled_autocorr(binary_vector):
+    """
+    Computes the scaled autocorrelation for a given binary vector using np.correlate.
+    Parameters:
+    binary_vector (list): A binary vector representing either fixation or saccade events.
+    Returns:
+    list: A list of scaled autocorrelation values.
+    """
+    n = len(binary_vector)
+    # Compute full autocorrelation using np.correlate
+    autocorr_full = np.correlate(binary_vector, binary_vector, mode='full')
+    # Take the second half (starting from the middle) for the positive lags
+    autocorrs = autocorr_full[n-1:]
+    # Scale the autocorrelation values by the valid number of elements for each lag
+    valid_lengths = np.arange(n, 0, -1)
+    scaled_autocorrs = autocorrs / valid_lengths
+    return scaled_autocorrs
 
 ## from curate data: old dictionary structure, now using dataframe
 
