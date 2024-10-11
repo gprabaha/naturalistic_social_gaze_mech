@@ -166,10 +166,18 @@ class DataManager:
 
     def plot_behavior(self):
         plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
-
+        
+        # plot scaled autocorrelations
+        """
+        for each session, interaction type and run, plot out the scaled autocorrelation vs lag
+        for 5 seconds lag for all columns of behav autocorr dataframe
+        """
 
     def run(self):
         """Runs the data processing steps in sequence."""
+        
+        #!! ROI rects need to be offset adjusted. Do positions need remapping as well?
+
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
@@ -177,7 +185,5 @@ class DataManager:
         self.plot_behavior()
         pdb.set_trace()
         return 0
-        # self.plot_behavior()  # Plot behavior is disabled for now
-
 
        

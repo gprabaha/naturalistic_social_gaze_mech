@@ -38,23 +38,19 @@ def plot_fixations_and_saccades(nan_removed_gaze_data_df, fixation_df, saccade_d
     today_date = datetime.now().strftime('%Y-%m-%d')
     base_plot_dir = os.path.join(params['root_data_dir'], 'plots', 'fixations_and_saccades', today_date)
     os.makedirs(base_plot_dir, exist_ok=True)
-
     # Gather tasks across all sessions, interactions, and runs
     tasks = []
     for session in nan_removed_gaze_data_df['session_name'].unique():
         session_dir = os.path.join(base_plot_dir, session)
         os.makedirs(session_dir, exist_ok=True)
-        
         # Filter data for the current session
         session_gaze_data = nan_removed_gaze_data_df[nan_removed_gaze_data_df['session_name'] == session]
         session_fixation_data = fixation_df[fixation_df['session_name'] == session]
         session_saccade_data = saccade_df[saccade_df['session_name'] == session]
-
         # Collect tasks for all runs and interactions within the session
         for interaction in session_gaze_data['interaction_type'].unique():
             for run in session_gaze_data['run_number'].unique():
                 tasks.append((session, interaction, run, session_gaze_data, session_fixation_data, session_saccade_data, session_dir))
-
     # Plot either in parallel or serial based on the use_parallel flag
     if params.get('use_parallel', False):
         logger.info(f"Plotting across all tasks in parallel using {params['num_cpus']} CPUs.")
@@ -64,7 +60,6 @@ def plot_fixations_and_saccades(nan_removed_gaze_data_df, fixation_df, saccade_d
         logger.info(f"Plotting all tasks serially.")
         for task in tqdm(tasks, total=len(tasks), desc="Plotting fixation and saccades for runs (Serial)"):
             _plot_fix_sac_for_run(*task)
-
 
 
 def _plot_fix_sac_run_wrapper(args):

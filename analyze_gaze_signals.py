@@ -22,6 +22,8 @@ def main():
     )
     params = {}
     params.update({
+        'sampling_rate': 1 / 1000,
+
         'is_cluster': True,
         'is_grace': False,
         'use_parallel': True,
