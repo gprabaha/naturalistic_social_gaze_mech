@@ -39,10 +39,8 @@ def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_k
         # Check if the compute function accepts params and pass it accordingly
         try:
             computed_vars = compute_func(*args, **kwargs)  # First try without params
-        except TypeError:
-            # If TypeError occurs, params might be required in the compute_func
-            logger.info(f"Passing 'params' to {compute_func.__name__}.")
-            computed_vars = compute_func(*args, params=params, **kwargs)
+        except Exception as e:
+            logger.error(f"Failed to compute function {compute_func.__name__}: {e}")
         # If the computed_vars is not a tuple or list, make it a single-element list for consistent handling
         is_single_output = not isinstance(computed_vars, (list, tuple))
         if is_single_output:

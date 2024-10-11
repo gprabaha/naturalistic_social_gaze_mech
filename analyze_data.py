@@ -15,6 +15,7 @@ import pdb
 # Set up a logger for this script
 logger = logging.getLogger(__name__)
 
+
 # Function to create binary behavior timeseries DataFrame
 def create_binary_behav_timeseries_df(fixation_df, saccade_df, gaze_data_df, params):
     """
@@ -75,7 +76,6 @@ def add_bin_vectors_to_behav_df(behav_df, event_df, nan_removed_gaze_data_df, ev
         logger.info(f"Using parallel processing with {num_cpus} CPUs.")
     else:
         logger.info("Using serial processing.")
-        
     args = [(idx, row, event_df, nan_removed_gaze_data_df, event_type) for idx, row in behav_df.iterrows()]
     for idx, result in tqdm(map(make_binary_vector_for_run, args), total=len(args), desc="Making binary vectors"):
         if result is not None:
