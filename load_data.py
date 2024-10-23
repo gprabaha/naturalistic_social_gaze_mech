@@ -21,6 +21,15 @@ def load_mat_from_path(path):
     return scipy.io.loadmat(path)
 
 
+def load_recording_days(data_file_path="ephys_days_and_monkeys.pkl"):
+    """Load the recording days list from a pickle file, if it exists."""
+    try:
+        with open(data_file_path, 'rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return []
+
+
 def get_gaze_data_df(gaze_data_file_path, missing_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.

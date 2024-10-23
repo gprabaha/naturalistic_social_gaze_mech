@@ -59,6 +59,7 @@ class DataManager:
 
     def initialize_class_objects(self):
         """Initialize class object attributes to None."""
+        self.recording_sessions_and_monkeys = None
         self.gaze_data_df = None
         self.missing_data_paths = None
         self.nan_removed_gaze_data_df = None
@@ -82,6 +83,8 @@ class DataManager:
         Loads gaze data from files or recomputes it if necessary.
         Uses compute_or_load_variables to load the gaze data and missing data paths.
         """
+        path_to_list_of_sessions_with_ephys = os.path.join(self.params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
+        self.recording_sessions_and_monkeys = load_data.load_recording_days(path_to_list_of_sessions_with_ephys)
         gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_df.pkl')
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
         # Load or compute gaze data and missing paths
@@ -181,6 +184,9 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
+
+        pdb.set_trace()
+
         self.analyze_behavior()
         self.plot_behavior()
         pdb.set_trace()

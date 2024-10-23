@@ -13,13 +13,13 @@ def add_recording_day(recording_days, session_name, m1=None, m2=None):
         'm2': m2
     })
 
-def save_recording_days(recording_days, filename="recording_days.pkl"):
+def save_recording_days(recording_days, filename="ephys_days_and_monkeys.pkl"):
     """Save the recording days list to a pickle file."""
     with open(filename, 'wb') as f:
         pickle.dump(recording_days, f)
     print(f"Recording days saved to {filename}")
 
-def load_recording_days(filename="recording_days.pkl"):
+def load_recording_days(filename="ephys_days_and_monkeys.pkl"):
     """Load the recording days list from a pickle file, if it exists."""
     try:
         with open(filename, 'rb') as f:
@@ -42,11 +42,11 @@ def main():
         m1 = input_or_reuse("Enter m1 data", last_m1)
         m2 = input_or_reuse("Enter m2 data", last_m2)
         
-        # Show entered data and ask for confirmation
-        print(f"\nYou entered:\nSession: {session_name}\nm1: {m1}\nm2: {m2}")
-        confirm = input("Is this correct? (yes/no): ").strip().lower()
+        # Show entered data and ask for confirmation (default to accept)
+        print(f"You entered:\nSession: {session_name}\nm1: {m1}\nm2: {m2}\n")
+        confirm = input("Press Enter to confirm or type 'no' to re-enter: ").strip().lower()
         
-        if confirm == 'yes':
+        if confirm != 'no':
             add_recording_day(recording_days, session_name, m1, m2)
             # Update the last m1 and m2
             last_m1 = m1
