@@ -11,6 +11,7 @@ import pickle
 import logging
 import scipy.io
 import numpy as np
+import pandas as pd
 
 
 # Set up a logger for this module
@@ -25,7 +26,7 @@ def load_recording_days(data_file_path="ephys_days_and_monkeys.pkl"):
     """Load the recording days list from a pickle file, if it exists."""
     try:
         with open(data_file_path, 'rb') as f:
-            return pickle.load(f)
+            return pd.DataFrame(pickle.load(f))
     except FileNotFoundError:
         return []
 
