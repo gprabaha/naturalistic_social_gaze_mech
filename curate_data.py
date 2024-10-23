@@ -13,6 +13,7 @@ import os
 import re
 import numpy as np
 import pandas as pd
+import scipy.io
 
 import load_data
 import util
@@ -465,6 +466,37 @@ def ___extract_roi_dict(agent_roi_data):
     for roi_name in agent_roi_data.dtype.names:
         roi_dict[roi_name] = agent_roi_data[roi_name][0][0][0]  # Adjust based on the data structure
     return roi_dict
+
+
+def make_spike_times_df(params):
+    processed_data_dir = params['processed_data_dir']
+    spike_filename = 'unit_spiketimes.mat'
+    spike_filepath = os.path.join(processed_data_dir, spike_filename)
+    # Load the .mat file
+    mat_data = load_data.load_mat_from_path(spike_filepath)
+    # Access the data within the loaded .mat file
+    spike_data = mat_data['unit_spiketimes'][0][0]
+    # Convert the structured array to a dictionary
+    spiketimes_dict = {}
+    for name in spike_data.dtype.names:
+        spiketimes_dict[name] = _flatten_nested_arrays(spike_data[name].squeeze())
+    # Create a DataFrame from the dictionary
+    spiketimes_df = pd.DataFrame(spiketimes_dict)
+    return spiketimes_df
+
+
+def _flatten_nested_arrays(arr):
+    """
+    Flatten nested arrays inside the given array, handling multi-element arrays.
+    """
+    # Check if the array is a numpy object array
+    if isinstance(arr, np.ndarray) and arr.dtype == object:
+        # Iterate through the array
+        return [
+            elem.item() if isinstance(elem, np.ndarray) and elem.size == 1 else elem[0] if isinstance(elem, np.ndarray) and elem.size > 1 and isinstance(elem[0], np.ndarray) else elem
+            for elem in arr
+        ]
+    return arr  # Return as-is if not object array
 
 
 def prune_nan_values_in_timeseries(gaze_data_df):

@@ -61,6 +61,7 @@ class DataManager:
         """Initialize class object attributes to None."""
         self.recording_sessions_and_monkeys = None
         self.gaze_data_df = None
+        self.spike_times_df = None
         self.missing_data_paths = None
         self.nan_removed_gaze_data_df = None
         self.fixation_df = None
@@ -92,10 +93,11 @@ class DataManager:
             curate_data.make_gaze_data_df,                          # Compute function
             load_data.get_gaze_data_df,                             # Load function
             [gaze_data_file_path, missing_data_paths_file_path],    # File paths
-            'remake_gaze_data_dict',                                # Remake flag key
+            'remake_gaze_data_df',                                  # Remake flag key
             self.params,                                            # Params
             self.params                                             # Gaze data is recomputed based on params
         )
+        self.spike_times_df = curate_data.make_spike_times_df(self.params)
 
 
     def prune_data(self):
@@ -106,7 +108,7 @@ class DataManager:
             curate_data.prune_nan_values_in_timeseries,     # Compute function
             load_data.get_nan_removed_gaze_data_df,         # Load function
             nan_removed_gaze_data_file_path,                # File path
-            'remake_nan_removed_gaze_data_dict',            # Remake flag key
+            'remake_nan_removed_gaze_data_df',            # Remake flag key
             self.params,                                    # Params
             self.gaze_data_df                               # Gaze data as argument for compute function
         )
@@ -189,7 +191,7 @@ class DataManager:
         self.analyze_behavior()
         self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
         self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
-        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
+        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.saccade_df, self.recording_sessions_and_monkeys)
         # self.plot_behavior()
         pdb.set_trace()
         return 0
