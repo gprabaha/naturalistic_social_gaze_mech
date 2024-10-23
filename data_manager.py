@@ -186,10 +186,11 @@ class DataManager:
         self.get_data()
         self.prune_data()
         missing_sessions, extra_sessions = util.verify_presence_of_recording_sessions(self.recording_sessions_and_monkeys, self.nan_removed_gaze_data_df)
-        pdb.set_trace()
-
         self.analyze_behavior()
-        self.plot_behavior()
+        self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
+        self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
+        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
+        # self.plot_behavior()
         pdb.set_trace()
         return 0
 
