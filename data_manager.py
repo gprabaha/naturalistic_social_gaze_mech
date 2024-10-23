@@ -176,6 +176,7 @@ class DataManager:
         for 5 seconds lag for all columns of behav autocorr dataframe
         """
 
+
     def run(self):
         """Runs the data processing steps in sequence."""
         
@@ -184,7 +185,7 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-
+        missing_sessions, extra_sessions = util.verify_presence_of_recording_sessions(self.recording_sessions_and_monkeys, self.nan_removed_gaze_data_df)
         pdb.set_trace()
 
         self.analyze_behavior()
