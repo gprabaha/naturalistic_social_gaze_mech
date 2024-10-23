@@ -120,6 +120,15 @@ def verify_presence_of_recording_sessions(recording_sessions_df, gaze_data_df, s
     return missing_in_gaze_data, extra_in_gaze_data
 
 
+def extract_df_rows_for_sessions_with_ephys(df, recording_sessions_df, session_column='session_name'):
+    # Get the set of valid session names from recording_sessions_df
+    valid_sessions = set(recording_sessions_df[session_column].unique())
+    # Filter the dataframe to keep only rows with session names in valid_sessions
+    filtered_df = df[df[session_column].isin(valid_sessions)].copy()
+    return filtered_df
+
+
+
 
 
 
