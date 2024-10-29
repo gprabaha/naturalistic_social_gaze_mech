@@ -482,6 +482,7 @@ def make_spike_times_df(params):
         spiketimes_dict[name] = _flatten_nested_arrays(spike_data[name].squeeze())
     # Create a DataFrame from the dictionary
     spiketimes_df = pd.DataFrame(spiketimes_dict)
+    spiketimes_df.rename(columns={'session':'session_name'}, inplace=True)
     return spiketimes_df
 
 
