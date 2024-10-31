@@ -14,6 +14,7 @@ import re
 import numpy as np
 import pandas as pd
 import scipy.io
+from joblib import Parallel, delayed
 
 import load_data
 import util
@@ -629,12 +630,77 @@ def _generate_binary_vector_from_indices(XY, indices):
     return binary_vector
 
 
-
-
 def make_binned_unit_fr_df_for_each_run(spike_times_df, nan_removed_gaze_data_df, params):
-    pdb.set_trace()
+    """
+    Generate a binned firing rate DataFrame for each unit over each run, session, interaction type, and region.
+    Args:
+        spike_times_df (pd.DataFrame): DataFrame containing spike times of neurons.
+        nan_removed_gaze_data_df (pd.DataFrame): DataFrame with gaze and session metadata.
+        params (dict): Parameters dictionary containing 'neural_data_bin_size' and 'use_parallel' (optional).
+    Returns:
+        pd.DataFrame: A DataFrame containing binned firing rate timeseries for each session, interaction type,
+                      run, region, and unit.
+    """
+    # Extract bin size and parallel processing preference from params
+    bin_size = params['neural_data_bin_size']
+    use_parallel = params.get('use_parallel', False)
+    # Get unique combinations of session, interaction type, and run
+    run_groups = nan_removed_gaze_data_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    run_data = [(session, interaction, run, gaze_row) for (session, interaction, run), gaze_row in run_groups]
+    # Choose execution strategy based on `use_parallel` flag
+    if use_parallel:
+        # Parallel execution with joblib and tqdm progress bar
+        fr_data = Parallel(n_jobs=params['num_cpus'])(
+            delayed(_make_binned_neural_fr_timeseries_for_run)(session, interaction, run, gaze_row, spike_times_df, bin_size) 
+            for session, interaction, run, gaze_row in tqdm(run_data, desc="Processing in parallel")
+        )
+        # Flatten nested lists into a single list
+        fr_data = [item for sublist in fr_data for item in sublist]
+    else:
+        # Serial execution with tqdm progress bar
+        fr_data = []
+        for session, interaction, run, gaze_row in tqdm(run_data, desc="Processing in serial"):
+            fr_data.extend(_make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_row, spike_times_df, bin_size))
+    # Convert list of records to a DataFrame
+    fr_df = pd.DataFrame(fr_data)
+    return fr_df
 
-    return 0
 
-
-
+def _make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_row, spike_times_df, bin_size):
+    """
+    Helper function to create a binned neural firing rate timeseries for a specific session, interaction type, and run.
+    This function bins spike times into a firing rate array over the run duration for each unit and region.
+    Args:
+        session (str): The session name.
+        interaction (str): The interaction type.
+        run (int): The run number.
+        gaze_row (pd.DataFrame): A DataFrame row containing neural timeline data for the current run.
+        spike_times_df (pd.DataFrame): DataFrame with spike times and neuron metadata.
+        bin_size (float): The size of each time bin in seconds.
+    Returns:
+        list: A list of dictionaries containing binned firing rate information for each unit and region.
+    """
+    # Get neural timeline start and end for this run
+    neural_start, neural_end = gaze_row['neural_timeline'].values[0][0], gaze_row['neural_timeline'].values[0][-1]
+    # Filter spike data for the current session
+    session_spike_data = spike_times_df[spike_times_df['session_name'] == session]
+    fr_data = []
+    # Loop over each unique region and unit
+    for (region, unit_uuid), unit_spikes in session_spike_data.groupby(['region', 'unit_uuid']):
+        # Filter spike times to only include those within the run duration
+        spike_times = unit_spikes['spike_ts']
+        spike_times_in_run = spike_times[(spike_times >= neural_start) & (spike_times <= neural_end)]
+        # Define bins and calculate firing rate (counts / bin duration)
+        num_bins = int((neural_end - neural_start) / bin_size)
+        binned_counts, _ = np.histogram(spike_times_in_run, bins=num_bins, range=(neural_start, neural_end))
+        binned_fr = binned_counts / bin_size
+        # Store results in a dictionary for each unit
+        fr_data.append({
+            'session_name': session,
+            'interaction_type': interaction,
+            'run_number': run,
+            'region': region,
+            'unit_uuid': unit_uuid,
+            'binned_neural_fr_in_run': binned_fr
+        })
+    return fr_data
