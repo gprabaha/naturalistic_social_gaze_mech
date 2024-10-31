@@ -35,7 +35,7 @@ def main():
         'do_local_reclustering_in_parallel': False,
 
         'remake_gaze_data_df': False,
-        'remake_nan_removed_gaze_data_df': True,
+        'remake_nan_removed_gaze_data_df': False,
 
         'remake_fix_and_sacc': False,
         'try_using_single_run': False,

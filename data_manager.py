@@ -128,6 +128,8 @@ class DataManager:
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.binned_neural_timeseries_df = curate_data.make_binned_unit_fr_df_for_each_run(
             self.spike_times_df, self.nan_removed_gaze_data_df_ephys_days, self.params)
+        pdb.set_trace()
+        return 0
 
 
     def _load_or_compute_fixations_and_saccades(self):

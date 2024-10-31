@@ -681,14 +681,15 @@ def _make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_ro
         list: A list of dictionaries containing binned firing rate information for each unit and region.
     """
     # Get neural timeline start and end for this run
-    neural_start, neural_end = gaze_row['neural_timeline'].values[0][0], gaze_row['neural_timeline'].values[0][-1]
+    # Extract start and end as scalar values
+    neural_start = gaze_row['neural_timeline'].values[0][0].item()
+    neural_end = gaze_row['neural_timeline'].values[0][-1].item()
     # Filter spike data for the current session
     session_spike_data = spike_times_df[spike_times_df['session_name'] == session]
     fr_data = []
     # Loop over each unique region and unit
     for (region, unit_uuid), unit_spikes in session_spike_data.groupby(['region', 'unit_uuid']):
-        # Filter spike times to only include those within the run duration
-        spike_times = unit_spikes['spike_ts']
+        spike_times = np.concatenate(unit_spikes['spike_ts'].tolist())
         spike_times_in_run = spike_times[(spike_times >= neural_start) & (spike_times <= neural_end)]
         # Define bins and calculate firing rate (counts / bin duration)
         num_bins = int((neural_end - neural_start) / bin_size)
