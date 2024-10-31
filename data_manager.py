@@ -81,25 +81,49 @@ class DataManager:
 
     def get_data(self):
         """
-        Loads gaze data from files or recomputes it if necessary.
-        Uses compute_or_load_variables to load the gaze data and missing data paths.
+        Load or compute necessary gaze and spike data, filtering for sessions with electrophysiology data.
         """
-        path_to_list_of_sessions_with_ephys = os.path.join(self.params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
-        self.recording_sessions_and_monkeys = load_data.load_recording_days(path_to_list_of_sessions_with_ephys)
+        # Load session list for ephys data
+        self.recording_sessions_and_monkeys = self._load_ephys_sessions()
+        # Load or compute gaze data and missing data paths
+        self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
+        self.gaze_data_df = util.extract_df_rows_for_sessions_with_ephys(self.gaze_data_df, self.recording_sessions_and_monkeys)
+        # Load or compute spike times DataFrame
+        self.spike_times_df = self._load_or_compute_spike_times()
+        self.spike_times_df = util.extract_df_rows_for_sessions_with_ephys(self.spike_times_df, self.recording_sessions_and_monkeys)
+
+
+    def _load_ephys_sessions(self):
+        """Load the list of sessions with ephys data."""
+        path_to_ephys_sessions = os.path.join(self.params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
+        return load_data.load_recording_days(path_to_ephys_sessions)
+
+
+    def _load_or_compute_gaze_data(self):
+        """Helper to load or compute gaze data and missing paths DataFrames."""
         gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_df.pkl')
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
-        # Load or compute gaze data and missing paths
-        self.gaze_data_df, self.missing_data_paths = util.compute_or_load_variables(
-            curate_data.make_gaze_data_df,                          # Compute function
-            load_data.get_gaze_data_df,                             # Load function
-            [gaze_data_file_path, missing_data_paths_file_path],    # File paths
-            'remake_gaze_data_df',                                  # Remake flag key
-            self.params,                                            # Params
-            self.params                                             # Gaze data is recomputed based on params
+        return util.compute_or_load_variables(
+            curate_data.make_gaze_data_df,                           # Compute function
+            load_data.get_gaze_data_df,                              # Load function
+            [gaze_data_file_path, missing_data_paths_file_path],     # File paths
+            'remake_gaze_data_df',                                   # Remake flag key
+            self.params,                                             # Params for load
+            self.params                                              # Params for compute
         )
-        self.gaze_data_df = util.extract_df_rows_for_sessions_with_ephys(self.gaze_data_df, self.recording_sessions_and_monkeys) 
-        self.spike_times_df = curate_data.make_spike_times_df(self.params)
-        self.spike_times_df =  util.extract_df_rows_for_sessions_with_ephys(self.spike_times_df, self.recording_sessions_and_monkeys) 
+
+
+    def _load_or_compute_spike_times(self):
+        """Helper to load or compute spike times DataFrame."""
+        spike_times_file_path = os.path.join(self.params['processed_data_dir'], 'spike_times_df.pkl')
+        return util.compute_or_load_variables(
+            curate_data.make_spike_times_df,                         # Compute function
+            load_data.get_spike_times_df,                            # Load function
+            spike_times_file_path,                                   # File path
+            'remake_spike_times_df',                                 # Remake flag key
+            self.params,                                             # Params for load
+            self.params                                              # Params for compute
+        )
 
 
     def prune_data(self):

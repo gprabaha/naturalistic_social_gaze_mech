@@ -35,6 +35,7 @@ def main():
         'do_local_reclustering_in_parallel': False,
 
         'remake_gaze_data_df': False,
+        'remake_spike_times_df': False,
         'remake_nan_removed_gaze_data_df': False,
         'remake_neural_timeseries': True,
 
