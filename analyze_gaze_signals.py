@@ -36,6 +36,7 @@ def main():
 
         'remake_gaze_data_df': False,
         'remake_nan_removed_gaze_data_df': False,
+        'remake_neural_timeseries': True,
 
         'remake_fix_and_sacc': False,
         'try_using_single_run': False,

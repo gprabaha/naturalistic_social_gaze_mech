@@ -120,14 +120,11 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades, and compute binary timeseries and autocorrelations."""
         # Load or compute fixation and saccade DataFrames
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
-        self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
-        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.saccade_df, self.recording_sessions_and_monkeys)
         # Load or compute binary behavior timeseries DataFrame
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         # Load or compute binary timeseries autocorrelation DataFrame
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
-        self.binned_neural_timeseries_df = curate_data.make_binned_unit_fr_df_for_each_run(
-            self.spike_times_df, self.nan_removed_gaze_data_df_ephys_days, self.params)
+        self.binned_neural_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
         pdb.set_trace()
         return 0
 
@@ -172,8 +169,23 @@ class DataManager:
             autocorr_file_path,                                            # File path
             'remake_scaled_autocorr',                                      # Remake flag key
             self.params,                                                   # Params
-            self.binary_behav_timeseries_df,                               # Binary timeseries data
-            self.params                                                    # Params
+            self.binary_behav_timeseries_df,
+            self.params                                             
+        )
+
+
+    def _load_or_compute_neural_fr_timeseries_df(self):
+        """Helper to load or compute binary timeseries autocorrelation DataFrame."""
+        neural_timeseries_df_file_path = os.path.join(self.params['processed_data_dir'], 'neural_timeseries_df.pkl')
+        return util.compute_or_load_variables(
+            curate_data.make_binned_unit_fr_df_for_each_run,
+            load_data.load_binary_autocorr_df,
+            neural_timeseries_df_file_path,
+            'remake_neural_timeseries',
+            self.params,
+            self.spike_times_df,
+            self.nan_removed_gaze_data_df_ephys_days,
+            self.params
         )
 
 

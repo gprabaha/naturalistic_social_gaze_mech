@@ -125,5 +125,18 @@ def load_binary_autocorr_df(file_path):
     return binary_autocorr_df
 
 
-
+def load_scaled_autocorrelations(autocorr_file_path):
+    """
+    Load scaled autocorrelations from a pickle file.
+    Parameters:
+    - file_path (str): The file path to the pickle file.
+    Returns:
+    - dict: Loaded data from 'scaled_autocorrelations.pkl' if file exists, else None.
+    """
+    if not os.path.exists(autocorr_file_path):
+        print(f"File not found: {autocorr_file_path}")
+        return None
+    with open(autocorr_file_path, 'rb') as f:
+        scaled_autocorrelations = pickle.load(f)
+    return scaled_autocorrelations
 
