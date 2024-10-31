@@ -631,7 +631,10 @@ def _generate_binary_vector_from_indices(XY, indices):
 
 
 
+def make_binned_unit_fr_df_for_each_run(spike_times_df, nan_removed_gaze_data_df, params):
+    pdb.set_trace()
 
+    return 0
 
 
 

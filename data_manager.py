@@ -122,7 +122,8 @@ class DataManager:
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         # Load or compute binary timeseries autocorrelation DataFrame
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
-
+        self.binned_neural_timeseries_df = curate_data.make_binned_unit_fr_df_for_each_run(
+            self.spike_times_df, self.nan_removed_gaze_data_df, self.params)
 
     def _load_or_compute_fixations_and_saccades(self):
         """Helper to load or compute fixation and saccade DataFrames."""
@@ -193,3 +194,5 @@ class DataManager:
         self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
         self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
         self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.saccade_df, self.recording_sessions_and_monkeys)
+        pdb.set_trace()
+        return 0
