@@ -149,8 +149,6 @@ class DataManager:
         # Load or compute binary timeseries autocorrelation DataFrame
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.binned_neural_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
-        pdb.set_trace()
-        return 0
 
 
     def _load_or_compute_fixations_and_saccades(self):
@@ -203,7 +201,7 @@ class DataManager:
         neural_timeseries_df_file_path = os.path.join(self.params['processed_data_dir'], 'neural_timeseries_df.pkl')
         return util.compute_or_load_variables(
             curate_data.make_binned_unit_fr_df_for_each_run,
-            load_data.load_binary_autocorr_df,
+            load_data.load_neural_timeseries_df,
             neural_timeseries_df_file_path,
             'remake_neural_timeseries',
             self.params,
@@ -215,7 +213,6 @@ class DataManager:
 
     def plot_behavior(self):
         plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
-        
         # plot scaled autocorrelations
         """
         for each session, interaction type and run, plot out the scaled autocorrelation vs lag
@@ -225,9 +222,7 @@ class DataManager:
 
     def run(self):
         """Runs the data processing steps in sequence."""
-        
         #!! ROI rects need to be offset adjusted. Do positions need remapping as well?
-
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
@@ -235,5 +230,4 @@ class DataManager:
         self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
         self.analyze_behavior()
         pdb.set_trace()
-
         return 0
