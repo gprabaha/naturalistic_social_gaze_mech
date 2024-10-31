@@ -97,7 +97,9 @@ class DataManager:
             self.params,                                            # Params
             self.params                                             # Gaze data is recomputed based on params
         )
+        self.gaze_data_df = util.extract_df_rows_for_sessions_with_ephys(self.gaze_data_df, self.recording_sessions_and_monkeys) 
         self.spike_times_df = curate_data.make_spike_times_df(self.params)
+        self.spike_times_df =  util.extract_df_rows_for_sessions_with_ephys(self.spike_times_df, self.recording_sessions_and_monkeys) 
 
 
     def prune_data(self):
@@ -118,12 +120,15 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades, and compute binary timeseries and autocorrelations."""
         # Load or compute fixation and saccade DataFrames
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
+        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.saccade_df, self.recording_sessions_and_monkeys)
         # Load or compute binary behavior timeseries DataFrame
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         # Load or compute binary timeseries autocorrelation DataFrame
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.binned_neural_timeseries_df = curate_data.make_binned_unit_fr_df_for_each_run(
-            self.spike_times_df, self.nan_removed_gaze_data_df, self.params)
+            self.spike_times_df, self.nan_removed_gaze_data_df_ephys_days, self.params)
+
 
     def _load_or_compute_fixations_and_saccades(self):
         """Helper to load or compute fixation and saccade DataFrames."""
@@ -188,11 +193,9 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        missing_sessions, extra_sessions = util.verify_presence_of_recording_sessions(self.recording_sessions_and_monkeys, self.nan_removed_gaze_data_df)
         util.verify_presence_of_recording_sessions(self.recording_sessions_and_monkeys, self.spike_times_df)
-        self.analyze_behavior()
         self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
-        self.fixation_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.fixation_df, self.recording_sessions_and_monkeys)
-        self.saccade_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.saccade_df, self.recording_sessions_and_monkeys)
+        self.analyze_behavior()
         pdb.set_trace()
+
         return 0
