@@ -26,15 +26,16 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': True,
+        'use_parallel': False,
         'submit_separate_jobs_for_sessions': True,
         'use_toy_data': False,
         'remake_toy_data': False,
         'num_cpus': None,
+        'neural_data_bin_size': 0.01,  #10ms = 0.01s
         'do_local_reclustering_in_parallel': False,
 
         'remake_gaze_data_df': False,
-        'remake_nan_removed_gaze_data_df': False,
+        'remake_nan_removed_gaze_data_df': True,
 
         'remake_fix_and_sacc': False,
         'try_using_single_run': False,
