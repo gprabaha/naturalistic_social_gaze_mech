@@ -54,6 +54,16 @@ def get_gaze_data_df(gaze_data_file_path, missing_data_file_path):
         raise
 
 
+def get_spike_times_df(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            gaze_data_df = pickle.load(f)
+        return gaze_data_df
+    except Exception as e:
+        logger.error(f"Failed to load gaze data: {e}")
+        raise
+    
+
 def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
@@ -125,7 +135,7 @@ def load_binary_autocorr_df(file_path):
     return binary_autocorr_df
 
 
-def load_scaled_autocorrelations(autocorr_file_path):
+def load_neural_timeseries_df(file_path):
     """
     Load scaled autocorrelations from a pickle file.
     Parameters:
@@ -133,10 +143,10 @@ def load_scaled_autocorrelations(autocorr_file_path):
     Returns:
     - dict: Loaded data from 'scaled_autocorrelations.pkl' if file exists, else None.
     """
-    if not os.path.exists(autocorr_file_path):
-        print(f"File not found: {autocorr_file_path}")
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
         return None
-    with open(autocorr_file_path, 'rb') as f:
+    with open(file_path, 'rb') as f:
         scaled_autocorrelations = pickle.load(f)
     return scaled_autocorrelations
 
