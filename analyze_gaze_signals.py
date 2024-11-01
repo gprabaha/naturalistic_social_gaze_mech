@@ -26,7 +26,7 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': False,
+        'use_parallel': True,
         'submit_separate_jobs_for_sessions': True,
         'use_toy_data': False,
         'remake_toy_data': False,
@@ -47,7 +47,7 @@ def main():
         'remake_neural_timeseries': True,
         'neural_data_bin_size': 0.001,  #1ms = 0.001s
         'downsample_bin_size': 0.01,
-        'smoothing_sigma': 5
+        'smoothing_sigma': 2
     })
     data_manager = DataManager(params)
     data_manager.run()

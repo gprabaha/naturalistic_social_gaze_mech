@@ -650,11 +650,9 @@ def make_binned_unit_fr_df_for_each_run(spike_times_df, nan_removed_gaze_data_df
     downsample_bin_size = params['downsample_bin_size']  # 10 ms in seconds (0.01)
     sigma = params.get('smoothing_sigma', 5)
     use_parallel = params.get('use_parallel', False)
-    
     # Get unique combinations of session, interaction type, and run
     run_groups = nan_removed_gaze_data_df.groupby(['session_name', 'interaction_type', 'run_number'])
     run_data = [(session, interaction, run, gaze_row) for (session, interaction, run), gaze_row in run_groups]
-    pdb.set_trace()
     # Choose execution strategy based on `use_parallel` flag
     if use_parallel:
         # Parallel execution
@@ -668,13 +666,11 @@ def make_binned_unit_fr_df_for_each_run(spike_times_df, nan_removed_gaze_data_df
         # Serial execution
         fr_data = []
         for session, interaction, run, gaze_row in tqdm(run_data, desc="Processing in serial"):
-            pdb.set_trace()
             fr_data.extend(
                 _make_binned_neural_fr_timeseries_for_run(
                     session, interaction, run, gaze_row, spike_times_df, bin_size, downsample_bin_size, sigma
                 )
             )
-    
     # Convert list of records to a DataFrame
     fr_df = pd.DataFrame(fr_data)
     return fr_df
@@ -698,31 +694,25 @@ def _make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_ro
     # Get neural timeline start and end for this run
     neural_start = gaze_row['neural_timeline'].values[0][0].item()
     neural_end = gaze_row['neural_timeline'].values[0][-1].item()
-    pdb.set_trace()
     # Filter spike data for the current session
     session_spike_data = spike_times_df[spike_times_df['session_name'] == session]
     fr_data = []
-    
     # Loop over each unique region and unit
     for (region, unit_uuid), unit_spikes in session_spike_data.groupby(['region', 'unit_uuid']):
         spike_times = np.concatenate(unit_spikes['spike_ts'].tolist())
         spike_times_in_run = spike_times[(spike_times >= neural_start) & (spike_times <= neural_end)]
-        pdb.set_trace()
         # Define fine bins and calculate firing rate in fine resolution
         num_fine_bins = int((neural_end - neural_start) / bin_size)
+        # Histogram binning
         binned_counts, _ = np.histogram(spike_times_in_run, bins=num_fine_bins, range=(neural_start, neural_end))
-        pdb.set_trace()
-        # Apply Gaussian smoothing
+        binned_counts = binned_counts.astype(float)
         smoothed_binned_counts = gaussian_filter1d(binned_counts, sigma=sigma)
-        pdb.set_trace()
         # Downsample by averaging over the desired 10 ms bins
         fine_to_final_ratio = int(downsample_bin_size / bin_size)
         num_final_bins = int(num_fine_bins / fine_to_final_ratio)
         downsampled_counts = smoothed_binned_counts[:num_final_bins * fine_to_final_ratio].reshape(-1, fine_to_final_ratio).mean(axis=1)
-        pdb.set_trace()
         # Convert counts to firing rate
         binned_fr = downsampled_counts / downsample_bin_size
-        pdb.set_trace()
         # Store results in a dictionary for each unit
         fr_data.append({
             'session_name': session,
@@ -735,45 +725,3 @@ def _make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_ro
     return fr_data
 
 
-
-def _make_binned_neural_fr_timeseries_for_run(session, interaction, run, gaze_row, spike_times_df, bin_size, sigma):
-    """
-    Helper function to create a binned neural firing rate timeseries for a specific session, interaction type, and run.
-    This function bins spike times into a firing rate array over the run duration for each unit and region.
-    Args:
-        session (str): The session name.
-        interaction (str): The interaction type.
-        run (int): The run number.
-        gaze_row (pd.DataFrame): A DataFrame row containing neural timeline data for the current run.
-        spike_times_df (pd.DataFrame): DataFrame with spike times and neuron metadata.
-        bin_size (float): The size of each time bin in seconds.
-    Returns:
-        list: A list of dictionaries containing binned firing rate information for each unit and region.
-    """
-    # Get neural timeline start and end for this run
-    # Extract start and end as scalar values
-    neural_start = gaze_row['neural_timeline'].values[0][0].item()
-    neural_end = gaze_row['neural_timeline'].values[0][-1].item()
-    # Filter spike data for the current session
-    session_spike_data = spike_times_df[spike_times_df['session_name'] == session]
-    fr_data = []
-    # Loop over each unique region and unit
-    for (region, unit_uuid), unit_spikes in session_spike_data.groupby(['region', 'unit_uuid']):
-        spike_times = np.concatenate(unit_spikes['spike_ts'].tolist())
-        spike_times_in_run = spike_times[(spike_times >= neural_start) & (spike_times <= neural_end)]
-        # Define bins and calculate firing rate (counts / bin duration)
-        num_bins = int((neural_end - neural_start) / bin_size)
-        binned_counts, _ = np.histogram(spike_times_in_run, bins=num_bins, range=(neural_start, neural_end))
-        smoothed_binned_counts = scipy.ndimage.gaussian_filter1d(binned_counts, sigma=sigma)
-        binned_fr = smoothed_binned_counts / bin_size
-        pdb.set_trace()
-        # Store results in a dictionary for each unit
-        fr_data.append({
-            'session_name': session,
-            'interaction_type': interaction,
-            'run_number': run,
-            'region': region,
-            'unit_uuid': unit_uuid,
-            'binned_neural_fr_in_run': binned_fr
-        })
-    return fr_data
