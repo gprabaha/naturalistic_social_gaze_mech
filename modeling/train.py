@@ -6,6 +6,8 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 from data_manager import DataManager
 
+import pdb
+
 def main():
 
     params = {}
@@ -31,6 +33,10 @@ def main():
 
     # import and organize data
     data_manager = DataManager(params)
+    data_manager.run()
+    firing_rate_df = data_manager.binned_neural_timeseries_df
+    pdb.set_trace()
+    return 0
 
 
 if __name__ == "__main__":

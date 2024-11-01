@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --output ./job_scripts/
-#SBATCH --array 0-1405
+#SBATCH --array 0-833
 #SBATCH --job-name dsq-joblist
 #SBATCH --partition psych_day --cpus-per-task 4 --mem-per-cpu 8192 -t 00:05:00 --mail-type FAIL
 

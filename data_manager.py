@@ -24,40 +24,49 @@ import pdb
 
 
 
+import os
+import logging
+import multiprocessing
+import pandas as pd
+from joblib import Parallel, delayed
+import curate_data
+import load_data
+import analyze_data
+import fix_and_saccades
+import plotter
+
+
 class DataManager:
     def __init__(self, params):
         """Initialize the DataManager with parameters, logger setup, and CPU detection."""
-        self.setup_logger()
+        self._setup_logger()
         self.params = params
-        self.find_n_cores()
-        self.initialize_class_objects()
+        self._find_n_cores()
+        self._initialize_class_objects()
 
 
-    def setup_logger(self):
+    def _setup_logger(self):
         """Setup the logger for the DataManager."""
         self.logger = logging.getLogger(__name__)
 
 
-    def find_n_cores(self):
-        """Determine the number of CPU cores available, prioritizing SLURM if available, 
-        and update params with the detected core count."""
+    def _find_n_cores(self):
+        """Determine the number of CPU cores available, prioritizing SLURM if available."""
         try:
             slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
             num_cpus = int(slurm_cpus)
             self.logger.info(f"SLURM detected {num_cpus} CPUs")
         except Exception as e:
             self.logger.warning(f"Failed to detect cores with SLURM_CPUS_ON_NODE: {e}")
-            num_cpus = None
-        if num_cpus is None or num_cpus <= 1:
             num_cpus = multiprocessing.cpu_count()
             self.logger.info(f"Multiprocessing detected {num_cpus} CPUs")
+        
         os.environ['NUMEXPR_MAX_THREADS'] = str(num_cpus)
         self.num_cpus = num_cpus
         self.params['num_cpus'] = num_cpus
-        self.logger.info(f"NumExpr set to use {num_cpus} threads")
 
 
-    def initialize_class_objects(self):
+    def _initialize_class_objects(self):
         """Initialize class object attributes to None."""
         self.recording_sessions_and_monkeys = None
         self.gaze_data_df = None
@@ -80,17 +89,12 @@ class DataManager:
 
 
     def get_data(self):
-        """
-        Load or compute necessary gaze and spike data, filtering for sessions with electrophysiology data.
-        """
-        # Load session list for ephys data
+        """Load or compute necessary gaze and spike data, filtering for sessions with ephys data."""
         self.recording_sessions_and_monkeys = self._load_ephys_sessions()
-        # Load or compute gaze data and missing data paths
         self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
-        self.gaze_data_df = util.extract_df_rows_for_sessions_with_ephys(self.gaze_data_df, self.recording_sessions_and_monkeys)
-        # Load or compute spike times DataFrame
+        self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
         self.spike_times_df = self._load_or_compute_spike_times()
-        self.spike_times_df = util.extract_df_rows_for_sessions_with_ephys(self.spike_times_df, self.recording_sessions_and_monkeys)
+        self.spike_times_df = self._filter_sessions_with_ephys(self.spike_times_df)
 
 
     def _load_ephys_sessions(self):
@@ -100,115 +104,105 @@ class DataManager:
 
 
     def _load_or_compute_gaze_data(self):
-        """Helper to load or compute gaze data and missing paths DataFrames."""
+        """Load or compute gaze data and missing paths DataFrames."""
         gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'gaze_data_df.pkl')
         missing_data_paths_file_path = os.path.join(self.params['processed_data_dir'], 'missing_data_paths.pkl')
-        return util.compute_or_load_variables(
-            curate_data.make_gaze_data_df,                           # Compute function
-            load_data.get_gaze_data_df,                              # Load function
-            [gaze_data_file_path, missing_data_paths_file_path],     # File paths
-            'remake_gaze_data_df',                                   # Remake flag key
-            self.params,                                             # Params for load
-            self.params                                              # Params for compute
-        )
+        
+        if self.params.get('remake_gaze_data_df', False) or not os.path.exists(gaze_data_file_path):
+            self.logger.info("Generating gaze data and missing paths.")
+            return curate_data.make_gaze_data_df(self.params)
+        else:
+            self.logger.info("Loading existing gaze data and missing paths.")
+            return load_data.get_gaze_data_df(gaze_data_file_path, missing_data_paths_file_path)
 
 
     def _load_or_compute_spike_times(self):
-        """Helper to load or compute spike times DataFrame."""
+        """Load or compute spike times DataFrame."""
         spike_times_file_path = os.path.join(self.params['processed_data_dir'], 'spike_times_df.pkl')
-        return util.compute_or_load_variables(
-            curate_data.make_spike_times_df,                         # Compute function
-            load_data.get_spike_times_df,                            # Load function
-            spike_times_file_path,                                   # File path
-            'remake_spike_times_df',                                 # Remake flag key
-            self.params,                                             # Params for load
-            self.params                                              # Params for compute
-        )
+        
+        if self.params.get('remake_spike_times_df', False) or not os.path.exists(spike_times_file_path):
+            self.logger.info("Generating spike times data.")
+            return curate_data.make_spike_times_df(self.params)
+        else:
+            self.logger.info("Loading existing spike times data.")
+            return load_data.get_spike_times_df(spike_times_file_path)
 
 
     def prune_data(self):
-        """Prune NaN values from gaze data using compute_or_load_variables."""
+        """Prune NaN values from gaze data."""
         nan_removed_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'nan_removed_gaze_data_df.pkl')
-        # Load or compute pruned gaze data
-        self.nan_removed_gaze_data_df = util.compute_or_load_variables(
-            curate_data.prune_nan_values_in_timeseries,     # Compute function
-            load_data.get_nan_removed_gaze_data_df,         # Load function
-            nan_removed_gaze_data_file_path,                # File path
-            'remake_nan_removed_gaze_data_df',            # Remake flag key
-            self.params,                                    # Params
-            self.gaze_data_df                               # Gaze data as argument for compute function
-        )
+        
+        if self.params.get('remake_nan_removed_gaze_data_df', False) or not os.path.exists(nan_removed_gaze_data_file_path):
+            self.logger.info("Pruning NaN values in gaze data.")
+            self.nan_removed_gaze_data_df = curate_data.prune_nan_values_in_timeseries(self.gaze_data_df, self.params)
+        else:
+            self.logger.info("Loading pruned gaze data.")
+            self.nan_removed_gaze_data_df = load_data.get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path)
 
 
     def analyze_behavior(self):
-        """Analyze behavior by detecting fixations and saccades, and compute binary timeseries and autocorrelations."""
-        # Load or compute fixation and saccade DataFrames
+        """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
-        # Load or compute binary behavior timeseries DataFrame
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        # Load or compute binary timeseries autocorrelation DataFrame
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
-        self.binned_neural_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
+        self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
 
 
     def _load_or_compute_fixations_and_saccades(self):
-        """Helper to load or compute fixation and saccade DataFrames."""
+        """Load or compute fixation and saccade DataFrames."""
         fixation_file_path = os.path.join(self.params['processed_data_dir'], 'fixation_df.pkl')
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
-        return util.compute_or_load_variables(
-            fix_and_saccades.detect_fixations_and_saccades,     # Compute function
-            load_data.load_fixation_and_saccade_dfs,            # Load function
-            [fixation_file_path, saccade_file_path],            # File paths
-            'remake_fix_and_sacc',                              # Remake flag key
-            self.params,                                        # Params
-            self.nan_removed_gaze_data_df,                      # Gaze data as argument
-            self.params                                         # Params again as argument
-        )
+        
+        if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
+            self.logger.info("Detecting fixations and saccades.")
+            return fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
+        else:
+            self.logger.info("Loading existing fixation and saccade data.")
+            return load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
 
 
     def _load_or_compute_binary_behav_timeseries(self):
-        """Helper to load or compute binary behavior timeseries DataFrame."""
+        """Load or compute binary behavior timeseries DataFrame."""
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
-        return util.compute_or_load_variables(
-            analyze_data.create_binary_behav_timeseries_df,      # Compute function
-            load_data.load_binary_timeseries_df,                 # Load function
-            binary_timeseries_file_path,                         # File path
-            'remake_binary_timeseries',                          # Remake flag key
-            self.params,                                         # Params
-            self.fixation_df,                                    # Fixation data
-            self.saccade_df,                                     # Saccade data
-            self.nan_removed_gaze_data_df,                       # Gaze data
-            self.params                                          # Params
-        )
+        
+        if self.params.get('remake_binary_timeseries', False) or not os.path.exists(binary_timeseries_file_path):
+            self.logger.info("Generating binary behavior timeseries.")
+            return analyze_data.create_binary_behav_timeseries_df(
+                self.fixation_df, self.saccade_df, self.nan_removed_gaze_data_df, self.params
+            )
+        else:
+            self.logger.info("Loading existing binary behavior timeseries.")
+            return load_data.load_binary_timeseries_df(binary_timeseries_file_path)
 
 
     def _load_or_compute_binary_timeseries_autocorr(self):
-        """Helper to load or compute binary timeseries autocorrelation DataFrame."""
+        """Load or compute binary timeseries autocorrelation DataFrame."""
         autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
-        return util.compute_or_load_variables(
-            analyze_data.compute_scaled_autocorrelations_for_behavior_df,  # Compute function
-            load_data.load_binary_autocorr_df,                             # Load function
-            autocorr_file_path,                                            # File path
-            'remake_scaled_autocorr',                                      # Remake flag key
-            self.params,                                                   # Params
-            self.binary_behav_timeseries_df,
-            self.params                                             
-        )
+        
+        if self.params.get('remake_scaled_autocorr', False) or not os.path.exists(autocorr_file_path):
+            self.logger.info("Computing scaled autocorrelations.")
+            return analyze_data.compute_scaled_autocorrelations_for_behavior_df(self.binary_behav_timeseries_df, self.params)
+        else:
+            self.logger.info("Loading existing scaled autocorrelations.")
+            return load_data.load_binary_autocorr_df(autocorr_file_path)
 
 
     def _load_or_compute_neural_fr_timeseries_df(self):
-        """Helper to load or compute binary timeseries autocorrelation DataFrame."""
+        """Load or compute neural firing rate timeseries DataFrame."""
         neural_timeseries_df_file_path = os.path.join(self.params['processed_data_dir'], 'neural_timeseries_df.pkl')
-        return util.compute_or_load_variables(
-            curate_data.make_binned_unit_fr_df_for_each_run,
-            load_data.load_neural_timeseries_df,
-            neural_timeseries_df_file_path,
-            'remake_neural_timeseries',
-            self.params,
-            self.spike_times_df,
-            self.nan_removed_gaze_data_df_ephys_days,
-            self.params
-        )
+        
+        if self.params.get('remake_neural_timeseries', False) or not os.path.exists(neural_timeseries_df_file_path):
+            self.logger.info("Generating neural firing rate timeseries.")
+            # Compute the binned firing rate DataFrame
+            return curate_data.make_binned_unit_fr_df_for_each_run(
+                self.spike_times_df, self.nan_removed_gaze_data_df, self.params
+            )
+        else:
+            self.logger.info("Loading existing neural firing rate timeseries.")
+            # Load the precomputed DataFrame
+            return load_data.load_neural_timeseries_df(neural_timeseries_df_file_path)
+
+
 
 
     def plot_behavior(self):
@@ -226,8 +220,5 @@ class DataManager:
         self.populate_params_with_data_paths()
         self.get_data()
         self.prune_data()
-        util.verify_presence_of_recording_sessions(self.recording_sessions_and_monkeys, self.spike_times_df)
-        self.nan_removed_gaze_data_df_ephys_days = util.extract_df_rows_for_sessions_with_ephys(self.nan_removed_gaze_data_df, self.recording_sessions_and_monkeys)
         self.analyze_behavior()
         pdb.set_trace()
-        return 0
