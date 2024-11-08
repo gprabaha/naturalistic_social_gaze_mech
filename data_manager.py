@@ -221,7 +221,7 @@ class DataManager:
 
 
     def plot_data(self):
-        plotter.plot_random_run_timeseries(self.neural_fr_timeseries_df)
+        plotter.plot_random_run_snippets(self.neural_fr_timeseries_df)
 
 
     def run(self):

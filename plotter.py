@@ -12,6 +12,7 @@ from matplotlib import cm
 from datetime import datetime
 from multiprocessing import Pool
 from tqdm import tqdm
+import random
 
 
 # Set up a logger for this script
@@ -198,44 +199,43 @@ def _overlay_roi_rects_for_run(agent_gaze_data, axs):
                                        edgecolor='red', facecolor='none'))
 
 
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-import random
-
-def plot_random_run_timeseries(neural_fr_timeseries_df):
+def plot_random_run_snippets(neural_fr_timeseries_df, snippet_duration=1, bin_width=0.01):
     """
-    Plot firing rate timeseries for a random run in a random session for all units and regions, and save as plot.png.
+    Plot three random 1-second snippets of firing rate timeseries for a random run in a random session.
     Args:
         neural_fr_timeseries_df (pd.DataFrame): DataFrame with firing rate timeseries for each session, interaction type,
                                                 run, region, and unit.
+        snippet_duration (int): Duration of each snippet in seconds.
     """
     # Select a random session and run
     random_session = random.choice(neural_fr_timeseries_df['session_name'].unique())
     session_df = neural_fr_timeseries_df[neural_fr_timeseries_df['session_name'] == random_session]
     random_run = random.choice(session_df['run_number'].unique())
-    
     # Filter DataFrame for the selected session and run
     run_df = session_df[session_df['run_number'] == random_run]
-
-    # Plot firing rates for all units in all regions for this run
-    plt.figure(figsize=(12, 8))
-    for _, row in run_df.iterrows():
-        unit_timeseries = row['binned_neural_fr_in_run']
-        time_points = np.arange(len(unit_timeseries))  # Generate time points based on the length of the timeseries
-        
-        # Plot each unit's timeseries
-        plt.plot(time_points, unit_timeseries, label=f"{row['region']} - {row['unit_uuid']}", alpha=0.7)
-    
-    # Add labels and title
-    plt.xlabel("Time (binned)")
-    plt.ylabel("Firing Rate (spikes/s)")
-    plt.title(f"Firing Rate Timeseries for Session {random_session}, Run {random_run}")
-    plt.legend(loc="upper right", bbox_to_anchor=(1.3, 1.0))
-    plt.tight_layout()
-    
-    # Save the plot as plot.png
+    # Calculate the number of bins per snippet
+    bins_per_snippet = int(snippet_duration / bin_width)
+    sampling_rate = bins_per_snippet / snippet_duration
+    # Plot three random 1-second snippets in subplots
+    fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle(f"Firing Rate Snippets for Session {random_session}, Run {random_run}")
+    for i, ax in enumerate(axes):
+        # Select a random start point for each snippet
+        max_start = len(run_df.iloc[0]['binned_neural_fr_in_run']) - bins_per_snippet
+        start_bin = random.randint(0, max_start)
+        end_bin = start_bin + bins_per_snippet
+        # Plot each unit's snippet within the chosen range
+        for _, row in run_df.iterrows():
+            unit_timeseries = row['binned_neural_fr_in_run'][start_bin:end_bin]
+            time_points = np.arange(len(unit_timeseries)) / sampling_rate  # Time in seconds
+            ax.plot(time_points, unit_timeseries, label=f"{row['region']} - {row['unit_uuid']}", alpha=0.7)
+        ax.set_title(f"Snippet {i + 1} (from {start_bin / sampling_rate:.2f} s to {end_bin / sampling_rate:.2f} s)")
+        ax.set_ylabel("Firing Rate (spikes/s)")
+    # Finalize plot
+    axes[-1].set_xlabel("Time (s)")
+    handles, labels = axes[-1].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(1.15, 1.0))
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig("plot.png")
     plt.close()
     print(f"Plot saved as plot.png for session {random_session}, run {random_run}")
