@@ -44,10 +44,10 @@ def main():
         'remake_binary_timeseries': False,
         'remake_scaled_autocorr': False,
 
-        'remake_neural_timeseries': True,
+        'remake_neural_timeseries': False,
         'neural_data_bin_size': 0.001,  #1ms = 0.001s
         'downsample_bin_size': 0.01,
-        'smoothing_sigma': 2
+        'smoothing_sigma': 10
     })
     data_manager = DataManager(params)
     data_manager.run()
