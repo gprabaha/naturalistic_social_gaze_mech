@@ -570,23 +570,27 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
 # Main function for adding fixation locations with parallel processing and tqdm
 def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df):
     with Pool() as pool:
-        # Use tqdm to display the progress bar
+        # Use tqdm with imap_unordered for real-time progress updates
         results = list(tqdm(
-            pool.imap(
+            pool.imap_unordered(
                 _process_fixation_row_wrapper, 
-                [(row, gaze_data_df) for _, row in fixation_df.iterrows()]
+                [(index, row, gaze_data_df) for index, row in fixation_df.iterrows()]
             ),
             total=len(fixation_df),
             desc="Processing Fixation ROIs"
         ))
-    # Assign results to the 'location' column of the dataframe
-    fixation_df['location'] = results
+    # Sort results to maintain original order
+    results.sort(key=lambda x: x[0])
+    ordered_location_labels = [result[1] for result in results]
+    # Assign sorted results to the 'location' column of the dataframe
+    fixation_df['location'] = ordered_location_labels
     return fixation_df
 
 
 # Wrapper function for _process_fixation_row to handle multiprocessing arguments
 def _process_fixation_row_wrapper(args):
-    return _process_fixation_row(*args)
+    index, row, gaze_data_df = args
+    return index, _process_fixation_row(row, gaze_data_df)
 
 
 # Helper function for processing each row in the fixation dataframe
@@ -626,23 +630,29 @@ def _process_fixation_row(row, gaze_data_df):
 # Main function for adding saccade ROIs with parallel processing and tqdm
 def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df):
     with Pool() as pool:
-        # Use tqdm to display the progress bar
+        # Use tqdm with imap_unordered for real-time progress updates
         results = list(tqdm(
-            pool.imap(
+            pool.imap_unordered(
                 _process_saccade_row_wrapper, 
-                [(row, gaze_data_df) for _, row in saccade_df.iterrows()]
+                [(index, row, gaze_data_df) for index, row in saccade_df.iterrows()]
             ),
             total=len(saccade_df),
             desc="Processing Saccade ROIs"
         ))
-    # Unpack results into the 'from' and 'to' columns of the dataframe
-    saccade_df['from'], saccade_df['to'] = zip(*results)
+    # Sort results to maintain original order
+    results.sort(key=lambda x: x[0])
+    ordered_from_labels = [result[1][0] for result in results]
+    ordered_to_labels = [result[1][1] for result in results]
+    # Assign sorted results to 'from' and 'to' columns of the dataframe
+    saccade_df['from'] = ordered_from_labels
+    saccade_df['to'] = ordered_to_labels
     return saccade_df
 
 
 # Wrapper function for _process_saccade_row to handle multiprocessing arguments
 def _process_saccade_row_wrapper(args):
-    return _process_saccade_row(*args)
+    index, row, gaze_data_df = args
+    return index, _process_saccade_row(row, gaze_data_df)
 
 
 # Helper function for processing each row in the saccade dataframe
