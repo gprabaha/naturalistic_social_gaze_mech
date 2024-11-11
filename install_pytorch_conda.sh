@@ -2,9 +2,11 @@
 #SBATCH --job-name=install_pytorch
 #SBATCH --output=install_pytorch_output.log
 #SBATCH --error=install_pytorch_error.log
-#SBATCH --time=00:30:00  # Adjust if you need more time
+#SBATCH --partition=psych_gpu
+#SBATCH --time=4:00:00  # Adjust if you need more time
+#SBATCH --gpus=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 
 # Load required modules
 module load cuDNN/8.8.0.121-CUDA-12.0.0
