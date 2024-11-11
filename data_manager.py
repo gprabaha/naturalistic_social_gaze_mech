@@ -171,8 +171,8 @@ class DataManager:
             self.logger.info("Detecting fixations and saccades.")
             # fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
             fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
-            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df)
-            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df)
+            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df, self.num_cpus)
+            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df, self.num_cpus)
             fixation_df.to_pickle(fixation_file_path)
             saccade_df.to_pickle(saccade_file_path)
             return fixation_df, saccade_df
