@@ -8,7 +8,7 @@ Created on Wed Sep 19 17::48:42 2024
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import concurrent.futures
+from multiprocessing import Pool
 from tqdm import tqdm
 import os
 import re
@@ -567,17 +567,82 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     return pruned_positions, pruned_pupil_size, pruned_time_series
 
 
-# Main function for adding saccade ROIs with parallel processing
+# Main function for adding fixation locations with parallel processing and tqdm
+def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df):
+    with Pool() as pool:
+        # Use tqdm to display the progress bar
+        results = list(tqdm(
+            pool.imap(
+                _process_fixation_row_wrapper, 
+                [(row, gaze_data_df) for _, row in fixation_df.iterrows()]
+            ),
+            total=len(fixation_df),
+            desc="Processing Fixation ROIs"
+        ))
+    # Assign results to the 'location' column of the dataframe
+    fixation_df['location'] = results
+    return fixation_df
+
+
+# Wrapper function for _process_fixation_row to handle multiprocessing arguments
+def _process_fixation_row_wrapper(args):
+    return _process_fixation_row(*args)
+
+
+# Helper function for processing each row in the fixation dataframe
+def _process_fixation_row(row, gaze_data_df):
+    session_name = row['session_name']
+    interaction_type = row['interaction_type']
+    run_number = row['run_number']
+    agent = row['agent']
+    fixations = row['fixation_start_stop']
+    # Filter the gaze data to match the current row's session, interaction type, run, and agent
+    gaze_row = gaze_data_df[
+        (gaze_data_df['session_name'] == session_name) &
+        (gaze_data_df['interaction_type'] == interaction_type) &
+        (gaze_data_df['run_number'] == run_number) &
+        (gaze_data_df['agent'] == agent)
+    ].iloc[0]
+    positions = gaze_row['positions']
+    roi_rects = gaze_row['roi_rects']
+    location_labels = []
+    # Process each fixation to identify its 'location' ROI
+    for start_stop in fixations:
+        start_idx, stop_idx = start_stop
+        fixation_positions = positions[start_idx:stop_idx+1]
+        mean_position = [
+            sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
+            sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
+        ]
+        location = 'elsewhere'
+        for roi_name, rect in roi_rects.items():
+            if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
+                location = roi_name
+                break
+        location_labels.append(location)
+    return location_labels
+
+
+# Main function for adding saccade ROIs with parallel processing and tqdm
 def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df):
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        # Map each row to its index to ensure ordering
-        results = list(executor.map(
-            lambda row: _process_saccade_row(row[1], gaze_data_df),
-            enumerate(saccade_df.iterrows())
+    with Pool() as pool:
+        # Use tqdm to display the progress bar
+        results = list(tqdm(
+            pool.imap(
+                _process_saccade_row_wrapper, 
+                [(row, gaze_data_df) for _, row in saccade_df.iterrows()]
+            ),
+            total=len(saccade_df),
+            desc="Processing Saccade ROIs"
         ))
     # Unpack results into the 'from' and 'to' columns of the dataframe
     saccade_df['from'], saccade_df['to'] = zip(*results)
     return saccade_df
+
+
+# Wrapper function for _process_saccade_row to handle multiprocessing arguments
+def _process_saccade_row_wrapper(args):
+    return _process_saccade_row(*args)
 
 
 # Helper function for processing each row in the saccade dataframe
@@ -613,52 +678,6 @@ def _process_saccade_row(row, gaze_data_df):
         from_labels.append(from_roi)
         to_labels.append(to_roi)
     return from_labels, to_labels
-
-
-# Main function for adding fixation locations with parallel processing
-def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df):
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = list(executor.map(
-            lambda row: _process_fixation_row(row[1], gaze_data_df),
-            enumerate(fixation_df.iterrows())
-        ))
-    # Assign results to the 'location' column of the dataframe
-    fixation_df['location'] = results
-    return fixation_df
-
-
-# Helper function for processing each row in the fixation dataframe
-def _process_fixation_row(row, gaze_data_df):
-    session_name = row['session_name']
-    interaction_type = row['interaction_type']
-    run_number = row['run_number']
-    agent = row['agent']
-    fixations = row['fixation_start_stop']
-    # Filter the gaze data to match the current row's session, interaction type, run, and agent
-    gaze_row = gaze_data_df[
-        (gaze_data_df['session_name'] == session_name) &
-        (gaze_data_df['interaction_type'] == interaction_type) &
-        (gaze_data_df['run_number'] == run_number) &
-        (gaze_data_df['agent'] == agent)
-    ].iloc[0]
-    positions = gaze_row['positions']
-    roi_rects = gaze_row['roi_rects']
-    location_labels = []
-    # Process each fixation to identify its 'location' ROI
-    for start_stop in fixations:
-        start_idx, stop_idx = start_stop
-        fixation_positions = positions[start_idx:stop_idx+1]
-        mean_position = [
-            sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
-            sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
-        ]
-        location = 'elsewhere'
-        for roi_name, rect in roi_rects.items():
-            if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
-                location = roi_name
-                break
-        location_labels.append(location)
-    return location_labels
 
 
 def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):

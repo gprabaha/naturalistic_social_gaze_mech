@@ -169,8 +169,8 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
             self.logger.info("Detecting fixations and saccades.")
-            pdb.set_trace()
-            fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
+            # fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
+            fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
             fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df)
             saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df)
             fixation_df.to_pickle(fixation_file_path)
