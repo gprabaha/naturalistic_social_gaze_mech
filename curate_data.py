@@ -566,6 +566,101 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
     return pruned_positions, pruned_pupil_size, pruned_time_series
 
 
+def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df):
+    # Initialize a list to store 'location' labels for each row
+    all_location_labels = []
+    # Iterate over each row in the fixation dataframe
+    for _, fixation_row in fixation_df.iterrows():
+        session_name = fixation_row['session_name']
+        interaction_type = fixation_row['interaction_type']
+        run_number = fixation_row['run_number']
+        agent = fixation_row['agent']
+        fixations = fixation_row['fixation_start_stop']
+        # Filter the gaze data to match the current row's session, interaction type, run, and agent
+        gaze_row = gaze_data_df[
+            (gaze_data_df['session_name'] == session_name) &
+            (gaze_data_df['interaction_type'] == interaction_type) &
+            (gaze_data_df['run_number'] == run_number) &
+            (gaze_data_df['agent'] == agent)
+        ].iloc[0]
+        positions = gaze_row['positions']
+        roi_rects = gaze_row['roi_rects']
+        # Temporary list for 'location' labels for the current row
+        location_labels = []
+        # Process each fixation to identify its 'location' ROI
+        for start_stop in fixations:
+            start_idx, stop_idx = start_stop
+            fixation_positions = positions[start_idx:stop_idx+1]
+            mean_position = [
+                sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
+                sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
+            ]
+            # Determine 'location' ROI
+            location = 'elsewhere'
+            for roi_name, rect in roi_rects.items():
+                if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
+                    location = roi_name
+                    break
+            # Append the 'location' label for the current fixation
+            location_labels.append(location)
+        # Append the list of location labels for the current row
+        all_location_labels.append(location_labels)
+    # Add 'location' column to the fixation dataframe
+    fixation_df['location'] = all_location_labels
+    return fixation_df
+
+
+def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df):
+    # Initialize lists to store 'from' and 'to' labels for each row
+    all_from_labels = []
+    all_to_labels = []
+    # Iterate over each row in the saccade dataframe
+    for _, saccade_row in saccade_df.iterrows():
+        session_name = saccade_row['session_name']
+        interaction_type = saccade_row['interaction_type']
+        run_number = saccade_row['run_number']
+        agent = saccade_row['agent']
+        saccades = saccade_row['saccade_start_stop']
+        # Filter the gaze data to match the current row's session, interaction type, run, and agent
+        gaze_row = gaze_data_df[
+            (gaze_data_df['session_name'] == session_name) &
+            (gaze_data_df['interaction_type'] == interaction_type) &
+            (gaze_data_df['run_number'] == run_number) &
+            (gaze_data_df['agent'] == agent)
+        ].iloc[0]
+        positions = gaze_row['positions']
+        roi_rects = gaze_row['roi_rects']
+        # Temporary lists for 'from' and 'to' labels for the current row
+        from_labels = []
+        to_labels = []
+        # Process each saccade to identify 'from' and 'to' ROIs
+        for start_stop in saccades:
+            start_idx, stop_idx = start_stop
+            start_pos = positions[start_idx]
+            stop_pos = positions[stop_idx]
+            # Determine 'from' ROI
+            from_roi = 'elsewhere'
+            for roi_name, rect in roi_rects.items():
+                if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]:
+                    from_roi = roi_name
+                    break
+            # Determine 'to' ROI
+            to_roi = 'elsewhere'
+            for roi_name, rect in roi_rects.items():
+                if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]:
+                    to_roi = roi_name
+                    break
+            # Append 'from' and 'to' labels for the current saccade
+            from_labels.append(from_roi)
+            to_labels.append(to_roi)
+        # Append the lists of labels for the current row to the main lists
+        all_from_labels.append(from_labels)
+        all_to_labels.append(to_labels)
+    # Add 'from' and 'to' columns to the saccade dataframe
+    saccade_df['from'] = all_from_labels
+    saccade_df['to'] = all_to_labels
+    return saccade_df
+
 
 def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):
     """
