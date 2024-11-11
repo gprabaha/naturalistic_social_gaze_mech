@@ -568,13 +568,14 @@ def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
 
 
 # Main function for adding fixation locations with parallel processing and tqdm
-def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df):
+def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df, num_cpus):
     with Pool() as pool:
         # Use tqdm with imap_unordered for real-time progress updates
         results = list(tqdm(
             pool.imap_unordered(
                 _process_fixation_row_wrapper, 
-                [(index, row, gaze_data_df) for index, row in fixation_df.iterrows()]
+                [(index, row, gaze_data_df) for index, row in fixation_df.iterrows()],
+                chunksize=num_cpus
             ),
             total=len(fixation_df),
             desc="Processing Fixation ROIs"
@@ -628,13 +629,14 @@ def _process_fixation_row(row, gaze_data_df):
 
 
 # Main function for adding saccade ROIs with parallel processing and tqdm
-def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df):
+def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df, num_cpus):
     with Pool() as pool:
         # Use tqdm with imap_unordered for real-time progress updates
         results = list(tqdm(
             pool.imap_unordered(
                 _process_saccade_row_wrapper, 
-                [(index, row, gaze_data_df) for index, row in saccade_df.iterrows()]
+                [(index, row, gaze_data_df) for index, row in saccade_df.iterrows()],
+                chunksize=num_cpus
             ),
             total=len(saccade_df),
             desc="Processing Saccade ROIs"
