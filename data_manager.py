@@ -157,9 +157,11 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        self.add_saccade_rois_in_dataframe()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
+        pdb.set_trace()
 
 
     def _load_or_compute_fixations_and_saccades(self):
@@ -175,6 +177,100 @@ class DataManager:
         else:
             self.logger.info("Loading existing fixation and saccade data.")
             return load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
+
+    def add_saccade_rois_in_dataframe(self):
+        # Initialize lists to store 'from' and 'to' labels for each row
+        all_from_labels = []
+        all_to_labels = []
+        # Iterate over each row in the saccade dataframe
+        for _, saccade_row in self.saccade_df.iterrows():
+            session_name = saccade_row['session_name']
+            interaction_type = saccade_row['interaction_type']
+            run_number = saccade_row['run_number']
+            agent = saccade_row['agent']
+            saccades = saccade_row['saccade_start_stop']
+            # Filter the gaze data to match the current row's session, interaction type, run, and agent
+            gaze_row = self.nan_removed_gaze_data_df[
+                (self.nan_removed_gaze_data_df['session_name'] == session_name) &
+                (self.nan_removed_gaze_data_df['interaction_type'] == interaction_type) &
+                (self.nan_removed_gaze_data_df['run_number'] == run_number) &
+                (self.nan_removed_gaze_data_df['agent'] == agent)
+            ].iloc[0]  # Should match only one row
+            positions = gaze_row['positions']
+            roi_rects = gaze_row['roi_rects']
+            # Temporary lists for 'from' and 'to' labels for the current row
+            from_labels = []
+            to_labels = []
+            # Process each saccade to identify 'from' and 'to' ROIs
+            for start_stop in saccades:
+                start_idx, stop_idx = start_stop
+                # Get starting and ending positions of the saccade
+                start_pos = positions[start_idx]
+                stop_pos = positions[stop_idx]
+                # Determine 'from' ROI
+                from_roi = 'elsewhere'
+                for roi_name, rect in roi_rects.items():
+                    if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]:
+                        from_roi = roi_name
+                        break
+                # Determine 'to' ROI
+                to_roi = 'elsewhere'
+                for roi_name, rect in roi_rects.items():
+                    if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]:
+                        to_roi = roi_name
+                        break
+                # Append 'from' and 'to' labels for the current saccade
+                from_labels.append(from_roi)
+                to_labels.append(to_roi)
+            # Append the lists of labels for the current row to the main lists
+            all_from_labels.append(from_labels)
+            all_to_labels.append(to_labels)
+        # Add 'from' and 'to' columns to the saccade dataframe
+        self.saccade_df['from'] = all_from_labels
+        self.saccade_df['to'] = all_to_labels
+
+    def add_fixation_location_in_dataframe(self):
+        # Initialize a list to store 'location' labels for each row
+        all_location_labels = []
+        # Iterate over each row in the fixation dataframe
+        for _, fixation_row in self.fixation_df.iterrows():
+            session_name = fixation_row['session_name']
+            interaction_type = fixation_row['interaction_type']
+            run_number = fixation_row['run_number']
+            agent = fixation_row['agent']
+            fixations = fixation_row['fixation_start_stop']
+            # Filter the gaze data to match the current row's session, interaction type, run, and agent
+            gaze_row = self.nan_removed_gaze_data_df[
+                (self.nan_removed_gaze_data_df['session_name'] == session_name) &
+                (self.nan_removed_gaze_data_df['interaction_type'] == interaction_type) &
+                (self.nan_removed_gaze_data_df['run_number'] == run_number) &
+                (self.nan_removed_gaze_data_df['agent'] == agent)
+            ].iloc[0]  # Should match only one row
+            positions = gaze_row['positions']
+            roi_rects = gaze_row['roi_rects']
+            # Temporary list for 'location' labels for the current row
+            location_labels = []
+            # Process each fixation to identify its 'location' ROI
+            for start_stop in fixations:
+                start_idx, stop_idx = start_stop
+                # Calculate the mean position of the fixation
+                fixation_positions = positions[start_idx:stop_idx+1]
+                mean_position = [
+                    sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
+                    sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
+                ]
+                # Determine 'location' ROI
+                location = 'elsewhere'
+                for roi_name, rect in roi_rects.items():
+                    if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
+                        location = roi_name
+                        break
+                # Append the 'location' label for the current fixation
+                location_labels.append(location)
+            # Append the list of location labels for the current row
+            all_location_labels.append(location_labels)
+        # Add 'location' column to the fixation dataframe
+        self.fixation_df['location'] = all_location_labels
 
 
     def _load_or_compute_binary_behav_timeseries(self):
