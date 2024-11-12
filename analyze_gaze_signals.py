@@ -41,7 +41,8 @@ def main():
         'try_using_single_run': False,
         'recompute_fix_and_saccades_through_hpc_jobs': True,
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
-        'remake_binary_timeseries': False,
+        
+        'remake_binary_timeseries': True,
         'remake_scaled_autocorr': False,
 
         'remake_neural_timeseries': False,

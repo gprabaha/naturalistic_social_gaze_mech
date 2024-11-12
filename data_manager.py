@@ -157,7 +157,6 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
-        pdb.set_trace()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
@@ -193,6 +192,7 @@ class DataManager:
             pdb.set_trace()
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
+            pdb.set_trace()
 
             binary_timeseries_df = analyze_data.create_binary_behav_timeseries_df(
                 self.fixation_df, self.saccade_df, self.nan_removed_gaze_data_df, self.params
