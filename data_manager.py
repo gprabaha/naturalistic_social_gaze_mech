@@ -158,8 +158,9 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
+        self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
+        pdb.set_trace()
 
 
     def _load_or_compute_fixations_and_saccades(self):
@@ -194,21 +195,22 @@ class DataManager:
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
             binary_behav_timeseries_df.to_pickle(binary_timeseries_file_path)
-            pdb.set_trace()
             return binary_behav_timeseries_df
         else:
             self.logger.info("Loading existing binary behavior timeseries.")
             return load_data.load_binary_timeseries_df(binary_timeseries_file_path)
 
 
-    def _load_or_compute_binary_timeseries_autocorr(self):
+    def _load_or_compute_binary_timeseries_auto_and_crosscorr(self):
         """Load or compute binary timeseries autocorrelation DataFrame."""
         autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
         if self.params.get('remake_scaled_autocorr', False) or not os.path.exists(autocorr_file_path):
             self.logger.info("Computing scaled autocorrelations.")
-            autocorr_df = analyze_data.compute_scaled_autocorrelations_for_behavior_df(self.binary_behav_timeseries_df, self.params)
-            autocorr_df.to_pickle(autocorr_file_path)
-            return autocorr_df
+            # use_parallel = self.params['use_parallel']
+            use_parallel = False
+            auto_and_cross_corr_df = calculate_auto_and_cross_corrs_bet_behav_vectors(self.binary_behav_timeseries_df, self.num_cpus, use_parallel=use_parallel)
+            auto_and_cross_corr_df.to_pickle(autocorr_file_path)
+            return auto_and_cross_corr_df
         else:
             self.logger.info("Loading existing scaled autocorrelations.")
             return load_data.load_binary_autocorr_df(autocorr_file_path)
