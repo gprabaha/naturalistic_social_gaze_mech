@@ -204,16 +204,16 @@ def calculate_auto_and_cross_corrs_bet_behav_vectors(binary_behav_timeseries_df,
     - pd.DataFrame: DataFrame with calculated autocorrelations and cross-correlations.
     """
     # Group by session-related keys and process each session group
-    session_groups = [(name, *group) for name, group in binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])]
+    run_groups = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     if use_parallel:
         # Parallel processing with joblib
         results = Parallel(n_jobs=num_cpus)(
-            delayed(_compute_session_correlations)(group) for group in tqdm(session_groups, desc="Processing correlations for specific run (parallel)", total=len(session_groups))
+            delayed(_compute_session_correlations)(group) for group in tqdm(run_groups, desc="Processing correlations for specific run (parallel)", total=len(run_groups))
         )
     else:
         # Serial processing with tqdm
         results = [
-            _compute_session_correlations(group) for group in tqdm(session_groups, desc="Processing correlations for specific run (serial)", total=len(session_groups))
+            _compute_session_correlations(group) for group in tqdm(run_groups, desc="Processing correlations for specific run (serial)", total=len(run_groups))
         ]
     # Flatten the list of results and convert to DataFrame
     flat_results = [item for sublist in results for item in sublist]
@@ -229,9 +229,9 @@ def _compute_session_correlations(group):
     Returns:
     - List[dict]: List of dictionaries with calculated autocorrelations and cross-correlations for each behavior.
     """
-    session_name, interaction_type, run_number, session_df = group
+    (session_name, interaction_type, run_number), run_df = group
     results = []
-    behavior_groups = session_df.groupby(['behav_type', 'from', 'to'])
+    behavior_groups = run_df.groupby(['behav_type', 'from', 'to'])
     for (behav_type, from_loc, to_loc), behavior_df in behavior_groups:
         # Retrieve binary timelines for m1 and m2 agents if available
         agent_timelines = {agent: behavior_df[behavior_df['agent'] == agent]['binary_timeline'].iloc[0]

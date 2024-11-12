@@ -43,7 +43,7 @@ def main():
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
         
         'remake_binary_timeseries': False,
-        'remake_scaled_autocorr': False,
+        'remake_scaled_autocorr': True,
 
         'remake_neural_timeseries': False,
         'neural_data_bin_size': 0.001,  #1ms = 0.001s

@@ -189,9 +189,17 @@ class DataManager:
             # use_parallel = self.params['use_parallel']
             use_parallel = False
             fixation_timeline_df = analyze_data.create_binary_timeline_for_behavior(
-                self.fixation_df, self.nan_removed_gaze_data_df, self.num_cpus, behavior_type='fixation', use_parallel=use_parallel)
+                self.fixation_df,
+                self.nan_removed_gaze_data_df,
+                self.num_cpus,
+                behavior_type='fixation',
+                use_parallel=use_parallel)
             saccade_timeline_df = analyze_data.create_binary_timeline_for_behavior(
-                self.saccade_df, self.nan_removed_gaze_data_df, self.num_cpus, behavior_type='saccade', use_parallel=use_parallel)
+                self.saccade_df,
+                self.nan_removed_gaze_data_df,
+                self.num_cpus,
+                behavior_type='saccade',
+                use_parallel=use_parallel)
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
             binary_behav_timeseries_df.to_pickle(binary_timeseries_file_path)
@@ -208,7 +216,10 @@ class DataManager:
             self.logger.info("Computing scaled autocorrelations.")
             # use_parallel = self.params['use_parallel']
             use_parallel = False
-            auto_and_cross_corr_df = calculate_auto_and_cross_corrs_bet_behav_vectors(self.binary_behav_timeseries_df, self.num_cpus, use_parallel=use_parallel)
+            auto_and_cross_corr_df = analyze_data.calculate_auto_and_cross_corrs_bet_behav_vectors(
+                self.binary_behav_timeseries_df,
+                self.num_cpus,
+                use_parallel=use_parallel)
             auto_and_cross_corr_df.to_pickle(autocorr_file_path)
             return auto_and_cross_corr_df
         else:
