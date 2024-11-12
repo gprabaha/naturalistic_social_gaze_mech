@@ -185,20 +185,15 @@ class DataManager:
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
         if self.params.get('remake_binary_timeseries', False) or not os.path.exists(binary_timeseries_file_path):
             self.logger.info("Generating binary behavior timeseries.")
+            use_parallel = self.params['use_parallel']
             fixation_timeline_df = analyze_data.create_binary_timeline_for_behavior(
-                self.fixation_df, self.nan_removed_gaze_data_df, behavior_type='fixation')
+                self.fixation_df, self.nan_removed_gaze_data_df, self.num_cpus, behavior_type='fixation', use_parallel=use_parallel)
             saccade_timeline_df = analyze_data.create_binary_timeline_for_behavior(
-                self.saccade_df, self.nan_removed_gaze_data_df, behavior_type='saccade')
-            pdb.set_trace()
+                self.saccade_df, self.nan_removed_gaze_data_df, self.num_cpus, behavior_type='saccade', use_parallel=use_parallel)
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
-            pdb.set_trace()
-
-            binary_timeseries_df = analyze_data.create_binary_behav_timeseries_df(
-                self.fixation_df, self.saccade_df, self.nan_removed_gaze_data_df, self.params
-            )
-            binary_timeseries_df.to_pickle(binary_timeseries_file_path)
-            return binary_timeseries_df
+            binary_behav_timeseries_df.to_pickle(binary_timeseries_file_path)
+            return binary_behav_timeseries_df
         else:
             self.logger.info("Loading existing binary behavior timeseries.")
             return load_data.load_binary_timeseries_df(binary_timeseries_file_path)
