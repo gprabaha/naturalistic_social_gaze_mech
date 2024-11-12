@@ -4,6 +4,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
+
+import sys
+from pathlib import Path
+# Add the root directory of the repository to sys.path
+root_dir = Path(__file__).resolve().parent.parent
+sys.path.append(str(root_dir))
 from data_manager import DataManager
 
 import pdb
@@ -43,7 +49,7 @@ def main():
     # import and organize data
     data_manager = DataManager(params)
     data_manager.run()
-    firing_rate_df = data_manager.binned_neural_timeseries_df
+    firing_rate_df = data_manager.neural_fr_timeseries_df
     pdb.set_trace()
     return 0
 

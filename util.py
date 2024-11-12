@@ -103,7 +103,7 @@ def initiate_behav_df_label_cols(gaze_data_df):
 def verify_presence_of_recording_sessions(recording_sessions_df, gaze_data_df, session_column='session_name'):
     # Get sets of session names from both dataframes
     sessions_in_recording = set(recording_sessions_df[session_column].unique())
-    sessions_in_gaze_data = set(gaze_data_df[session_column].unique()) 
+    sessions_in_gaze_data = set(gaze_data_df[session_column].unique())
     # Find sessions in recording_sessions_df but not in gaze_data_df
     missing_in_gaze_data = sessions_in_recording - sessions_in_gaze_data
     # Find sessions in gaze_data_df but not in recording_sessions_df
