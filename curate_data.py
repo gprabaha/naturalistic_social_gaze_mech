@@ -505,66 +505,64 @@ def _flatten_nested_arrays(arr):
 
 def prune_nan_values_in_timeseries(gaze_data_df):
     """
-    Prunes NaN values from the time series in the gaze data DataFrame and adjusts positions and pupil_size accordingly.
-    The pruned DataFrame is returned.
+    Prunes NaN values from the time series in the gaze data DataFrame and ensures synchronized timelines across agents.
     Parameters:
     - gaze_data_df (pd.DataFrame): The gaze data DataFrame containing session, interaction type, run, and agent data.
-    - params (dict): A dictionary containing configuration parameters, including the processed data directory path.
     Returns:
-    - pruned_gaze_data_df (pd.DataFrame): The pruned gaze data DataFrame with NaN values removed.
+    - pruned_gaze_data_df (pd.DataFrame): The pruned gaze data DataFrame with NaN values removed and synchronized across agents.
     """
-    logger.info("Pruning NaN values from gaze data time series.")
+    logger.info("Pruning NaN values and synchronizing timelines across agents in gaze data.")
     pruned_rows = []
-    for _, row in gaze_data_df.iterrows():
-        # Extract relevant data
-        time_series = row['neural_timeline']
-        positions = row['positions']
-        pupil_size = row['pupil_size']
-        if time_series is not None:
-            # Prune NaN values and adjust the corresponding time series
-            pruned_positions, pruned_pupil_size, pruned_time_series = prune_nans_in_specific_timeseries(
-                time_series, positions, pupil_size
+    # Group by session_name, interaction_type, and run_number to handle each pair of agents together
+    grouped = gaze_data_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    for _, group in grouped:
+        # Separate data for each agent
+        m1_data = group[group['agent'] == 'm1']
+        m2_data = group[group['agent'] == 'm2']
+        if not m1_data.empty and not m2_data.empty:
+            m1_row = m1_data.iloc[0]
+            m2_row = m2_data.iloc[0]
+            # Prune NaN values and ensure synchronized pruning across both agents
+            pruned_m1_positions, pruned_m1_pupil_size, pruned_m1_time_series, pruned_m2_positions, pruned_m2_pupil_size, pruned_m2_time_series = ...
+            _prune_nans_to_synchronize_agent_timelines(
+                m1_row['neural_timeline'], m1_row['positions'], m1_row['pupil_size'],
+                m2_row['neural_timeline'], m2_row['positions'], m2_row['pupil_size']
             )
-            # Create a new row with pruned data
-            pruned_row = row.copy()
-            pruned_row['positions'] = pruned_positions
-            pruned_row['pupil_size'] = pruned_pupil_size
-            pruned_row['neural_timeline'] = pruned_time_series
-            pruned_rows.append(pruned_row)
+            # Create new rows with pruned data
+            pruned_m1_row = m1_row.copy()
+            pruned_m1_row['positions'], pruned_m1_row['pupil_size'], pruned_m1_row['neural_timeline'] = pruned_m1_positions, pruned_m1_pupil_size, pruned_m1_time_series
+            pruned_rows.append(pruned_m1_row)
+            pruned_m2_row = m2_row.copy()
+            pruned_m2_row['positions'], pruned_m2_row['pupil_size'], pruned_m2_row['neural_timeline'] = pruned_m2_positions, pruned_m2_pupil_size, pruned_m2_time_series
+            pruned_rows.append(pruned_m2_row)
     # Convert the list of pruned rows into a DataFrame
     pruned_gaze_data_df = pd.DataFrame(pruned_rows)
     return pruned_gaze_data_df
 
 
-def prune_nans_in_specific_timeseries(time_series, positions, pupil_size):
+def _prune_nans_to_synchronize_agent_timelines(m1_time_series, m1_positions, m1_pupil_size, m2_time_series, m2_positions, m2_pupil_size):
     """
-    Prunes NaN values from the time series and adjusts the corresponding position and pupil_size vectors.
-    Ensures data is synchronized with the time series, having no NaNs and the same number of points.
+    Prunes NaN values from both agents' time series and synchronizes the indices across both.
     Parameters:
-    - time_series (np.ndarray): The time series array.
-    - positions (np.ndarray): The position data array.
-    - pupil_size (np.ndarray): The pupil size data array.
+    - m1_time_series, m1_positions, m1_pupil_size: Data arrays for agent m1.
+    - m2_time_series, m2_positions, m2_pupil_size: Data arrays for agent m2.
     Returns:
-    - pruned_positions (np.ndarray): The pruned positions array.
-    - pruned_pupil_size (np.ndarray): The pruned pupil size array.
-    - pruned_time_series (np.ndarray): The pruned time series array.
+    - Synchronized, pruned versions of positions, pupil sizes, and time series for both agents.
     """
-    # Find valid indices in the time series where there are no NaNs
-    valid_time_indices = ~np.isnan(time_series.flatten())
-    valid_indices = valid_time_indices.copy()  # Initialize valid indices with time series indices
-    # Adjust valid indices based on positions (Nx1 or Nx2)
-    if positions is not None and positions.size > 0:
-        position_valid_indices = ~np.isnan(positions).any(axis=1)  # Check for NaNs row-wise
-        valid_indices = valid_indices[:len(position_valid_indices)] & position_valid_indices
-    # Adjust valid indices based on pupil size (Nx1)
-    if pupil_size is not None and pupil_size.size > 0:
-        pupil_valid_indices = ~np.isnan(pupil_size.flatten())  # Flatten in case it's Nx1
-        valid_indices = valid_indices[:len(pupil_valid_indices)] & pupil_valid_indices
-    # Prune the time series, positions, and pupil size based on valid indices
-    pruned_time_series = time_series[valid_indices]
-    pruned_positions = positions[valid_indices,:] if positions.ndim == 2 else positions[:, valid_indices]
-    pruned_pupil_size = pupil_size[valid_indices]
-    return pruned_positions, pruned_pupil_size, pruned_time_series
+    # Find valid indices for each agent where there are no NaNs
+    m1_valid_indices = ~np.isnan(m1_time_series.flatten()) & ~np.isnan(m1_positions).any(axis=1) & ~np.isnan(m1_pupil_size.flatten())
+    m2_valid_indices = ~np.isnan(m2_time_series.flatten()) & ~np.isnan(m2_positions).any(axis=1) & ~np.isnan(m2_pupil_size.flatten())
+    # Combine valid indices to keep only synchronized non-NaN entries
+    synchronized_valid_indices = m1_valid_indices & m2_valid_indices
+    # Prune both agents' data using the synchronized indices
+    pruned_m1_time_series = m1_time_series[synchronized_valid_indices]
+    pruned_m1_positions = m1_positions[synchronized_valid_indices, :]
+    pruned_m1_pupil_size = m1_pupil_size[synchronized_valid_indices]
+    pruned_m2_time_series = m2_time_series[synchronized_valid_indices]
+    pruned_m2_positions = m2_positions[synchronized_valid_indices, :]
+    pruned_m2_pupil_size = m2_pupil_size[synchronized_valid_indices]
+    return pruned_m1_positions, pruned_m1_pupil_size, pruned_m1_time_series, pruned_m2_positions, pruned_m2_pupil_size, pruned_m2_time_series
+
 
 
 # Main function for adding fixation locations with parallel processing and tqdm

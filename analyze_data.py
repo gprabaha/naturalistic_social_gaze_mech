@@ -68,6 +68,7 @@ def _generate_binary_timeline_for_df_row(args):
     ]
     if neural_timeline_row.empty:
         return pd.DataFrame()  # Return empty DataFrame if no matching neural timeline row is found
+    pdb.set_trace()
     total_timeline_length = len(neural_timeline_row.iloc[0]['neural_timeline'])
     # Generate timelines based on the behavior type
     if behavior_type == 'fixation':
@@ -240,6 +241,7 @@ def _compute_session_correlations(group):
             binary_timeline_m1 = np.array(agent_timelines['m1'])
             binary_timeline_m2 = np.array(agent_timelines['m2'])
             # Calculate autocorrelations and cross-correlations using FFT
+            pdb.set_trace()
             autocorr_m1 = __fft_autocorr(binary_timeline_m1)
             autocorr_m2 = __fft_autocorr(binary_timeline_m2)
             crosscorr_m1_m2 = __fft_crosscorr(binary_timeline_m1, binary_timeline_m2)
