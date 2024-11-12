@@ -17,8 +17,17 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
-
 def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, behavior_type='fixation'):
+    """
+    Creates a binary timeline DataFrame indicating the presence of specific behaviors
+    (fixations or saccades) across a timeline for each session, interaction, run, and agent.
+    Parameters:
+    - behavior_df (pd.DataFrame): DataFrame containing behavior data (fixations or saccades).
+    - nan_removed_gaze_data_df (pd.DataFrame): DataFrame with neural timeline data per session.
+    - behavior_type (str): Type of behavior to process, either 'fixation' or 'saccade'.
+    Returns:
+    - binary_timeline_df (pd.DataFrame): DataFrame with binary timelines for each behavior event.
+    """
     # Ensure behavior_type is valid
     if behavior_type not in ['fixation', 'saccade']:
         raise ValueError("behavior_type must be 'fixation' or 'saccade'")
@@ -26,13 +35,22 @@ def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, b
     with Pool(processes=cpu_count()) as pool:
         results = list(tqdm(pool.imap_unordered(_generate_binary_timeline_for_df_row, [
             (index, row, nan_removed_gaze_data_df, behavior_type) for index, row in behavior_df.iterrows()
-        ]), total=len(behavior_df)))
+        ]),
+        total=len(behavior_df),
+        desc=f"Generating binary timeline for {behavior_type}"))
     # Flatten and concatenate the list of DataFrames, then sort by index for order
     binary_timeline_df = pd.concat(results).sort_index().reset_index(drop=True)
     return binary_timeline_df
 
 
 def _generate_binary_timeline_for_df_row(args):
+    """
+    Helper function to process each row of the behavior DataFrame and generate binary timelines.
+    Parameters:
+    - args (tuple): Tuple containing row index, row data, neural timeline DataFrame, and behavior type.
+    Returns:
+    - pd.DataFrame: DataFrame with binary timelines for each event in the row.
+    """
     index, behav_row, nan_removed_gaze_data_df, behavior_type = args
     session = behav_row['session_name']
     interaction = behav_row['interaction_type']
@@ -47,18 +65,26 @@ def _generate_binary_timeline_for_df_row(args):
     ]
     if neural_timeline_row.empty:
         return pd.DataFrame()  # Return empty DataFrame if no matching neural timeline row is found
-    neural_timeline = neural_timeline_row.iloc[0]['neural_timeline']
-    total_timeline_length = len(neural_timeline)
+    total_timeline_length = len(neural_timeline_row.iloc[0]['neural_timeline'])
     # Use the appropriate helper function for fixation or saccade and return the result as a DataFrame
     if behavior_type == 'fixation':
-        result = __append_fixation_data(behav_row, neural_timeline, total_timeline_length)
+        result = __append_fixation_data(behav_row, total_timeline_length)
     elif behavior_type == 'saccade':
-        result = __append_saccade_data(behav_row, neural_timeline, total_timeline_length)
+        result = __append_saccade_data(behav_row, total_timeline_length)
     # Return DataFrame with index for sorting
     return pd.DataFrame(result).assign(row_index=index)
 
 
-def __append_fixation_data(behav_row, neural_timeline, total_timeline_length):
+def __append_fixation_data(behav_row, total_timeline_length):
+    """
+    Generates binary timeline entries for fixation events, with separate entries for each unique
+    location and an overall entry for all fixations.
+    Parameters:
+    - behav_row (pd.Series): Row data from the fixation DataFrame.
+    - total_timeline_length (int): Total length of the timeline for this session and run.
+    Returns:
+    - List[dict]: List of dictionaries with binary timeline data for each fixation.
+    """
     start_stop_column = 'fixation_start_stop'
     location_column = 'location'
     intervals = behav_row[start_stop_column]
@@ -70,8 +96,12 @@ def __append_fixation_data(behav_row, neural_timeline, total_timeline_length):
     behavior_type = 'fixation'
     result_rows = []
     binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
+    # Create binary timelines for each unique location
     for (start, stop), loc in zip(intervals, locations):
         binary_timeline_all[start:stop] = 1  # Mark fixation in the "all" timeline
+        # Create individual location entries
+        location_timeline = np.zeros(total_timeline_length, dtype=int)
+        location_timeline[start:stop] = 1
         result_rows.append({
             'session_name': session,
             'interaction_type': interaction,
@@ -80,12 +110,32 @@ def __append_fixation_data(behav_row, neural_timeline, total_timeline_length):
             'behav_type': behavior_type,
             'from': loc,
             'to': loc,
-            'binary_timeline': binary_timeline_all.tolist()
+            'binary_timeline': location_timeline.tolist()
         })
+    # Add an "all fixations" entry
+    result_rows.append({
+        'session_name': session,
+        'interaction_type': interaction,
+        'run_number': run,
+        'agent': agent,
+        'behav_type': behavior_type,
+        'from': 'all',
+        'to': 'all',
+        'binary_timeline': binary_timeline_all.tolist()
+    })
     return result_rows
 
 
-def __append_saccade_data(behav_row, neural_timeline, total_timeline_length):
+def __append_saccade_data(behav_row, total_timeline_length):
+    """
+    Generates binary timeline entries for saccade events, with separate entries for each unique
+    from-to location and an overall entry for all saccades.
+    Parameters:
+    - behav_row (pd.Series): Row data from the saccade DataFrame.
+    - total_timeline_length (int): Total length of the timeline for this session and run.
+    Returns:
+    - List[dict]: List of dictionaries with binary timeline data for each saccade.
+    """
     start_stop_column = 'saccade_start_stop'
     from_column = 'from'
     to_column = 'to'
@@ -99,8 +149,12 @@ def __append_saccade_data(behav_row, neural_timeline, total_timeline_length):
     behavior_type = 'saccade'
     result_rows = []
     binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
+    # Create binary timelines for each unique from-to combination
     for (start, stop), from_loc, to_loc in zip(intervals, from_locations, to_locations):
         binary_timeline_all[start:stop] = 1  # Mark saccade in the "all" timeline
+        # Create individual from-to entries
+        from_to_timeline = np.zeros(total_timeline_length, dtype=int)
+        from_to_timeline[start:stop] = 1
         result_rows.append({
             'session_name': session,
             'interaction_type': interaction,
@@ -109,9 +163,21 @@ def __append_saccade_data(behav_row, neural_timeline, total_timeline_length):
             'behav_type': behavior_type,
             'from': from_loc,
             'to': to_loc,
-            'binary_timeline': binary_timeline_all.tolist()
+            'binary_timeline': from_to_timeline.tolist()
         })
+    # Add an "all saccades" entry
+    result_rows.append({
+        'session_name': session,
+        'interaction_type': interaction,
+        'run_number': run,
+        'agent': agent,
+        'behav_type': behavior_type,
+        'from': 'all',
+        'to': 'all',
+        'binary_timeline': binary_timeline_all.tolist()
+    })
     return result_rows
+
 
 
 
