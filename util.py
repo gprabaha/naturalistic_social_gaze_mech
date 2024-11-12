@@ -128,7 +128,28 @@ def extract_df_rows_for_sessions_with_ephys(df, recording_sessions_df, session_c
     return filtered_df
 
 
-
+from collections import Counter
+def print_nan_cluster_histogram(array):
+    # Find rows with NaNs
+    nan_vec = array
+    # Identify clusters of consecutive NaNs
+    clusters = []
+    cluster_size = 0
+    for is_nan in nan_vec:
+        if is_nan:
+            cluster_size += 1
+        elif cluster_size > 0:
+            clusters.append(cluster_size)
+            cluster_size = 0
+    # Catch the last cluster if it ends the array
+    if cluster_size > 0:
+        clusters.append(cluster_size)
+    # Count cluster sizes
+    cluster_counts = Counter(clusters)
+    # Print histogram
+    print("Histogram of NaN clusters (cluster size: count):")
+    for size, count in sorted(cluster_counts.items()):
+        print(f"{size}: {count}")
 
 
 

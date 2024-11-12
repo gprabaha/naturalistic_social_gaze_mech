@@ -523,7 +523,7 @@ def prune_nan_values_in_timeseries(gaze_data_df):
             m1_row = m1_data.iloc[0]
             m2_row = m2_data.iloc[0]
             # Prune NaN values and ensure synchronized pruning across both agents
-            pruned_m1_positions, pruned_m1_pupil_size, pruned_m1_time_series, pruned_m2_positions, pruned_m2_pupil_size, pruned_m2_time_series = ...
+            pruned_m1_positions, pruned_m1_pupil_size, pruned_m1_time_series, pruned_m2_positions, pruned_m2_pupil_size, pruned_m2_time_series = \
             _prune_nans_to_synchronize_agent_timelines(
                 m1_row['neural_timeline'], m1_row['positions'], m1_row['pupil_size'],
                 m2_row['neural_timeline'], m2_row['positions'], m2_row['pupil_size']
@@ -552,8 +552,14 @@ def _prune_nans_to_synchronize_agent_timelines(m1_time_series, m1_positions, m1_
     # Find valid indices for each agent where there are no NaNs
     m1_valid_indices = ~np.isnan(m1_time_series.flatten()) & ~np.isnan(m1_positions).any(axis=1) & ~np.isnan(m1_pupil_size.flatten())
     m2_valid_indices = ~np.isnan(m2_time_series.flatten()) & ~np.isnan(m2_positions).any(axis=1) & ~np.isnan(m2_pupil_size.flatten())
+    util.print_nan_cluster_histogram(np.isnan(m1_time_series.flatten()))
+    util.print_nan_cluster_histogram(np.isnan(m1_time_series.flatten()))
+    pdb.set_trace()
+    util.print_nan_cluster_histogram(np.isnan(m1_positions).any(axis=1))
+    util.print_nan_cluster_histogram(np.isnan(m2_positions).any(axis=1))
     # Combine valid indices to keep only synchronized non-NaN entries
     synchronized_valid_indices = m1_valid_indices & m2_valid_indices
+    pdb.set_trace()
     # Prune both agents' data using the synchronized indices
     pruned_m1_time_series = m1_time_series[synchronized_valid_indices]
     pruned_m1_positions = m1_positions[synchronized_valid_indices, :]
@@ -565,19 +571,26 @@ def _prune_nans_to_synchronize_agent_timelines(m1_time_series, m1_positions, m1_
 
 
 
-# Main function for adding fixation locations with parallel processing and tqdm
-def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df, num_cpus):
-    with Pool() as pool:
-        # Use tqdm with imap_unordered for real-time progress updates
-        results = list(tqdm(
-            pool.imap_unordered(
-                _process_fixation_row_wrapper, 
-                [(index, row, gaze_data_df) for index, row in fixation_df.iterrows()],
-                chunksize=num_cpus
-            ),
-            total=len(fixation_df),
-            desc="Processing Fixation ROIs"
-        ))
+# Main function for adding fixation locations with serial or parallel processing and tqdm
+def add_fixation_rois_in_dataframe(fixation_df, gaze_data_df, num_cpus, use_parallel=True):
+    if use_parallel:
+        with Pool(num_cpus) as pool:
+            # Use tqdm with imap_unordered for real-time progress updates
+            results = list(tqdm(
+                pool.imap_unordered(
+                    _process_fixation_row_wrapper, 
+                    [(index, row, gaze_data_df) for index, row in fixation_df.iterrows()],
+                    chunksize=num_cpus
+                ),
+                total=len(fixation_df),
+                desc="Processing Fixation ROIs"
+            ))
+    else:
+        # Serial processing with tqdm
+        results = [
+            (index, _process_fixation_row(row, gaze_data_df)) 
+            for index, row in tqdm(fixation_df.iterrows(), total=len(fixation_df), desc="Processing Fixation ROIs")
+        ]
     # Sort results to maintain original order
     results.sort(key=lambda x: x[0])
     ordered_location_labels = [result[1] for result in results]
@@ -599,6 +612,7 @@ def _process_fixation_row(row, gaze_data_df):
     run_number = row['run_number']
     agent = row['agent']
     fixations = row['fixation_start_stop']
+    
     # Filter the gaze data to match the current row's session, interaction type, run, and agent
     gaze_row = gaze_data_df[
         (gaze_data_df['session_name'] == session_name) &
@@ -609,36 +623,45 @@ def _process_fixation_row(row, gaze_data_df):
     positions = gaze_row['positions']
     roi_rects = gaze_row['roi_rects']
     location_labels = []
-    # Process each fixation to identify its 'location' ROI
+    # Process each fixation to identify all 'location' ROIs
     for start_stop in fixations:
         start_idx, stop_idx = start_stop
-        fixation_positions = positions[start_idx:stop_idx+1]
+        fixation_positions = positions[start_idx:stop_idx + 1]
         mean_position = [
             sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
             sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
         ]
-        location = 'elsewhere'
+        # Gather all ROIs containing the mean position
+        matched_rois = []
         for roi_name, rect in roi_rects.items():
             if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
-                location = roi_name
-                break
+                matched_rois.append(roi_name)
+        # Store all matched ROIs or 'elsewhere' if none matched
+        location = matched_rois if matched_rois else ['elsewhere']
         location_labels.append(location)
     return location_labels
 
 
-# Main function for adding saccade ROIs with parallel processing and tqdm
-def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df, num_cpus):
-    with Pool() as pool:
-        # Use tqdm with imap_unordered for real-time progress updates
-        results = list(tqdm(
-            pool.imap_unordered(
-                _process_saccade_row_wrapper, 
-                [(index, row, gaze_data_df) for index, row in saccade_df.iterrows()],
-                chunksize=num_cpus
-            ),
-            total=len(saccade_df),
-            desc="Processing Saccade ROIs"
-        ))
+# Main function for adding saccade ROIs with serial or parallel processing and tqdm
+def add_saccade_rois_in_dataframe(saccade_df, gaze_data_df, num_cpus, use_parallel=True):
+    if use_parallel:
+        with Pool(num_cpus) as pool:
+            # Use tqdm with imap_unordered for real-time progress updates
+            results = list(tqdm(
+                pool.imap_unordered(
+                    _process_saccade_row_wrapper, 
+                    [(index, row, gaze_data_df) for index, row in saccade_df.iterrows()],
+                    chunksize=num_cpus
+                ),
+                total=len(saccade_df),
+                desc="Processing Saccade ROIs"
+            ))
+    else:
+        # Serial processing with tqdm
+        results = [
+            (index, _process_saccade_row(row, gaze_data_df)) 
+            for index, row in tqdm(saccade_df.iterrows(), total=len(saccade_df), desc="Processing Saccade ROIs")
+        ]
     # Sort results to maintain original order
     results.sort(key=lambda x: x[0])
     ordered_from_labels = [result[1][0] for result in results]
@@ -662,6 +685,7 @@ def _process_saccade_row(row, gaze_data_df):
     run_number = row['run_number']
     agent = row['agent']
     saccades = row['saccade_start_stop']
+    
     # Filter the gaze data to match the current row's session, interaction type, run, and agent
     gaze_row = gaze_data_df[
         (gaze_data_df['session_name'] == session_name) &
@@ -672,22 +696,31 @@ def _process_saccade_row(row, gaze_data_df):
     positions = gaze_row['positions']
     roi_rects = gaze_row['roi_rects']
     from_labels, to_labels = [], []
-    # Process each saccade to identify 'from' and 'to' ROIs
+    
+    # Process each saccade to identify all 'from' and 'to' ROIs
     for start_stop in saccades:
         start_idx, stop_idx = start_stop
         start_pos = positions[start_idx]
         stop_pos = positions[stop_idx]
-        from_roi, to_roi = 'elsewhere', 'elsewhere'
-        for roi_name, rect in roi_rects.items():
-            if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]:
-                from_roi = roi_name
-            if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]:
-                to_roi = roi_name
-            if from_roi != 'elsewhere' and to_roi != 'elsewhere':
-                break
-        from_labels.append(from_roi)
-        to_labels.append(to_roi)
+        
+        # Gather all ROIs for start and stop positions
+        from_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]]
+        to_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]]
+        
+        # Assign 'elsewhere' if no ROIs match
+        from_labels.append(from_rois if from_rois else ['elsewhere'])
+        to_labels.append(to_rois if to_rois else ['elsewhere'])
+    
     return from_labels, to_labels
+
+
+
+
+
+
+
+
+
 
 
 def generate_binary_behav_timeseries_dicts(fixation_dict, saccade_dict):
