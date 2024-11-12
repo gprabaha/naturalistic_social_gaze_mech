@@ -29,23 +29,20 @@ def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, n
     Returns:
     - binary_timeline_df (pd.DataFrame): DataFrame with binary timelines for each behavior event.
     """
-    # Ensure behavior_type is valid
     if behavior_type not in ['fixation', 'saccade']:
         raise ValueError("behavior_type must be 'fixation' or 'saccade'")
     if use_parallel:
-        # Parallel processing with joblib
         results = Parallel(n_jobs=num_cpus)(
             delayed(_generate_binary_timeline_for_df_row)((index, row, nan_removed_gaze_data_df, behavior_type))
             for index, row in tqdm(behavior_df.iterrows(), total=len(behavior_df), desc=f"Generating binary timeline for {behavior_type}")
         )
     else:
-        # Serial processing with tqdm
         results = [
             _generate_binary_timeline_for_df_row((index, row, nan_removed_gaze_data_df, behavior_type))
             for index, row in tqdm(behavior_df.iterrows(), total=len(behavior_df), desc=f"Generating binary timeline for {behavior_type}")
         ]
-    # Flatten and concatenate the list of DataFrames, then sort by index for order
-    binary_timeline_df = pd.concat(results).sort_index().reset_index(drop=True)
+    # Concatenate all results and reset the index
+    binary_timeline_df = pd.concat(results).sort_values(by='row_index').reset_index(drop=True)
     return binary_timeline_df
 
 
@@ -72,13 +69,15 @@ def _generate_binary_timeline_for_df_row(args):
     if neural_timeline_row.empty:
         return pd.DataFrame()  # Return empty DataFrame if no matching neural timeline row is found
     total_timeline_length = len(neural_timeline_row.iloc[0]['neural_timeline'])
-    # Use the appropriate helper function for fixation or saccade and return the result as a DataFrame
+    # Generate timelines based on the behavior type
     if behavior_type == 'fixation':
         result = __append_fixation_data(behav_row, total_timeline_length)
     elif behavior_type == 'saccade':
         result = __append_saccade_data(behav_row, total_timeline_length)
-    # Return DataFrame with index for sorting
-    return pd.DataFrame(result).assign(row_index=index)
+    # Assign row_index to each row within the result for accurate ordering
+    for row in result:
+        row['row_index'] = index
+    return pd.DataFrame(result)
 
 
 def __append_fixation_data(behav_row, total_timeline_length):
@@ -158,18 +157,17 @@ def __append_saccade_data(behav_row, total_timeline_length):
     behavior_type = 'saccade'
     # Initialize the "all" binary timeline
     binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
-    # Create a dictionary to store binary timelines for each unique from-to combination
-    from_to_timelines = {f"{from_loc}-{to_loc}": np.zeros(total_timeline_length, dtype=int)
-                         for from_loc, to_loc in zip(from_locations, to_locations)}
-    # Update binary timelines based on intervals for each from-to combination
+    # Find all unique (from, to) combinations
+    unique_combinations = set(zip(from_locations, to_locations))
+    # Create a dictionary to store binary timelines for each unique (from, to) combination
+    from_to_timelines = { (from_loc, to_loc): np.zeros(total_timeline_length, dtype=int) for from_loc, to_loc in unique_combinations }
+    # Update binary timelines based on intervals for each unique (from, to) combination
     for (start, stop), from_loc, to_loc in zip(intervals, from_locations, to_locations):
         binary_timeline_all[start:stop] = 1  # Mark interval in the "all" timeline
-        from_to_key = f"{from_loc}-{to_loc}"
-        from_to_timelines[from_to_key][start:stop] = 1  # Mark interval for the specific from-to timeline
-    # Prepare results for each unique from-to combination
+        from_to_timelines[(from_loc, to_loc)][start:stop] = 1  # Mark interval for the specific from-to combination
+    # Prepare results for each unique (from, to) combination
     result_rows = []
-    for from_to_key, from_to_timeline in from_to_timelines.items():
-        from_loc, to_loc = from_to_key.split('-')
+    for (from_loc, to_loc), from_to_timeline in from_to_timelines.items():
         result_rows.append({
             'session_name': session,
             'interaction_type': interaction,
@@ -192,6 +190,7 @@ def __append_saccade_data(behav_row, total_timeline_length):
         'binary_timeline': binary_timeline_all.tolist()
     })
     return result_rows
+
 
 
 
