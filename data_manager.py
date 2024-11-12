@@ -146,7 +146,7 @@ class DataManager:
         nan_removed_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'nan_removed_gaze_data_df.pkl')
         if self.params.get('remake_nan_removed_gaze_data_df', False) or not os.path.exists(nan_removed_gaze_data_file_path):
             self.logger.info("Pruning NaN values in gaze data.")
-            nan_removed_gaze_data = curate_data.prune_nan_values_in_timeseries(self.gaze_data_df, self.params)
+            nan_removed_gaze_data = curate_data.prune_nan_values_in_timeseries(self.gaze_data_df)
             nan_removed_gaze_data.to_pickle(nan_removed_gaze_data_file_path)
             self.nan_removed_gaze_data_df = nan_removed_gaze_data
         else:
@@ -169,10 +169,13 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
             self.logger.info("Detecting fixations and saccades.")
-            fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
-            # fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
-            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df, self.num_cpus)
-            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df, self.num_cpus)
+            # fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
+            fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
+            # use_parallel = self.params['use_parallel']
+            use_parallel = False
+            pdb.set_trace()
+            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df, self.num_cpus, use_parallel)
+            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df, self.num_cpus, use_parallel)
             fixation_df.to_pickle(fixation_file_path)
             saccade_df.to_pickle(saccade_file_path)
             return fixation_df, saccade_df
