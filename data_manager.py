@@ -157,10 +157,10 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        pdb.set_trace()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.binary_timeseries_scaled_autocorr_df = self._load_or_compute_binary_timeseries_autocorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
-        pdb.set_trace()
 
 
     def _load_or_compute_fixations_and_saccades(self):
@@ -169,8 +169,8 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
             self.logger.info("Detecting fixations and saccades.")
-            # fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
-            fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
+            fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
+            # fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
             fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df, self.num_cpus)
             saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df, self.num_cpus)
             fixation_df.to_pickle(fixation_file_path)
@@ -186,6 +186,14 @@ class DataManager:
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
         if self.params.get('remake_binary_timeseries', False) or not os.path.exists(binary_timeseries_file_path):
             self.logger.info("Generating binary behavior timeseries.")
+            fixation_timeline_df = analyze_data.create_binary_timeline_for_behavior(
+                self.fixation_df, self.nan_removed_gaze_data_df, behavior_type='fixation')
+            saccade_timeline_df = analyze_data.create_binary_timeline_for_behavior(
+                self.saccade_df, self.nan_removed_gaze_data_df, behavior_type='saccade')
+            pdb.set_trace()
+            # Assuming fixation_timeline_df and saccade_timeline_df are already created
+            binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
+
             binary_timeseries_df = analyze_data.create_binary_behav_timeseries_df(
                 self.fixation_df, self.saccade_df, self.nan_removed_gaze_data_df, self.params
             )
@@ -226,6 +234,7 @@ class DataManager:
 
     def plot_data(self):
         plotter.plot_random_run_snippets(self.neural_fr_timeseries_df)
+        plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
 
 
     def run(self):
