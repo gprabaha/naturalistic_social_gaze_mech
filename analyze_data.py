@@ -16,11 +16,14 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
+
 import pandas as pd
 import numpy as np
 
+
 def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, behavior_type='fixation'):
     result_rows = []
+
     # Determine the appropriate columns based on behavior type
     if behavior_type == 'fixation':
         start_stop_column = 'fixation_start_stop'
@@ -31,12 +34,14 @@ def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, b
         to_column = 'to'
     else:
         raise ValueError("behavior_type must be 'fixation' or 'saccade'")
+
     # Iterate over each row in the behavior DataFrame
     for _, behav_row in behavior_df.iterrows():
         session = behav_row['session_name']
         interaction = behav_row['interaction_type']
         run = behav_row['run_number']
         agent = behav_row['agent']
+
         # Fetch the neural timeline for the current session, run, and agent
         neural_timeline_row = nan_removed_gaze_data_df[
             (nan_removed_gaze_data_df['session_name'] == session) &
@@ -44,76 +49,60 @@ def create_binary_timeline_for_behavior(behavior_df, nan_removed_gaze_data_df, b
             (nan_removed_gaze_data_df['run_number'] == run) &
             (nan_removed_gaze_data_df['agent'] == agent)
         ]
+        
         if neural_timeline_row.empty:
             continue  # Skip if no matching neural timeline row is found
+
         neural_timeline = neural_timeline_row.iloc[0]['neural_timeline']
         total_timeline_length = len(neural_timeline)
+
         # Initialize a binary timeline for marking all events of this type
         binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
+
         # Behavior-specific processing
         if behavior_type == 'fixation':
             intervals = behav_row[start_stop_column]
             locations = behav_row[location_column]
-            # Create a binary timeline for each unique location
-            location_timelines = {loc: np.zeros(total_timeline_length, dtype=int) for loc in set(locations)}
+
             for (start, stop), loc in zip(intervals, locations):
                 binary_timeline_all[start:stop] = 1  # Mark in the "all" timeline
-                location_timelines[loc][start:stop] = 1  # Mark specific location fixations
-            # Add each timeline to the result DataFrame
-            result_rows.append({
-                'session_name': session,
-                'interaction_type': interaction,
-                'run_number': run,
-                'agent': agent,
-                'behav_type': behavior_type,
-                'event_location': 'all',
-                'binary_timeline': binary_timeline_all.tolist()
-            })
-            for loc, loc_timeline in location_timelines.items():
+                
+                # Append the timeline for this fixation
                 result_rows.append({
                     'session_name': session,
                     'interaction_type': interaction,
                     'run_number': run,
                     'agent': agent,
                     'behav_type': behavior_type,
-                    'event_location': loc,
-                    'binary_timeline': loc_timeline.tolist()
+                    'from': loc,
+                    'to': loc,
+                    'binary_timeline': binary_timeline_all.tolist()
                 })
+
         elif behavior_type == 'saccade':
             intervals = behav_row[start_stop_column]
             from_locations = behav_row[from_column]
             to_locations = behav_row[to_column]
-            # Create binary timelines for each unique from-to combination
-            from_to_timelines = {
-                f"{from_loc}-to-{to_loc}": np.zeros(total_timeline_length, dtype=int)
-                for from_loc, to_loc in zip(from_locations, to_locations)
-            }
+
             for (start, stop), from_loc, to_loc in zip(intervals, from_locations, to_locations):
                 binary_timeline_all[start:stop] = 1  # Mark in the "all" timeline
-                from_to_timelines[f"{from_loc}-to-{to_loc}"][start:stop] = 1  # Mark specific from-to transitions
-            # Add each timeline to the result DataFrame
-            result_rows.append({
-                'session_name': session,
-                'interaction_type': interaction,
-                'run_number': run,
-                'agent': agent,
-                'behav_type': behavior_type,
-                'event_location': 'all',
-                'binary_timeline': binary_timeline_all.tolist()
-            })
-            for from_to, from_to_timeline in from_to_timelines.items():
+                
+                # Append the timeline for this saccade
                 result_rows.append({
                     'session_name': session,
                     'interaction_type': interaction,
                     'run_number': run,
                     'agent': agent,
                     'behav_type': behavior_type,
-                    'event_location': from_to,
-                    'binary_timeline': from_to_timeline.tolist()
+                    'from': from_loc,
+                    'to': to_loc,
+                    'binary_timeline': binary_timeline_all.tolist()
                 })
+
     # Create the final DataFrame
     binary_timeline_df = pd.DataFrame(result_rows)
     return binary_timeline_df
+
 
 
 
