@@ -63,7 +63,7 @@ class FixationDetector:
         Returns:
             dict: A dictionary containing detected fixation indices, times, and outlier info.
         """
-        if len(data[0]) > int(500 / (self.samprate * 1000)):
+        if len(data[0]) > int(30 / (self.samprate * 1000)):
             self.logger.debug("Preprocessing data")
             x, y = self.preprocess_data(data)
             self.logger.debug("Extracting parameters")

@@ -26,8 +26,7 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': False,
-        'submit_separate_jobs_for_sessions': True,
+        'use_parallel': True,
         'use_toy_data': False,
         'remake_toy_data': False,
         'num_cpus': None,
@@ -38,8 +37,8 @@ def main():
         'remake_synchronized_gaze_data_df': False,
 
         'remake_fix_and_sacc': True,
-        'try_using_single_run': True,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'try_using_single_run': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': True,
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
         
         'remake_binary_timeseries': True,
