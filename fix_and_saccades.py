@@ -72,23 +72,23 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
                 f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
-                    fix_dict = pickle.load(f)
+                    fix_indices = pickle.load(f)
                     fixation_rows.append({
                         'session_name': session,
                         'interaction_type': interaction_type,
                         'run_number': run,
                         'agent': agent,
-                        'fixation_start_stop': fix_dict['fixationindices']
+                        'fixation_start_stop': fix_indices
                     })
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
-                    sacc_dict = pickle.load(f)
+                    sacc_indices = pickle.load(f)
                     saccade_rows.append({
                         'session_name': session,
                         'interaction_type': interaction_type,
                         'run_number': run,
                         'agent': agent,
-                        'saccade_start_stop': sacc_dict['saccadeindices']
+                        'saccade_start_stop': sacc_indices
                     })
     else:
         # Run in serial mode
@@ -96,7 +96,6 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
         for task in tqdm(df_keys_for_tasks, total=len(df_keys_for_tasks), desc="Processing runs"):
             session, interaction_type, run, agent, positions = task
             if positions is not None and positions.size > 0:
-                pdb.set_trace()
                 fix_dict, sacc_dict = process_fix_and_saccade_for_specific_run(
                     session, positions, params
                 )
@@ -156,17 +155,24 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     for i, (chunk_index, chunk) in enumerate(chunks):
         fixation_res = fixation_detector.detect_fixations((chunk[:, 0], chunk[:, 1]))
         saccade_res = saccade_detector.detect_saccades_with_edge_outliers((chunk[:, 0], chunk[:, 1]))
+
         # Offset the indices
         chunk_offset = offsets[chunk_index] if chunk_index < len(offsets) else 0
-        fixation_indices = _offset_indices(fixation_res['fixationindices'], chunk_offset)
-        saccade_indices = _offset_indices(saccade_res['saccadeindices'], chunk_offset)
-        # Append results
-        fixation_results.append(fixation_indices)
-        saccade_results.append(saccade_indices)
+        if 'fixationindices' in fixation_res and len(fixation_res['fixationindices']) > 0:
+            fixation_indices = np.atleast_2d(np.array(fixation_res['fixationindices']))
+            if fixation_indices.size > 0 and fixation_indices.shape[1] == 2:
+                fixation_indices = _offset_indices(fixation_indices, chunk_offset)
+                fixation_results.append(fixation_indices)
+        if 'saccadeindices' in saccade_res and len(saccade_res['saccadeindices']) > 0:
+            saccade_indices = np.atleast_2d(np.array(saccade_res['saccadeindices']))
+            if saccade_indices.size > 0 and saccade_indices.shape[1] == 2:
+                saccade_indices = _offset_indices(saccade_indices, chunk_offset)
+                saccade_results.append(saccade_indices)
     # Combine results
-    combined_fixation_results = np.vstack(fixation_results) if fixation_results else np.array([])
-    combined_saccade_results = np.vstack(saccade_results) if saccade_results else np.array([])
+    combined_fixation_results = np.vstack(fixation_results) if fixation_results else np.array([], dtype=np.int64).reshape(0, 2)
+    combined_saccade_results = np.vstack(saccade_results) if saccade_results else np.array([], dtype=np.int64).reshape(0, 2)
     return combined_fixation_results, combined_saccade_results
+
 
 
 def _interpolate_single_nans(data):
@@ -213,11 +219,13 @@ def _offset_indices(indices, offset):
     """
     Offset detected indices by a given offset.
     Parameters:
-    - indices (np.ndarray): Indices to offset.
+    - indices (np.ndarray or list): Indices to offset.
     - offset (int): Offset value.
     Returns:
     - np.ndarray: Offset indices.
     """
+    if isinstance(indices, list) and len(indices) == 0:
+        return np.array([])
     return indices + offset
 
 

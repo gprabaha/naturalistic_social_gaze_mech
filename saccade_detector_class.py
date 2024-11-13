@@ -55,46 +55,50 @@ class SaccadeDetector:
         """
         self.logger.info(f"Detecting saccades using method: {method}")
         # Detect saccades based on the specified method
-        if method == "hubel_2000":
-            result = self._detect_saccades_hubel_2000(data)
-        elif method == "mayo_2023":
-            result = self._detect_saccades_mayo_2023(data)
+        if len(data[0]) > int(10 / (self.samprate * 1000)):
+            if method == "hubel_2000":
+                result = self._detect_saccades_hubel_2000(data)
+            elif method == "mayo_2023":
+                result = self._detect_saccades_mayo_2023(data)
+            else:
+                result = self._detect_saccades_old_method(data)
+            result['session_name'] = self.session_name
+            # Extract the coordinates
+            x, y = result['XY'][0], result['XY'][1]
+            # Fetch pixel threshold for boundary outlier removal
+            # if not threshold:
+            #     threshold = self.params.get('pixel_threshold_for_boundary_outlier_removal', 50)
+            # self.logger.info(f"Using pixel threshold for boundary outlier removal: {threshold}")
+            # Filter the detected saccades and microsaccades by removing outliers based on centroid proximity
+            # filtered_saccade_inds = self._filter_out_saccades_by_centroid(result['saccadeindices'], x, y, threshold=threshold)
+            # filtered_microsaccade_inds = self._filter_out_saccades_by_centroid(result['microsaccadeindices'], x, y, threshold=threshold)
+            # filtered_saccade_times = filtered_saccade_inds * self.samprate
+            # filtered_microsaccade_times = filtered_microsaccade_inds * self.samprate
+            # Track the removed outliers (saccades and microsaccades that were filtered out due to centroid proximity to boundary)
+            # removed_saccade_outliers = self._track_outlier_saccades(result['saccadeindices'], filtered_saccade_inds, x, y)
+            # removed_microsaccade_outliers = self._track_outlier_saccades(result['microsaccadeindices'], filtered_microsaccade_inds, x, y)
+            # Store the outlier information separately for saccades and microsaccades
+            # result['outlier_info'] = {
+            #     'saccades': removed_saccade_outliers,
+            #     'microsaccades': removed_microsaccade_outliers
+            # }
+            # Update the result to include the filtered saccades and microsaccades
+            # Log the number of saccades and microsaccades finally detected
+            num_saccades = result['saccadeindices'].shape[0] if result['saccadeindices'].size > 0 else 0
+            num_microsaccades = result['microsaccadeindices'].shape[0] if result['microsaccadeindices'].size > 0 else 0
+            # num_saccade_outliers = len(removed_saccade_outliers['start_stop_indices']) if 'start_stop_indices' in removed_saccade_outliers else 0
+            # num_microsaccade_outliers = len(removed_microsaccade_outliers['start_stop_indices']) if 'start_stop_indices' in removed_microsaccade_outliers else 0
+            self.logger.info(f"Final number of saccades detected: {num_saccades}")
+            # self.logger.info(f"Number of saccade outliers detected: {num_saccade_outliers}")
+            self.logger.info(f"Final number of microsaccades detected: {num_microsaccades}")
+            # self.logger.info(f"Number of microsaccade outliers detected: {num_microsaccade_outliers}")
         else:
-            result = self._detect_saccades_old_method(data)
-        result['session_name'] = self.session_name
-        # Extract the coordinates
-        x, y = result['XY'][0], result['XY'][1]
-        # Fetch pixel threshold for boundary outlier removal
-        if not threshold:
-            threshold = self.params.get('pixel_threshold_for_boundary_outlier_removal', 50)
-        self.logger.info(f"Using pixel threshold for boundary outlier removal: {threshold}")
-        # Filter the detected saccades and microsaccades by removing outliers based on centroid proximity
-        filtered_saccade_inds = self._filter_out_saccades_by_centroid(result['saccadeindices'], x, y, threshold=threshold)
-        filtered_microsaccade_inds = self._filter_out_saccades_by_centroid(result['microsaccadeindices'], x, y, threshold=threshold)
-        filtered_saccade_times = filtered_saccade_inds * self.samprate
-        filtered_microsaccade_times = filtered_microsaccade_inds * self.samprate
-        # Track the removed outliers (saccades and microsaccades that were filtered out due to centroid proximity to boundary)
-        removed_saccade_outliers = self._track_outlier_saccades(result['saccadeindices'], filtered_saccade_inds, x, y)
-        removed_microsaccade_outliers = self._track_outlier_saccades(result['microsaccadeindices'], filtered_microsaccade_inds, x, y)
-        # Store the outlier information separately for saccades and microsaccades
-        result['outlier_info'] = {
-            'saccades': removed_saccade_outliers,
-            'microsaccades': removed_microsaccade_outliers
-        }
-        # Update the result to include the filtered saccades and microsaccades
-        result['saccadeindices'] = filtered_saccade_inds
-        result['microsaccadeindices'] = filtered_microsaccade_inds
-        result['saccadetimes'] = filtered_saccade_times
-        result['microsaccadetimes'] = filtered_microsaccade_times
-        # Log the number of saccades and microsaccades finally detected
-        num_saccades = filtered_saccade_inds.shape[0] if filtered_saccade_inds.size > 0 else 0
-        num_microsaccades = filtered_microsaccade_inds.shape[0] if filtered_microsaccade_inds.size > 0 else 0
-        num_saccade_outliers = len(removed_saccade_outliers['start_stop_indices']) if 'start_stop_indices' in removed_saccade_outliers else 0
-        num_microsaccade_outliers = len(removed_microsaccade_outliers['start_stop_indices']) if 'start_stop_indices' in removed_microsaccade_outliers else 0
-        self.logger.info(f"Final number of saccades detected: {num_saccades}")
-        self.logger.info(f"Number of saccade outliers detected: {num_saccade_outliers}")
-        self.logger.info(f"Final number of microsaccades detected: {num_microsaccades}")
-        self.logger.info(f"Number of microsaccade outliers detected: {num_microsaccade_outliers}")
+            self.logger.warning("Data too short for processing")
+            return {
+                'saccadeindices': [],
+                'XY': np.array([data[0], data[1]]),
+                'variables': self.variables
+            }
         return result
 
 

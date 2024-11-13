@@ -36,13 +36,13 @@ def main(task_key, params_file_path):
         sys.exit(1)
     # Paths to gaze data dictionary and missing data paths
     processed_data_dir = params['processed_data_dir']
-    nan_removed_gaze_data_df_path = os.path.join(processed_data_dir, 'nan_removed_gaze_data_df.pkl')
+    synchronized_gaze_data_df_path = os.path.join(processed_data_dir, 'synchronized_gaze_data_df.pkl')
     # Load gaze data dictionary
     try:
-        nan_removed_gaze_data_df = load_data.get_nan_removed_gaze_data_df(nan_removed_gaze_data_df_path)
+        synchronized_gaze_data_df = load_data.get_synchronized_gaze_data_df(synchronized_gaze_data_df_path)
         logger.info("Gaze data dataframe loaded successfully.")
     except Exception as e:
-        logger.error(f"Failed to load gaze data from {nan_removed_gaze_data_df_path}: {e}")
+        logger.error(f"Failed to load gaze data from {synchronized_gaze_data_df_path}: {e}")
         sys.exit(1)
     # Parse task_key to fetch the required positions array
     try:
@@ -59,11 +59,11 @@ def main(task_key, params_file_path):
     # Filter the DataFrame to get the matching row
     try:
         # Filter the DataFrame for the specific task
-        filtered_df = nan_removed_gaze_data_df[
-            (nan_removed_gaze_data_df['session_name'] == session) &
-            (nan_removed_gaze_data_df['interaction_type'] == interaction_type) &
-            (nan_removed_gaze_data_df['run_number'] == run) &
-            (nan_removed_gaze_data_df['agent'] == agent)
+        filtered_df = synchronized_gaze_data_df[
+            (synchronized_gaze_data_df['session_name'] == session) &
+            (synchronized_gaze_data_df['interaction_type'] == interaction_type) &
+            (synchronized_gaze_data_df['run_number'] == run) &
+            (synchronized_gaze_data_df['agent'] == agent)
         ]
         if filtered_df.empty:
             logger.error(f"No data found for task key: {task_key}")
@@ -72,7 +72,7 @@ def main(task_key, params_file_path):
         positions = filtered_df['positions'].iloc[0]  # Assuming 'positions' is a single column per row
         logger.info("Successfully extracted positions for fixation and saccade detection.")
         # Run fixation and saccade detection
-        fix_dict, sacc_dict = fix_and_saccades.process_fix_and_saccade_for_specific_run(session, positions, params)
+        fix_indices, sacc_indices = fix_and_saccades.process_fix_and_saccade_for_specific_run(session, positions, params)
         logger.info("Fixation and saccade detection completed successfully.")
     except Exception as e:
         logger.error(f"Failed during fixation and saccade detection: {e}")
@@ -85,10 +85,10 @@ def main(task_key, params_file_path):
         saccade_output_path = os.path.join(processed_data_dir, hpc_data_subfolder, f'saccade_results_{session}_{interaction_type}_{str(run)}_{agent}.pkl')
         os.makedirs(os.path.dirname(fixation_output_path), exist_ok=True)
         with open(fixation_output_path, 'wb') as f:
-            pickle.dump(fix_dict, f)
+            pickle.dump(fix_indices, f)
         logger.info(f"Fixation results saved successfully at {fixation_output_path}")
         with open(saccade_output_path, 'wb') as f:
-            pickle.dump(sacc_dict, f)
+            pickle.dump(sacc_indices, f)
         logger.info(f"Saccade results saved successfully at {saccade_output_path}")
     except Exception as e:
         logger.error(f"Failed to save results: {e}")

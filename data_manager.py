@@ -160,7 +160,6 @@ class DataManager:
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
-        pdb.set_trace()
 
 
     def _load_or_compute_fixations_and_saccades(self):
@@ -169,7 +168,6 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
             self.logger.info("Detecting fixations and saccades.")
-            pdb.set_trace()
             fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.synchronized_gaze_data_df, self.params)
             # fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
             # use_parallel = self.params['use_parallel']
@@ -256,4 +254,4 @@ class DataManager:
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
-        self.plot_data()
+        # self.plot_data()
