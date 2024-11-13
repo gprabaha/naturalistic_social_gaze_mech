@@ -606,7 +606,6 @@ def _process_fixation_row(row, gaze_data_df):
     run_number = row['run_number']
     agent = row['agent']
     fixations = row['fixation_start_stop']
-    
     # Filter the gaze data to match the current row's session, interaction type, run, and agent
     gaze_row = gaze_data_df[
         (gaze_data_df['session_name'] == session_name) &
@@ -621,6 +620,8 @@ def _process_fixation_row(row, gaze_data_df):
     for start_stop in fixations:
         start_idx, stop_idx = start_stop
         fixation_positions = positions[start_idx:stop_idx + 1]
+        if len(fixation_positions) < 1:
+            pdb.set_trace()
         mean_position = [
             sum(pos[0] for pos in fixation_positions) / len(fixation_positions),
             sum(pos[1] for pos in fixation_positions) / len(fixation_positions)
