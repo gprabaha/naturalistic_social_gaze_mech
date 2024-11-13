@@ -157,8 +157,8 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
-        pdb.set_trace()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
+        pdb.set_trace()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
 

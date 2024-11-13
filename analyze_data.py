@@ -68,7 +68,6 @@ def _generate_binary_timeline_for_df_row(args):
     ]
     if neural_timeline_row.empty:
         return pd.DataFrame()  # Return empty DataFrame if no matching neural timeline row is found
-    pdb.set_trace()
     total_timeline_length = len(neural_timeline_row.iloc[0]['neural_timeline'])
     # Generate timelines based on the behavior type
     if behavior_type == 'fixation':
@@ -100,14 +99,21 @@ def __append_fixation_data(behav_row, total_timeline_length):
     run = behav_row['run_number']
     agent = behav_row['agent']
     behavior_type = 'fixation'
+    pdb.set_trace()
+    # Flatten the list of lists
+    flattened_locations = [item for sublist in data for item in locations]
+    # Get unique entries using set
+    unique_locations = list(set(flattened_locations))
     # Initialize the "all" binary timeline
     binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
     # Create a dictionary to store binary timelines for each unique location
-    location_timelines = {loc: np.zeros(total_timeline_length, dtype=int) for loc in set(locations)}
+    location_timelines = {loc: np.zeros(total_timeline_length, dtype=int) for loc in set(unique_locations)}
     # Update binary timelines based on intervals for each location
-    for (start, stop), loc in zip(intervals, locations):
+    # Update binary timelines based on intervals for each location
+    for (start, stop), loc_list in zip(intervals, locations):
         binary_timeline_all[start:stop] = 1  # Mark interval in the "all" timeline
-        location_timelines[loc][start:stop] = 1  # Mark interval for the specific location timeline
+        for loc in loc_list:  # Handle multiple locations
+            location_timelines[loc][start:stop] = 1  # Mark interval for each specific location timeline
     # Prepare results for each unique location type
     result_rows = []
     for loc, loc_timeline in location_timelines.items():
@@ -156,16 +162,26 @@ def __append_saccade_data(behav_row, total_timeline_length):
     run = behav_row['run_number']
     agent = behav_row['agent']
     behavior_type = 'saccade'
+    # Flatten and find all unique (from, to) combinations
+    unique_combinations = set(
+        (from_loc, to_loc)
+        for from_list, to_list in zip(from_locations, to_locations)
+        for from_loc in from_list
+        for to_loc in to_list
+    )
     # Initialize the "all" binary timeline
     binary_timeline_all = np.zeros(total_timeline_length, dtype=int)
-    # Find all unique (from, to) combinations
-    unique_combinations = set(zip(from_locations, to_locations))
     # Create a dictionary to store binary timelines for each unique (from, to) combination
-    from_to_timelines = { (from_loc, to_loc): np.zeros(total_timeline_length, dtype=int) for from_loc, to_loc in unique_combinations }
+    from_to_timelines = {
+        (from_loc, to_loc): np.zeros(total_timeline_length, dtype=int)
+        for from_loc, to_loc in unique_combinations
+    }
     # Update binary timelines based on intervals for each unique (from, to) combination
-    for (start, stop), from_loc, to_loc in zip(intervals, from_locations, to_locations):
+    for (start, stop), from_list, to_list in zip(intervals, from_locations, to_locations):
         binary_timeline_all[start:stop] = 1  # Mark interval in the "all" timeline
-        from_to_timelines[(from_loc, to_loc)][start:stop] = 1  # Mark interval for the specific from-to combination
+        for from_loc in from_list:
+            for to_loc in to_list:
+                from_to_timelines[(from_loc, to_loc)][start:stop] = 1  # Mark interval for the specific from-to combination
     # Prepare results for each unique (from, to) combination
     result_rows = []
     for (from_loc, to_loc), from_to_timeline in from_to_timelines.items():
@@ -191,6 +207,7 @@ def __append_saccade_data(behav_row, total_timeline_length):
         'binary_timeline': binary_timeline_all.tolist()
     })
     return result_rows
+
 
 
 def calculate_auto_and_cross_corrs_bet_behav_vectors(binary_behav_timeseries_df, num_cpus=1, use_parallel=False):
