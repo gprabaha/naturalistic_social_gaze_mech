@@ -144,7 +144,7 @@ class DataManager:
     def prune_data(self):
         """Prune NaN values from gaze data."""
         synchronized_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'synchronized_gaze_data_df.pkl')
-        if self.params.get('remake_nan_removed_gaze_data_df', False) or not os.path.exists(synchronized_gaze_data_file_path):
+        if self.params.get('remake_synchronized_gaze_data_df', False) or not os.path.exists(synchronized_gaze_data_file_path):
             self.logger.info("Pruning NaN values in the beginning and end of gaze data.")
             synchronized_gaze_data = curate_data.synchronize_m1_and_m2_timelines_by_pruning_flanking_nans(self.gaze_data_df)
             synchronized_gaze_data.to_pickle(synchronized_gaze_data_file_path)

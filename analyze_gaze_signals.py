@@ -35,7 +35,7 @@ def main():
 
         'remake_gaze_data_df': False,
         'remake_spike_times_df': False,
-        'remake_nan_removed_gaze_data_df': True,
+        'remake_synchronized_gaze_data_df': False,
 
         'remake_fix_and_sacc': True,
         'try_using_single_run': True,

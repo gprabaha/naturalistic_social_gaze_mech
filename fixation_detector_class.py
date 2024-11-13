@@ -41,7 +41,7 @@ class FixationDetector:
         self.logger.setLevel(logging.INFO)
 
 
-    def detect_fixations_with_edge_outliers(self, eyedat):
+    def detect_fixations(self, eyedat):
         """Detects fixations in the provided eye data.
         Args:
             eyedat (list): List containing x and y coordinates of eye data.
@@ -51,11 +51,11 @@ class FixationDetector:
         if not eyedat:
             self.logger.error("No data file found")
             raise ValueError("No data file found")
-        self.fixationstats = self.process_eyedat_with_outlier_handling(eyedat)
+        self.fixationstats = self.process_eyedat(eyedat)
         return self.fixationstats
 
 
-    def process_eyedat_with_outlier_handling(self, data):
+    def process_eyedat(self, data):
         """Processes the eye data to detect fixations, removes outliers and adjusts
         the fixation indices by truncating non-fixation periods.
         Args:
@@ -81,25 +81,20 @@ class FixationDetector:
             fixation_indices = self.remove_not_fixations(fixation_indices, notfixations)
             # Apply duration threshold after removing non-fixations
             _, fixation_indices = self.apply_duration_threshold(fixation_indices, int(0.025 / self.samprate))
-            # Track outlier information for analysis
-            outlier_info = self._track_outlier_fixations_from_reclustering(notfixations, x, y)
             # Logging how many fixations and outliers were found
             num_fixations = fixation_indices.shape[1] if fixation_indices.size > 0 else 0
-            num_outliers = len(outlier_info['start_stop_indices']) if 'start_stop_indices' in outlier_info else 0
             self.logger.info(f"Final number of fixations identified: {num_fixations}")
-            self.logger.info(f"Number of outliers detected: {num_outliers}")
             return {
                 'session_name': self.session_name,
                 'fixationindices': util.reshape_to_ensure_data_rows_represent_samples(fixation_indices),
                 'fixationtimes': util.reshape_to_ensure_data_rows_represent_samples(fixation_indices) * self.samprate,
                 'XY': np.array([x, y]),
-                'outlier_info': outlier_info,
                 'variables': self.variables
             }
         else:
             self.logger.warning("Data too short for processing")
             return {
-                'fixationtimes': [],
+                'fixationindices': [],
                 'XY': np.array([data[0], data[1]]),
                 'variables': self.variables
             }
@@ -614,95 +609,3 @@ class FixationDetector:
             return np.full(n, 0.0)  # Return an array of zeros in case of an error
         return silh
     
-
-    def detect_edge_outliers_by_limits(self, x, y, threshold=None):
-        """Detects edge outliers by checking if points lie near the max/min limits along the x or y axis.
-        Args:
-            x (np.ndarray): Array of x coordinates.
-            y (np.ndarray): Array of y coordinates.
-            threshold (float): Px threshold for proximity to max/min values to be considered an outlier.
-        Returns:
-            np.ndarray: Mask of valid points (True if the point is valid, False if it's an outlier).
-        """
-        self.logger.debug("Detecting edge outliers based on max/min limits")
-        if not threshold:
-            threshold = self.params.get('pixel_threshold_for_boundary_outlier_removal')
-        # Find the min and max values for x and y
-        x_min, x_max = np.min(x), np.max(x)
-        y_min, y_max = np.min(y), np.max(y)
-        # Create masks for points that are too close to the edges
-        x_outliers = (np.abs(x - x_max) < threshold) | (np.abs(x - x_min) < threshold)
-        y_outliers = (np.abs(y - y_max) < threshold) | (np.abs(y - y_min) < threshold)
-        # Combine both conditions (outliers if too close to either axis' edge)
-        outliers_mask = x_outliers | y_outliers
-        self.logger.debug(f"Detected {np.sum(outliers_mask)} edge outliers based on max/min proximity")
-        # Invert mask to mark valid points
-        valid_mask = ~outliers_mask
-        return valid_mask
-
-
-    def adjust_fixation_indices_after_outlier_removal(self, fixation_indices, valid_mask, tolerance=0.9):
-        """Adjust fixation start and end indices after removing outliers, only accepting fixations with
-        more than a specified tolerance (default 90%) of valid points.
-        Args:
-            fixation_indices (np.ndarray): Original fixation indices, shape (2, N) where each column is [start, end].
-            valid_mask (np.ndarray): Mask of valid points (True for valid, False for outliers).
-            tolerance (float): Minimum percentage of valid points required to accept a fixation. Defaults to 0.9 (90%).
-        Returns:
-            np.ndarray: Adjusted fixation indices after outlier removal, shape (2, N).
-        """
-        self.logger.debug(f"Adjusting fixation indices after outlier removal with {tolerance * 100}% valid points tolerance")
-        # Get the valid indices after removing outliers
-        valid_indices = np.where(valid_mask)[0]  # Indices that remain after outlier removal
-        adjusted_fixation_indices = []
-        for fixation in fixation_indices.T:  # Iterate over columns (start, end pairs)
-            start, end = fixation
-            fixation_length = end - start + 1  # Number of points in the fixation
-            if fixation_length <= 0:
-                continue  # Skip invalid fixations
-            # Calculate how many valid points are in the fixation range
-            valid_points_in_fixation = np.sum(valid_mask[start:end+1])
-            valid_percentage = valid_points_in_fixation / fixation_length
-            if valid_percentage >= tolerance:
-                adjusted_fixation_indices.append([start, end])
-            else:
-                self.logger.debug(f"Discarded fixation from {start} to {end} due to valid percentage: {valid_percentage*100:.2f}%")
-        return np.array(adjusted_fixation_indices).T  # Return as (2, N) array
-
-
-    def _track_outlier_fixations_from_reclustering(self, outlier_indices, x, y):
-        """
-        Tracks the fixation points that were removed as outliers during reclustering.
-        Args:
-            outlier_indices (np.ndarray): Indices of non-fixation events detected during reclustering.
-            x (np.ndarray): x-coordinates of eye position.
-            y (np.ndarray): y-coordinates of eye position.
-        Returns:
-            dict: Outlier fixation information with start and stop indices, times, and corresponding XY coordinates.
-        """
-        if outlier_indices.size == 0:
-            return {'start_stop_indices': [], 'times': [], 'XY': []}
-        outlier_info = {
-            'start_stop_indices': [],  # List of start and stop indices for each outlier
-            'times': [],  # List of start and stop times for each outlier
-            'XY': []  # List of (x, y) coordinates for each outlier
-        }
-        # Group contiguous outliers into start and stop ranges
-        dind = np.diff(outlier_indices)
-        gaps = np.where(dind > 1)[0]
-        if gaps.size > 0:
-            outlier_groups = np.split(outlier_indices, gaps + 1)
-        else:
-            outlier_groups = [outlier_indices]
-        for group in outlier_groups:
-            start = group[0]
-            end = group[-1]
-            # Store start and end indices
-            outlier_info['start_stop_indices'].append([start, end])
-            # Calculate the corresponding times
-            outlier_info['times'].append([start * self.samprate, end * self.samprate])
-            # Extract the corresponding XY points for the outlier
-            outlier_x = x[start:end + 1]
-            outlier_y = y[start:end + 1]
-            outlier_info['XY'].append([outlier_x, outlier_y])
-        return outlier_info

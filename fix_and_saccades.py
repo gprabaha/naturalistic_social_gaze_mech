@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool
+from scipy.interpolate import interp1d
 
 import hpc_fix_and_saccade_detector
 import fixation_detector_class
@@ -122,21 +123,19 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     return fixation_df, saccade_df
 
 
+
 def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     """
-    Detects fixations and saccades for a specific run and returns start-stop indices for both.
+    Detects fixations and saccades for a specific run and handles NaNs in the data.
     Parameters:
     - session_name (str): The session identifier.
-    - interaction_type (str): The type of interaction.
-    - run_number (int): The run number.
-    - agent (str): The agent identifier ('m1' or 'm2').
     - positions (np.ndarray): The position data for the run (Nx2 array).
     - params (dict): Configuration parameters.
     Returns:
     - fixation_start_stop (np.ndarray): Nx2 array of start-stop indices for fixations.
     - saccade_start_stop (np.ndarray): Nx2 array of start-stop indices for saccades.
     """
-    # Initialize fixation and saccade detectors
+    # Initialize detectors
     fixation_detector = fixation_detector_class.FixationDetector(
         session_name=session_name,
         samprate=params.get('sampling_rate', 1 / 1000),
@@ -149,16 +148,77 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
         params=params,
         num_cpus=params.get('num_cpus', 1)
     )
-    # Detect fixations
-    fixation_results = fixation_detector.detect_fixations_with_edge_outliers(
-        (positions[:, 0], positions[:, 1])
-    )
-    # Detect saccades
-    saccade_results = saccade_detector.detect_saccades_with_edge_outliers(
-        (positions[:, 0], positions[:, 1])
-    )
-    return fixation_results, saccade_results
+    # Preprocess positions
+    positions = _interpolate_single_nans(positions)
+    chunks, offsets = _split_on_nan_islands(positions)
+    # Detect fixations and saccades in chunks
+    fixation_results, saccade_results = [], []
+    for i, (chunk_index, chunk) in enumerate(chunks):
+        fixation_res = fixation_detector.detect_fixations((chunk[:, 0], chunk[:, 1]))
+        saccade_res = saccade_detector.detect_saccades_with_edge_outliers((chunk[:, 0], chunk[:, 1]))
+        # Offset the indices
+        chunk_offset = offsets[chunk_index] if chunk_index < len(offsets) else 0
+        fixation_indices = _offset_indices(fixation_res['fixationindices'], chunk_offset)
+        saccade_indices = _offset_indices(saccade_res['saccadeindices'], chunk_offset)
+        # Append results
+        fixation_results.append(fixation_indices)
+        saccade_results.append(saccade_indices)
+    # Combine results
+    combined_fixation_results = np.vstack(fixation_results) if fixation_results else np.array([])
+    combined_saccade_results = np.vstack(saccade_results) if saccade_results else np.array([])
+    return combined_fixation_results, combined_saccade_results
 
+
+def _interpolate_single_nans(data):
+    """
+    Interpolate single NaN values in the position data.
+    Parameters:
+    - data (np.ndarray): Nx2 array of position data.
+    Returns:
+    - np.ndarray: Position data with single NaNs interpolated.
+    """
+    x, y = data[:, 0], data[:, 1]
+    nan_mask = np.isnan(x) | np.isnan(y)
+    if np.any(nan_mask):
+        single_nan_mask = nan_mask & ~np.isnan(np.roll(x, 1)) & ~np.isnan(np.roll(x, -1))
+        for dim, array in enumerate([x, y]):
+            if np.any(single_nan_mask):
+                valid_idx = ~nan_mask
+                interp_func = interp1d(
+                    np.flatnonzero(valid_idx), array[valid_idx], kind='linear', bounds_error=False, fill_value="extrapolate"
+                )
+                array[single_nan_mask] = interp_func(np.flatnonzero(single_nan_mask))
+    return np.column_stack((x, y))
+
+
+def _split_on_nan_islands(data):
+    """
+    Split data into chunks based on islands of NaNs.
+    Parameters:
+    - data (np.ndarray): Nx2 array of position data.
+    Returns:
+    - list: List of valid chunks (index, chunk).
+    - np.ndarray: Offsets for each chunk.
+    """
+    nan_mask = np.isnan(data[:, 0]) | np.isnan(data[:, 1])
+    split_indices = np.flatnonzero(np.diff(nan_mask.astype(int))) + 1
+    chunks = np.split(data, split_indices)
+    offsets = np.cumsum([len(chunk) for chunk in chunks[:-1]])
+    # Ensure chunks only contain valid data
+    valid_chunks = [(i, chunk) for i, chunk in enumerate(chunks) if not np.any(np.isnan(chunk))]
+    return valid_chunks, offsets
+
+
+def _offset_indices(indices, offset):
+    """
+    Offset detected indices by a given offset.
+    Parameters:
+    - indices (np.ndarray): Indices to offset.
+    - offset (int): Offset value.
+    Returns:
+    - np.ndarray: Offset indices.
+    """
+    return indices + offset
 
 
 
