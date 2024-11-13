@@ -503,7 +503,7 @@ def _flatten_nested_arrays(arr):
     return arr  # Return as-is if not object array
 
 
-def prune_nan_values_in_timeseries(gaze_data_df):
+def synchronize_m1_and_m2_timelines_by_pruning_flanking_nans(gaze_data_df):
     """
     Prunes NaN values from the time series in the gaze data DataFrame and ensures synchronized timelines across agents.
     Parameters:
@@ -550,16 +550,10 @@ def _prune_nans_to_synchronize_agent_timelines(m1_time_series, m1_positions, m1_
     - Synchronized, pruned versions of positions, pupil sizes, and time series for both agents.
     """
     # Find valid indices for each agent where there are no NaNs
-    m1_valid_indices = ~np.isnan(m1_time_series.flatten()) & ~np.isnan(m1_positions).any(axis=1) & ~np.isnan(m1_pupil_size.flatten())
-    m2_valid_indices = ~np.isnan(m2_time_series.flatten()) & ~np.isnan(m2_positions).any(axis=1) & ~np.isnan(m2_pupil_size.flatten())
-    util.print_nan_cluster_histogram(np.isnan(m1_time_series.flatten()))
-    util.print_nan_cluster_histogram(np.isnan(m1_time_series.flatten()))
-    pdb.set_trace()
-    util.print_nan_cluster_histogram(np.isnan(m1_positions).any(axis=1))
-    util.print_nan_cluster_histogram(np.isnan(m2_positions).any(axis=1))
+    m1_valid_indices = ~np.isnan(m1_time_series.flatten())
+    m2_valid_indices = ~np.isnan(m2_time_series.flatten())
     # Combine valid indices to keep only synchronized non-NaN entries
     synchronized_valid_indices = m1_valid_indices & m2_valid_indices
-    pdb.set_trace()
     # Prune both agents' data using the synchronized indices
     pruned_m1_time_series = m1_time_series[synchronized_valid_indices]
     pruned_m1_positions = m1_positions[synchronized_valid_indices, :]

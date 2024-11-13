@@ -71,7 +71,7 @@ class DataManager:
         self.gaze_data_df = None
         self.spike_times_df = None
         self.missing_data_paths = None
-        self.nan_removed_gaze_data_df = None
+        self.synchronized_gaze_data_df = None
         self.fixation_df = None
         self.saccade_df = None
         self.binary_behav_timeseries_df = None
@@ -143,15 +143,15 @@ class DataManager:
 
     def prune_data(self):
         """Prune NaN values from gaze data."""
-        nan_removed_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'nan_removed_gaze_data_df.pkl')
-        if self.params.get('remake_nan_removed_gaze_data_df', False) or not os.path.exists(nan_removed_gaze_data_file_path):
-            self.logger.info("Pruning NaN values in gaze data.")
-            nan_removed_gaze_data = curate_data.prune_nan_values_in_timeseries(self.gaze_data_df)
-            nan_removed_gaze_data.to_pickle(nan_removed_gaze_data_file_path)
-            self.nan_removed_gaze_data_df = nan_removed_gaze_data
+        synchronized_gaze_data_file_path = os.path.join(self.params['processed_data_dir'], 'synchronized_gaze_data_df.pkl')
+        if self.params.get('remake_nan_removed_gaze_data_df', False) or not os.path.exists(synchronized_gaze_data_file_path):
+            self.logger.info("Pruning NaN values in the beginning and end of gaze data.")
+            synchronized_gaze_data = curate_data.synchronize_m1_and_m2_timelines_by_pruning_flanking_nans(self.gaze_data_df)
+            synchronized_gaze_data.to_pickle(synchronized_gaze_data_file_path)
+            self.synchronized_gaze_data_df = synchronized_gaze_data
         else:
             self.logger.info("Loading pruned gaze data.")
-            self.nan_removed_gaze_data_df = load_data.get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path)
+            self.synchronized_gaze_data_df = load_data.get_synchronized_gaze_data_df(synchronized_gaze_data_file_path)
 
 
     def analyze_behavior(self):
@@ -169,13 +169,13 @@ class DataManager:
         saccade_file_path = os.path.join(self.params['processed_data_dir'], 'saccade_df.pkl')
         if self.params.get('remake_fix_and_sacc', False) or not (os.path.exists(fixation_file_path) and os.path.exists(saccade_file_path)):
             self.logger.info("Detecting fixations and saccades.")
-            # fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.nan_removed_gaze_data_df, self.params)
-            fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
+            pdb.set_trace()
+            fixation_df, saccade_df = fix_and_saccades.detect_fixations_and_saccades(self.synchronized_gaze_data_df, self.params)
+            # fixation_df, saccade_df = load_data.load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path)
             # use_parallel = self.params['use_parallel']
             use_parallel = False
-            pdb.set_trace()
-            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.nan_removed_gaze_data_df, self.num_cpus, use_parallel)
-            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.nan_removed_gaze_data_df, self.num_cpus, use_parallel)
+            fixation_df = curate_data.add_fixation_rois_in_dataframe(fixation_df, self.synchronized_gaze_data_df, self.num_cpus, use_parallel)
+            saccade_df = curate_data.add_saccade_rois_in_dataframe(saccade_df, self.synchronized_gaze_data_df, self.num_cpus, use_parallel)
             fixation_df.to_pickle(fixation_file_path)
             saccade_df.to_pickle(saccade_file_path)
             return fixation_df, saccade_df

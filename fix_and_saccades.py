@@ -95,6 +95,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
         for task in tqdm(df_keys_for_tasks, total=len(df_keys_for_tasks), desc="Processing runs"):
             session, interaction_type, run, agent, positions = task
             if positions is not None and positions.size > 0:
+                pdb.set_trace()
                 fix_dict, sacc_dict = process_fix_and_saccade_for_specific_run(
                     session, positions, params
                 )

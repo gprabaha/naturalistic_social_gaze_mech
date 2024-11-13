@@ -64,7 +64,7 @@ def get_spike_times_df(file_path):
         raise
     
 
-def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
+def get_synchronized_gaze_data_df(synchronized_gaze_data_file_path):
     """
     Loads the gaze data dictionary and missing data paths from saved pickle files.
     Parameters:
@@ -75,7 +75,7 @@ def get_nan_removed_gaze_data_df(nan_removed_gaze_data_file_path):
     - missing_data_paths (list): The loaded list of missing data paths.
     """
     try:
-        with open(nan_removed_gaze_data_file_path, 'rb') as f:
+        with open(synchronized_gaze_data_file_path, 'rb') as f:
             gaze_data_df = pickle.load(f)
         return gaze_data_df
     except Exception as e:
