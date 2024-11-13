@@ -157,6 +157,7 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        pdb.set_trace()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
@@ -191,13 +192,13 @@ class DataManager:
             use_parallel = False
             fixation_timeline_df = analyze_data.create_binary_timeline_for_behavior(
                 self.fixation_df,
-                self.nan_removed_gaze_data_df,
+                self.synchronized_gaze_data_df,
                 self.num_cpus,
                 behavior_type='fixation',
                 use_parallel=use_parallel)
             saccade_timeline_df = analyze_data.create_binary_timeline_for_behavior(
                 self.saccade_df,
-                self.nan_removed_gaze_data_df,
+                self.synchronized_gaze_data_df,
                 self.num_cpus,
                 behavior_type='saccade',
                 use_parallel=use_parallel)

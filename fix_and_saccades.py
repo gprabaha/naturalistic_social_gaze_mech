@@ -145,9 +145,11 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
         params=params,
         num_cpus=params.get('num_cpus', 1)
     )
+
     # Preprocess positions
     positions = _interpolate_single_nans(positions)
     chunks, offsets = _split_on_nan_islands(positions)
+
     # Detect fixations and saccades in chunks
     fixation_results, saccade_results = [], []
     for i, (chunk_index, chunk) in enumerate(chunks):
@@ -158,17 +160,24 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
         if 'fixationindices' in fixation_res and len(fixation_res['fixationindices']) > 0:
             fixation_indices = np.atleast_2d(np.array(fixation_res['fixationindices']))
             if fixation_indices.size > 0 and fixation_indices.shape[1] == 2:
-                fixation_indices = _offset_indices(fixation_indices, chunk_offset)
-                fixation_results.append(fixation_indices)
+                offset_fixation_indices = _offset_indices(fixation_indices, chunk_offset)
+                fixation_results.append(offset_fixation_indices)
         if 'saccadeindices' in saccade_res and len(saccade_res['saccadeindices']) > 0:
             saccade_indices = np.atleast_2d(np.array(saccade_res['saccadeindices']))
             if saccade_indices.size > 0 and saccade_indices.shape[1] == 2:
-                saccade_indices = _offset_indices(saccade_indices, chunk_offset)
-                saccade_results.append(saccade_indices)
+                offset_saccade_indices = _offset_indices(saccade_indices, chunk_offset)
+                saccade_results.append(offset_saccade_indices)
     # Combine results
     combined_fixation_results = np.vstack(fixation_results) if fixation_results else np.array([], dtype=np.int64).reshape(0, 2)
     combined_saccade_results = np.vstack(saccade_results) if saccade_results else np.array([], dtype=np.int64).reshape(0, 2)
+    # Validate indices
+    max_index = len(positions)
+    if np.any(combined_fixation_results >= max_index):
+        raise ValueError(f"Fixation indices exceed positions array length: {max_index}.")
+    if np.any(combined_saccade_results >= max_index):
+        raise ValueError(f"Saccade indices exceed positions array length: {max_index}.")
     return combined_fixation_results, combined_saccade_results
+
 
 
 def _interpolate_single_nans(data):
@@ -196,19 +205,20 @@ def _interpolate_single_nans(data):
 def _split_on_nan_islands(data):
     """
     Split data into chunks based on islands of NaNs.
-    Parameters:
-    - data (np.ndarray): Nx2 array of position data.
     Returns:
-    - list: List of valid chunks (index, chunk).
-    - np.ndarray: Offsets for each chunk.
+    - List of valid chunks (index, chunk).
+    - Array of offsets corresponding to the start of each chunk in the original data.
     """
     nan_mask = np.isnan(data[:, 0]) | np.isnan(data[:, 1])
     split_indices = np.flatnonzero(np.diff(nan_mask.astype(int))) + 1
     chunks = np.split(data, split_indices)
-    offsets = np.cumsum([len(chunk) for chunk in chunks[:-1]])
+    # Calculate offsets based on the start index of each chunk
+    chunk_start_indices = np.insert(split_indices, 0, 0)
+    offsets = chunk_start_indices[:-1]
     # Ensure chunks only contain valid data
     valid_chunks = [(i, chunk) for i, chunk in enumerate(chunks) if not np.any(np.isnan(chunk))]
     return valid_chunks, offsets
+
 
 
 def _offset_indices(indices, offset):
