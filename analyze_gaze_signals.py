@@ -26,7 +26,7 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': True,
+        'use_parallel': False,
         'use_toy_data': False,
         'remake_toy_data': False,
         'num_cpus': None,

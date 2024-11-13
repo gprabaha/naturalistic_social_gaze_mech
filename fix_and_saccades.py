@@ -50,12 +50,11 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     logger.info(f"Pickle dumped params to {params_file_path}")
     fixation_rows = []
     saccade_rows = []
-    if params.get('use_parallel', False):
-        if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
-            # Use HPCFixAndSaccadeDetector to submit jobs for each task
-            detector = hpc_fix_and_saccade_detector.HPCFixAndSaccadeDetector(params)
-            job_file_path = detector.generate_job_file(df_keys_for_tasks, params_file_path)
-            detector.submit_job_array(job_file_path)
+    if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
+        # Use HPCFixAndSaccadeDetector to submit jobs for each task
+        detector = hpc_fix_and_saccade_detector.HPCFixAndSaccadeDetector(params)
+        job_file_path = detector.generate_job_file(df_keys_for_tasks, params_file_path)
+        detector.submit_job_array(job_file_path)
         # Combine results after jobs have completed
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         for task in df_keys_for_tasks:
@@ -96,7 +95,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
         for task in tqdm(df_keys_for_tasks, total=len(df_keys_for_tasks), desc="Processing runs"):
             session, interaction_type, run, agent, positions = task
             if positions is not None and positions.size > 0:
-                fix_dict, sacc_dict = process_fix_and_saccade_for_specific_run(
+                fix_indices, sacc_indices = process_fix_and_saccade_for_specific_run(
                     session, positions, params
                 )
                 # Store fixation results
@@ -105,7 +104,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
                     'interaction_type': interaction_type,
                     'run_number': run,
                     'agent': agent,
-                    'fixation_start_stop': fix_dict['fixationindices']
+                    'fixation_start_stop': fix_indices
                 })
                 # Store saccade results
                 saccade_rows.append({
@@ -113,14 +112,13 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
                     'interaction_type': interaction_type,
                     'run_number': run,
                     'agent': agent,
-                    'saccade_start_stop': sacc_dict['saccadeindices']
+                    'saccade_start_stop': sacc_indices
                 })
     # Convert fixation and saccade lists to DataFrames
     fixation_df = pd.DataFrame(fixation_rows)
     saccade_df = pd.DataFrame(saccade_rows)
     logger.info("Detection completed for both agents.")
     return fixation_df, saccade_df
-
 
 
 def process_fix_and_saccade_for_specific_run(session_name, positions, params):
@@ -155,7 +153,6 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     for i, (chunk_index, chunk) in enumerate(chunks):
         fixation_res = fixation_detector.detect_fixations((chunk[:, 0], chunk[:, 1]))
         saccade_res = saccade_detector.detect_saccades_with_edge_outliers((chunk[:, 0], chunk[:, 1]))
-
         # Offset the indices
         chunk_offset = offsets[chunk_index] if chunk_index < len(offsets) else 0
         if 'fixationindices' in fixation_res and len(fixation_res['fixationindices']) > 0:
@@ -172,7 +169,6 @@ def process_fix_and_saccade_for_specific_run(session_name, positions, params):
     combined_fixation_results = np.vstack(fixation_results) if fixation_results else np.array([], dtype=np.int64).reshape(0, 2)
     combined_saccade_results = np.vstack(saccade_results) if saccade_results else np.array([], dtype=np.int64).reshape(0, 2)
     return combined_fixation_results, combined_saccade_results
-
 
 
 def _interpolate_single_nans(data):
