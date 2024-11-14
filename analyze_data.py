@@ -99,9 +99,8 @@ def __append_fixation_data(behav_row, total_timeline_length):
     run = behav_row['run_number']
     agent = behav_row['agent']
     behavior_type = 'fixation'
-    pdb.set_trace()
     # Flatten the list of lists
-    flattened_locations = [item for sublist in data for item in locations]
+    flattened_locations = [item for sublist in locations for item in sublist]
     # Get unique entries using set
     unique_locations = list(set(flattened_locations))
     # Initialize the "all" binary timeline
@@ -258,7 +257,6 @@ def _compute_session_correlations(group):
             binary_timeline_m1 = np.array(agent_timelines['m1'])
             binary_timeline_m2 = np.array(agent_timelines['m2'])
             # Calculate autocorrelations and cross-correlations using FFT
-            pdb.set_trace()
             autocorr_m1 = __fft_autocorr(binary_timeline_m1)
             autocorr_m2 = __fft_autocorr(binary_timeline_m2)
             crosscorr_m1_m2 = __fft_crosscorr(binary_timeline_m1, binary_timeline_m2)
