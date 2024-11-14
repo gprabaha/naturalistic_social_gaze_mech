@@ -239,3 +239,141 @@ def plot_random_run_snippets(neural_fr_timeseries_df, snippet_duration=1, bin_wi
     plt.savefig("plot.png")
     plt.close()
     print(f"Plot saved as plot.png for session {random_session}, run {random_run}")
+
+
+
+# Define the plotting function
+def plot_auto_and_cross_correlations(binary_timeseries_scaled_auto_and_crosscorr_df, params):
+    """
+    Plots the mean autocorrelations and crosscorrelations across all runs
+    for unique behav_type-from-to combinations, organized by session.
+
+    Args:
+        binary_timeseries_scaled_auto_and_crosscorr_df (pd.DataFrame):
+            DataFrame containing autocorrelations and crosscorrelations.
+        params (dict):
+            Parameters dictionary containing 'root_data_dir'.
+    """
+    # Get today's date for the folder structure
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    base_plot_dir = os.path.join(
+        params['root_data_dir'], 'plots', 'auto_and_crosscorrelations', today_date
+    )
+    os.makedirs(base_plot_dir, exist_ok=True)
+
+    # Iterate over each session and interaction type
+    for (session_name, interaction_type), session_group in tqdm(
+        binary_timeseries_scaled_auto_and_crosscorr_df.groupby([
+            'session_name', 'interaction_type'
+        ]), desc="Processing sessions"
+    ):
+        # Create a folder for the session and interaction type
+        session_plot_dir = os.path.join(base_plot_dir, session_name, interaction_type)
+        os.makedirs(session_plot_dir, exist_ok=True)
+
+        # Find unique behav_type-from-to combinations
+        unique_combinations = session_group[['behav_type', 'from', 'to']].drop_duplicates()
+        for _, (behav_type, from_, to) in tqdm(
+            unique_combinations.iterrows(), 
+            total=len(unique_combinations), 
+            desc=f"{session_name} - {interaction_type}",
+            leave=False
+        ):
+            # Filter the data for the specific combination
+            filtered_data = session_group[
+                (session_group['behav_type'] == behav_type) &
+                (session_group['from'] == from_) &
+                (session_group['to'] == to)
+            ]
+            # Cut the initial 10 seconds of data (sampled at 1kHz)
+            cut_data = {
+                'autocorr_m1': [x[:10000] for x in filtered_data['autocorr_m1']],
+                'autocorr_m2': [x[:10000] for x in filtered_data['autocorr_m2']],
+                'crosscorr_m1_m2': [x[:10000] for x in filtered_data['crosscorr_m1_m2']],
+                'crosscorr_m2_m1': [x[:10000] for x in filtered_data['crosscorr_m2_m1']]
+            }
+
+            # Compute the mean autocorrelations and crosscorrelations across runs
+            mean_autocorr_m1 = np.mean(cut_data['autocorr_m1'], axis=0)
+            mean_autocorr_m2 = np.mean(cut_data['autocorr_m2'], axis=0)
+            mean_crosscorr_m1_m2 = np.mean(cut_data['crosscorr_m1_m2'], axis=0)
+            mean_crosscorr_m2_m1 = np.mean(cut_data['crosscorr_m2_m1'], axis=0)
+
+            # Define the time range (first 10 seconds, sampled at 1kHz)
+            time_range = np.arange(0, 10000) / 1000
+
+            # Plot the data
+            plt.figure(figsize=(10, 6))
+
+            plt.plot(time_range, mean_autocorr_m1, label='Autocorr M1', alpha=0.7)
+            plt.plot(time_range, mean_autocorr_m2, label='Autocorr M2', alpha=0.7)
+            plt.plot(time_range, mean_crosscorr_m1_m2, label='Crosscorr M1->M2', alpha=0.7)
+            plt.plot(time_range, mean_crosscorr_m2_m1, label='Crosscorr M2->M1', alpha=0.7)
+
+            plt.title(f'{interaction_type}: {behav_type} - From: {from_}, To: {to}')
+            plt.xlabel('Time (s)')
+            plt.ylabel('Correlation')
+            plt.legend()
+            plt.grid(True)
+
+            # Save the plot
+            plot_filename = f'{interaction_type}_{behav_type}_from_{from_}_to_{to}.png'
+            plot_filepath = os.path.join(session_plot_dir, plot_filename)
+            plt.savefig(plot_filepath)
+            plt.close()
+
+            print(f'Plot saved: {plot_filepath}')
+
+
+
+def plot_mean_auto_and_crosscorrelations_for_monkey_pairs(recording_sessions_and_monkeys, binary_corr_df, params):
+    # Merge the dataframes to include `m1` and `m2` information
+    merged_df = binary_corr_df.merge(recording_sessions_and_monkeys, on='session_name')
+    # Ensure base plot directory exists
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    base_plot_dir = os.path.join(
+        params['root_data_dir'],
+        'plots',
+        'mean_auto_and_cross_correlations_across_pairs',
+        today_date
+    )
+    os.makedirs(base_plot_dir, exist_ok=True)
+    # Group by `m1`, `m2`, `behav_type`, `from`, and `to`
+    grouped = merged_df.groupby(['m1', 'm2', 'behav_type', 'from', 'to'])
+    for (m1, m2, behav_type, from_, to_), group in grouped:
+        # Create directories for the pair and behavior type
+        pair_dir = os.path.join(base_plot_dir, f"{m1}_{m2}")
+        behav_dir = os.path.join(pair_dir, behav_type)
+        os.makedirs(behav_dir, exist_ok=True)
+        # Truncate vectors to 20 seconds (20,000 samples)
+        mean_corrs = _truncate_and_average(group, ['autocorr_m1', 'autocorr_m2', 'crosscorr_m1_m2', 'crosscorr_m2_m1'], max_len=20000)
+        # Plot and save
+        _plot_correlation(mean_corrs, m1, m2, behav_type, from_, to_, behav_dir)
+
+
+def _truncate_and_average(group, columns, max_len):
+    """Truncate vectors to a fixed length and compute their mean."""
+    truncated_means = {}
+    for col in columns:
+        truncated = [vec[:max_len] for vec in group[col] if len(vec) >= max_len]
+        truncated_means[col] = np.mean(truncated, axis=0) if truncated else np.zeros(max_len)
+    return truncated_means
+
+
+def _plot_correlation(mean_corrs, m1, m2, behav_type, from_, to_, output_dir):
+    """Plot the mean correlations and save to file."""
+    plt.figure(figsize=(10, 6))
+    plt.title(f"Mean Correlations: {m1}-{m2}, {behav_type}, from {from_} to {to_}")
+    plt.xlabel("Lag")
+    plt.ylabel("Correlation")
+    lags = np.arange(len(mean_corrs['autocorr_m1']))
+    # plt.plot(lags, mean_corrs['autocorr_m1'], label='Autocorr M1', linestyle='--')
+    # plt.plot(lags, mean_corrs['autocorr_m2'], label='Autocorr M2', linestyle='--')
+    plt.plot(lags, mean_corrs['crosscorr_m1_m2'], label='Crosscorr M1->M2', linestyle='-')
+    plt.plot(lags, mean_corrs['crosscorr_m2_m1'], label='Crosscorr M2->M1', linestyle='-')
+    plt.legend()
+    plt.tight_layout()
+    # Save plot
+    filename = f"{m1}_{m2}_{behav_type}_from_{from_}_to_{to_}.png".replace(" ", "_")
+    plt.savefig(os.path.join(output_dir, filename))
+    plt.close()

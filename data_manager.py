@@ -158,7 +158,6 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        pdb.set_trace()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
 
@@ -216,8 +215,8 @@ class DataManager:
         autocorr_file_path = os.path.join(self.params['processed_data_dir'], 'scaled_autocorrelations.pkl')
         if self.params.get('remake_scaled_autocorr', False) or not os.path.exists(autocorr_file_path):
             self.logger.info("Computing scaled autocorrelations.")
-            # use_parallel = self.params['use_parallel']
-            use_parallel = False
+            use_parallel = self.params['use_parallel']
+            # use_parallel = False
             auto_and_cross_corr_df = analyze_data.calculate_auto_and_cross_corrs_bet_behav_vectors(
                 self.binary_behav_timeseries_df,
                 self.num_cpus,
@@ -245,8 +244,10 @@ class DataManager:
 
 
     def plot_data(self):
-        plotter.plot_random_run_snippets(self.neural_fr_timeseries_df)
-        plotter.plot_fixations_and_saccades(self.nan_removed_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
+        # plotter.plot_random_run_snippets(self.neural_fr_timeseries_df)
+        # plotter.plot_fixations_and_saccades(self.synchronized_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
+        plotter.plot_mean_auto_and_crosscorrelations_for_monkey_pairs(self.recording_sessions_and_monkeys, self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
+        # plotter.plot_auto_and_cross_correlations(self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
 
 
     def run(self):
@@ -255,4 +256,4 @@ class DataManager:
         self.get_data()
         self.prune_data()
         self.analyze_behavior()
-        # self.plot_data()
+        self.plot_data()

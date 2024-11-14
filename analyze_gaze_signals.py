@@ -26,7 +26,7 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': False,
+        'use_parallel': True,
         'use_toy_data': False,
         'remake_toy_data': False,
         'num_cpus': None,
@@ -41,8 +41,8 @@ def main():
         'recompute_fix_and_saccades_through_hpc_jobs': True,
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
         
-        'remake_binary_timeseries': True,
-        'remake_scaled_autocorr': True,
+        'remake_binary_timeseries': False,
+        'remake_scaled_autocorr': False,
 
         'remake_neural_timeseries': False,
         'neural_data_bin_size': 0.001,  #1ms = 0.001s
