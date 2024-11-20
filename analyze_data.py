@@ -311,19 +311,18 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
     return updated_df
 
 
-def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_behav_timeseries_df):
+def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_behav_timeseries_df, params):
     """
     Compute cross-correlation between m1 and m2 binary timelines for all unique
     combinations of behav_type, 'from', and 'to'. Missing groups will have NaN values
     for correlations.
     Args:
         binary_behav_timeseries_df (pd.DataFrame): Behavioral dataframe with binary timelines.
-
+        params (dict): Dictionary containing runtime parameters, including 'num_cpus'.
     Returns:
         pd.DataFrame: Cross-correlation dataframe with computed correlations.
     """
     logger.info("Starting cross-correlation computation.")
-    crosscorr_results = []
     # Get all unique combinations of behav_type, from, and to
     unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
     unique_from = binary_behav_timeseries_df['from'].unique()
@@ -336,71 +335,86 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     ]
     logger.debug(f"Generated {len(cross_combinations)} cross-combinations for m1 and m2.")
     # Group by session, interaction type, and run number
-    grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    grouped = list(binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number']))
     logger.info(f"Processing {len(grouped)} session groups.")
-    # Wrap the group iterator with tqdm for a progress bar
-    for group_idx, (group_keys, group_df) in enumerate(tqdm(grouped, desc="Calculating cross-correlations for runs", unit="run_group"), start=1):
-        session_name, interaction_type, run_number = group_keys
-        logger.debug(f"Processing group {group_idx}/{len(grouped)}: "
-                     f"Session {session_name}, Interaction {interaction_type}, Run {run_number}.")
-        # Split m1 and m2 data
-        m1_data = group_df[group_df['agent'] == 'm1']
-        m2_data = group_df[group_df['agent'] == 'm2']
-        for m1_type, m1_from, m1_to, m2_type, m2_from, m2_to in cross_combinations:
-            # Extract source and destination labels
-            m1_filter = (
-                (m1_data['behav_type'] == m1_type) &
-                (m1_data['from'] == m1_from) &
-                (m1_data['to'] == m1_to)
-            )
-            m2_filter = (
-                (m2_data['behav_type'] == m2_type) &
-                (m2_data['from'] == m2_from) &
-                (m2_data['to'] == m2_to)
-            )
-            if m1_filter.any() and m2_filter.any():
-                # If both behaviors exist, compute cross-correlation
-                binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
-                binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
-                # Cross-correlation
-                crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
-                lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
-                # Store the result
-                crosscorr_results.append({
-                    'session_name': session_name,
-                    'interaction_type': interaction_type,
-                    'run_number': run_number,
-                    'm1_behav_type': m1_type,
-                    'm1_from': m1_from,
-                    'm1_to': m1_to,
-                    'm2_behav_type': m2_type,
-                    'm2_from': m2_from,
-                    'm2_to': m2_to,
-                    'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
-                    'max_correlation': crosscorr.max(),
-                    'crosscorr': crosscorr.tolist()  # Full cross-correlation
-                })
-            else:
-                # Add NaN for missing data
-                crosscorr_results.append({
-                    'session_name': session_name,
-                    'interaction_type': interaction_type,
-                    'run_number': run_number,
-                    'm1_behav_type': m1_type,
-                    'm1_from': m1_from,
-                    'm1_to': m1_to,
-                    'm2_behav_type': m2_type,
-                    'm2_from': m2_from,
-                    'm2_to': m2_to,
-                    'lag': np.nan,
-                    'max_correlation': np.nan,
-                    'crosscorr': np.nan  # No cross-correlation available
-                })
-        logger.debug(f"Finished processing group {group_idx}/{len(grouped)}.")
+    # Prepare arguments for parallel processing
+    args = [(group_keys, group_df, cross_combinations) for group_keys, group_df in grouped]
+    # Use the number of CPUs specified in params
+    num_cpus = params.get('num_cpus', 1)
+    logger.info(f"Using {num_cpus} CPUs for parallel processing.")
+    with Pool(num_cpus) as pool:
+        results = list(tqdm(pool.imap(_compute_crosscorrelations_for_group, args),
+                            total=len(args), desc="Calculating cross-correlations"))
+    # Flatten the list of results
+    crosscorr_results = [item for sublist in results for item in sublist]
     # Convert results to a DataFrame
     crosscorr_df = pd.DataFrame(crosscorr_results)
     logger.info("Cross-correlation computation completed.")
     return crosscorr_df
+
+
+def _compute_crosscorrelations_for_group(args):
+    """
+    Helper function to compute cross-correlations for a single group.
+    """
+    group_keys, group_df, cross_combinations = args
+    session_name, interaction_type, run_number = group_keys
+    results = []
+    # Split m1 and m2 data
+    m1_data = group_df[group_df['agent'] == 'm1']
+    m2_data = group_df[group_df['agent'] == 'm2']
+    for m1_type, m1_from, m1_to, m2_type, m2_from, m2_to in cross_combinations:
+        # Extract source and destination labels
+        m1_filter = (
+            (m1_data['behav_type'] == m1_type) &
+            (m1_data['from'] == m1_from) &
+            (m1_data['to'] == m1_to)
+        )
+        m2_filter = (
+            (m2_data['behav_type'] == m2_type) &
+            (m2_data['from'] == m2_from) &
+            (m2_data['to'] == m2_to)
+        )
+        if m1_filter.any() and m2_filter.any():
+            # If both behaviors exist, compute cross-correlation
+            binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
+            binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
+            # Cross-correlation
+            crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
+            lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
+            # Store the result
+            results.append({
+                'session_name': session_name,
+                'interaction_type': interaction_type,
+                'run_number': run_number,
+                'm1_behav_type': m1_type,
+                'm1_from': m1_from,
+                'm1_to': m1_to,
+                'm2_behav_type': m2_type,
+                'm2_from': m2_from,
+                'm2_to': m2_to,
+                'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
+                'max_correlation': crosscorr.max(),
+                'crosscorr': crosscorr.tolist()  # Full cross-correlation
+            })
+        else:
+            # Add NaN for missing data
+            results.append({
+                'session_name': session_name,
+                'interaction_type': interaction_type,
+                'run_number': run_number,
+                'm1_behav_type': m1_type,
+                'm1_from': m1_from,
+                'm1_to': m1_to,
+                'm2_behav_type': m2_type,
+                'm2_from': m2_from,
+                'm2_to': m2_to,
+                'lag': np.nan,
+                'max_correlation': np.nan,
+                'crosscorr': np.nan  # No cross-correlation available
+            })
+    return results
+
 
 
 
