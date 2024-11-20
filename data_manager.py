@@ -158,8 +158,6 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        self.binary_behav_timeseries_df = analyze_data.merge_left_and_right_object_timelines_in_behav_df(self.binary_behav_timeseries_df)
-        pdb.set_trace()
         self.crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_interagent_cross_correlations_between_all_types_of_behavior(self.binary_behav_timeseries_df)
         pdb.set_trace()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
@@ -207,6 +205,7 @@ class DataManager:
                 use_parallel=use_parallel)
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
+            binary_behav_timeseries_df = analyze_data.merge_left_and_right_object_timelines_in_behav_df(self.binary_behav_timeseries_df)
             binary_behav_timeseries_df.to_pickle(binary_timeseries_file_path)
             return binary_behav_timeseries_df
         else:

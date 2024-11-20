@@ -338,7 +338,8 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     # Group by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     logger.info(f"Processing {len(grouped)} session groups.")
-    for group_idx, (group_keys, group_df) in enumerate(grouped, start=1):
+    # Wrap the group iterator with tqdm for a progress bar
+    for group_idx, (group_keys, group_df) in enumerate(tqdm(grouped, desc="Calculating cross-correlations for runs", unit="run_group"), start=1):
         session_name, interaction_type, run_number = group_keys
         logger.debug(f"Processing group {group_idx}/{len(grouped)}: "
                      f"Session {session_name}, Interaction {interaction_type}, Run {run_number}.")
@@ -361,11 +362,9 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
                 # If both behaviors exist, compute cross-correlation
                 binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
                 binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
-
                 # Cross-correlation
                 crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
                 lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
-
                 # Store the result
                 crosscorr_results.append({
                     'session_name': session_name,
@@ -402,6 +401,7 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     crosscorr_df = pd.DataFrame(crosscorr_results)
     logger.info("Cross-correlation computation completed.")
     return crosscorr_df
+
 
 
 
