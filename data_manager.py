@@ -161,6 +161,8 @@ class DataManager:
         print(self.binary_behav_timeseries_df.tail(30))
         self.crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_interagent_cross_correlations_between_all_types_of_behavior(
             self.binary_behav_timeseries_df, self.params)
+        cross_correlation_df_path = "inter_agent_crosscorrelation_df.pkl"
+        self.crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(cross_correlation_df_path)
         pdb.set_trace()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
