@@ -149,16 +149,17 @@ class DataManager:
             synchronized_gaze_data = curate_data.synchronize_m1_and_m2_timelines_by_pruning_flanking_nans(self.gaze_data_df)
             synchronized_gaze_data.to_pickle(synchronized_gaze_data_file_path)
             self.synchronized_gaze_data_df = synchronized_gaze_data
+            self.gaze_data_df = None
         else:
             self.logger.info("Loading pruned gaze data.")
             self.synchronized_gaze_data_df = load_data.get_synchronized_gaze_data_df(synchronized_gaze_data_file_path)
+            self.gaze_data_df = None
 
 
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        print(self.binary_behav_timeseries_df.tail(30))
         self.crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_interagent_cross_correlations_between_all_types_of_behavior(
             self.binary_behav_timeseries_df, self.params)
         cross_correlation_df_path = "inter_agent_crosscorrelation_df.pkl"
