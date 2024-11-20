@@ -311,7 +311,6 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
     return updated_df
 
 
-
 def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_behav_timeseries_df):
     """
     Compute cross-correlation between m1 and m2 binary timelines for all unique
@@ -326,10 +325,15 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     logger.info("Starting cross-correlation computation.")
     crosscorr_results = []
     # Get all unique combinations of behav_type, from, and to
-    unique_combinations = binary_behav_timeseries_df[['behav_type', 'from', 'to']].drop_duplicates()
-    logger.debug(f"Found {len(unique_combinations)} unique behavior combinations.")
+    unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
+    unique_from = binary_behav_timeseries_df['from'].unique()
+    unique_to = binary_behav_timeseries_df['to'].unique()
     # Cartesian product of combinations for m1 and m2
-    cross_combinations = list(product(unique_combinations.itertuples(index=False), repeat=2))
+    cross_combinations = [
+        (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
+        for m1_type, m1_from, m1_to in product(unique_behav_types, unique_from, unique_to)
+        for m2_type, m2_from, m2_to in product(unique_behav_types, unique_from, unique_to)
+    ]
     logger.debug(f"Generated {len(cross_combinations)} cross-combinations for m1 and m2.")
     # Group by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -341,36 +345,38 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
         # Split m1 and m2 data
         m1_data = group_df[group_df['agent'] == 'm1']
         m2_data = group_df[group_df['agent'] == 'm2']
-        for (m1_comb, m2_comb) in cross_combinations:
+        for m1_type, m1_from, m1_to, m2_type, m2_from, m2_to in cross_combinations:
             # Extract source and destination labels
             m1_filter = (
-                (m1_data['behav_type'] == m1_comb.behav_type) &
-                (m1_data['from'] == m1_comb.from_) &
-                (m1_data['to'] == m1_comb.to)
+                (m1_data['behav_type'] == m1_type) &
+                (m1_data['from'] == m1_from) &
+                (m1_data['to'] == m1_to)
             )
             m2_filter = (
-                (m2_data['behav_type'] == m2_comb.behav_type) &
-                (m2_data['from'] == m2_comb.from_) &
-                (m2_data['to'] == m2_comb.to)
+                (m2_data['behav_type'] == m2_type) &
+                (m2_data['from'] == m2_from) &
+                (m2_data['to'] == m2_to)
             )
             if m1_filter.any() and m2_filter.any():
                 # If both behaviors exist, compute cross-correlation
                 binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
                 binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
+
                 # Cross-correlation
                 crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
                 lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
+
                 # Store the result
                 crosscorr_results.append({
                     'session_name': session_name,
                     'interaction_type': interaction_type,
                     'run_number': run_number,
-                    'm1_behav_type': m1_comb.behav_type,
-                    'm1_from': m1_comb.from_,
-                    'm1_to': m1_comb.to,
-                    'm2_behav_type': m2_comb.behav_type,
-                    'm2_from': m2_comb.from_,
-                    'm2_to': m2_comb.to,
+                    'm1_behav_type': m1_type,
+                    'm1_from': m1_from,
+                    'm1_to': m1_to,
+                    'm2_behav_type': m2_type,
+                    'm2_from': m2_from,
+                    'm2_to': m2_to,
                     'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
                     'max_correlation': crosscorr.max(),
                     'crosscorr': crosscorr.tolist()  # Full cross-correlation
@@ -381,12 +387,12 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
                     'session_name': session_name,
                     'interaction_type': interaction_type,
                     'run_number': run_number,
-                    'm1_behav_type': m1_comb.behav_type,
-                    'm1_from': m1_comb.from_,
-                    'm1_to': m1_comb.to,
-                    'm2_behav_type': m2_comb.behav_type,
-                    'm2_from': m2_comb.from_,
-                    'm2_to': m2_comb.to,
+                    'm1_behav_type': m1_type,
+                    'm1_from': m1_from,
+                    'm1_to': m1_to,
+                    'm2_behav_type': m2_type,
+                    'm2_from': m2_from,
+                    'm2_to': m2_to,
                     'lag': np.nan,
                     'max_correlation': np.nan,
                     'crosscorr': np.nan  # No cross-correlation available
@@ -396,6 +402,7 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     crosscorr_df = pd.DataFrame(crosscorr_results)
     logger.info("Cross-correlation computation completed.")
     return crosscorr_df
+
 
 
 
