@@ -7,6 +7,7 @@ import pickle
 import os
 from scipy.signal import fftconvolve
 import logging
+from itertools import product
 
 import util
 
@@ -208,10 +209,6 @@ def __append_saccade_data(behav_row, total_timeline_length):
     return result_rows
 
 
-
-import pandas as pd
-import numpy as np
-
 def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df):
     """
     Merge left and right object timelines in the behavioral dataframe:
@@ -226,18 +223,14 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
         pd.DataFrame: Updated dataframe with merged object timelines.
     """
     merged_rows = []
-
     # Group by event and behavior type
     grouped = binary_behav_timeseries_df.groupby(
         ['session_name', 'interaction_type', 'run_number', 'agent', 'behav_type']
     )
-
     for group_keys, group_df in grouped:
         session_name, interaction_type, run_number, agent, behav_type = group_keys
-
         # Process each group independently
         updated_group_df = group_df.copy()
-
         # Handle fixations: `from` and `to` are the same
         if behav_type == 'fixation':
             object_mask = updated_group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
@@ -256,7 +249,6 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                     'binary_timeline': merged_timeline,
                     'row_index_in_behav_df': np.nan  # Placeholder for row index
                 })
-
         # Handle saccades: Iterate through both `from` and `to` cases
         if behav_type == 'saccade':
             # Merge for the `from` field
@@ -279,7 +271,6 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                         'binary_timeline': merged_timeline,
                         'row_index_in_behav_df': np.nan  # Placeholder for row index
                     })
-
             # Merge for the `to` field
             unique_from_fields = updated_group_df['from'].unique()
             for from_field in unique_from_fields:
@@ -300,19 +291,104 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                         'binary_timeline': merged_timeline,
                         'row_index_in_behav_df': np.nan  # Placeholder for row index
                     })
-
     # Convert merged rows to a DataFrame
     merged_df = pd.DataFrame(merged_rows)
-
     # Remove all original nonsocial object rows
     nonsocial_mask = binary_behav_timeseries_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object']) | \
                      binary_behav_timeseries_df['to'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
     updated_df = binary_behav_timeseries_df[~nonsocial_mask].copy()
-
     # Append merged rows at appropriate positions
     updated_df = pd.concat([updated_df, merged_df], ignore_index=True)
-
     return updated_df
+
+
+
+
+def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_behav_timeseries_df):
+    """
+    Compute cross-correlation between m1 and m2 binary timelines for all unique
+    combinations of behav_type, 'from', and 'to'. Missing groups will have NaN values
+    for correlations.
+    Args:
+        binary_behav_timeseries_df (pd.DataFrame): Behavioral dataframe with binary timelines.
+
+    Returns:
+        pd.DataFrame: Cross-correlation dataframe with computed correlations.
+    """
+    logger.info("Starting cross-correlation computation.")
+    crosscorr_results = []
+    # Get all unique combinations of behav_type, from, and to
+    unique_combinations = binary_behav_timeseries_df[['behav_type', 'from', 'to']].drop_duplicates()
+    logger.debug(f"Found {len(unique_combinations)} unique behavior combinations.")
+    # Cartesian product of combinations for m1 and m2
+    cross_combinations = list(product(unique_combinations.itertuples(index=False), repeat=2))
+    logger.debug(f"Generated {len(cross_combinations)} cross-combinations for m1 and m2.")
+    # Group by session, interaction type, and run number
+    grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    logger.info(f"Processing {len(grouped)} session groups.")
+    for group_idx, (group_keys, group_df) in enumerate(grouped, start=1):
+        session_name, interaction_type, run_number = group_keys
+        logger.debug(f"Processing group {group_idx}/{len(grouped)}: "
+                     f"Session {session_name}, Interaction {interaction_type}, Run {run_number}.")
+        # Split m1 and m2 data
+        m1_data = group_df[group_df['agent'] == 'm1']
+        m2_data = group_df[group_df['agent'] == 'm2']
+        for (m1_comb, m2_comb) in cross_combinations:
+            # Extract source and destination labels
+            m1_filter = (
+                (m1_data['behav_type'] == m1_comb.behav_type) &
+                (m1_data['from'] == m1_comb.from_) &
+                (m1_data['to'] == m1_comb.to)
+            )
+            m2_filter = (
+                (m2_data['behav_type'] == m2_comb.behav_type) &
+                (m2_data['from'] == m2_comb.from_) &
+                (m2_data['to'] == m2_comb.to)
+            )
+            if m1_filter.any() and m2_filter.any():
+                # If both behaviors exist, compute cross-correlation
+                binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
+                binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
+                # Cross-correlation
+                crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
+                lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
+                # Store the result
+                crosscorr_results.append({
+                    'session_name': session_name,
+                    'interaction_type': interaction_type,
+                    'run_number': run_number,
+                    'm1_behav_type': m1_comb.behav_type,
+                    'm1_from': m1_comb.from_,
+                    'm1_to': m1_comb.to,
+                    'm2_behav_type': m2_comb.behav_type,
+                    'm2_from': m2_comb.from_,
+                    'm2_to': m2_comb.to,
+                    'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
+                    'max_correlation': crosscorr.max(),
+                    'crosscorr': crosscorr.tolist()  # Full cross-correlation
+                })
+            else:
+                # Add NaN for missing data
+                crosscorr_results.append({
+                    'session_name': session_name,
+                    'interaction_type': interaction_type,
+                    'run_number': run_number,
+                    'm1_behav_type': m1_comb.behav_type,
+                    'm1_from': m1_comb.from_,
+                    'm1_to': m1_comb.to,
+                    'm2_behav_type': m2_comb.behav_type,
+                    'm2_from': m2_comb.from_,
+                    'm2_to': m2_comb.to,
+                    'lag': np.nan,
+                    'max_correlation': np.nan,
+                    'crosscorr': np.nan  # No cross-correlation available
+                })
+        logger.debug(f"Finished processing group {group_idx}/{len(grouped)}.")
+    # Convert results to a DataFrame
+    crosscorr_df = pd.DataFrame(crosscorr_results)
+    logger.info("Cross-correlation computation completed.")
+    return crosscorr_df
+
 
 
 
