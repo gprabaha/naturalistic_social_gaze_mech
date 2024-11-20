@@ -160,10 +160,7 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        self.crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_interagent_cross_correlations_between_all_types_of_behavior(
-            self.binary_behav_timeseries_df, self.params)
-        cross_correlation_df_path = "inter_agent_crosscorrelation_df.pkl"
-        self.crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(cross_correlation_df_path)
+        self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
         pdb.set_trace()
         self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
@@ -217,6 +214,20 @@ class DataManager:
         else:
             self.logger.info("Loading existing binary behavior timeseries.")
             return load_data.load_binary_timeseries_df(binary_timeseries_file_path)
+
+
+    def _load_or_compute_crosscorr_df(self):
+        crosscorr_file_path = os.path.join(self.params['processed_data_dir'], 'inter_agent_crosscorrelation_df.pkl')
+        if 1:
+            self.logger.info("Computing inter-agent cross-correlations for all behavioral types.")
+            crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_interagent_cross_correlations_between_all_types_of_behavior(
+                self.binary_behav_timeseries_df, self.params)
+            crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(crosscorr_file_path)
+            self.logger.info(f"Saved interagent cross-correlation df to: {crosscorr_file_path}")
+            return crosscorrelation_df_between_all_m1_amd_m2_behavior
+        else:
+            return load_data.load_binary_crosscorr_df(crosscorr_file_path)
+
 
 
     def _load_or_compute_binary_timeseries_auto_and_crosscorr(self):

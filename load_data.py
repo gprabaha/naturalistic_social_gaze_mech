@@ -123,7 +123,7 @@ def load_binary_timeseries_df(file_path):
 
 
 # Function to load binary timeseries autocorrelation DataFrame
-def load_binary_autocorr_df(file_path):
+def load_binary_crosscorr_df(file_path):
     """
     Loads the binary timeseries autocorrelation DataFrame from a pickle file.
     Parameters:
@@ -133,6 +133,7 @@ def load_binary_autocorr_df(file_path):
     """
     with open(file_path, 'rb') as f:
         binary_autocorr_df = pickle.load(f)
+    logger.info(f"Successfully loaded cross-correlation df from {file_path}")
     return binary_autocorr_df
 
 

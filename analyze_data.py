@@ -336,11 +336,14 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     for correlations.
     Args:
         binary_behav_timeseries_df (pd.DataFrame): Behavioral dataframe with binary timelines.
-        params (dict): Dictionary containing runtime parameters, including 'num_cpus'.
+        params (dict): Dictionary containing runtime parameters, including 'num_cpus' and 'output_dir'.
     Returns:
-        pd.DataFrame: Cross-correlation dataframe with computed correlations.
+        None: Results are saved to the specified output directory.
     """
     logger.info("Starting cross-correlation computation.")
+    # Ensure output directory exists
+    output_dir = params.get("output_dir", "crosscorr_chunk_outputs")
+    os.makedirs(output_dir, exist_ok=True)
     # Get all unique combinations of behav_type, from, and to
     unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
     unique_from = binary_behav_timeseries_df['from'].unique()
@@ -357,43 +360,45 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     logger.info(f"Processing {len(grouped)} session groups.")
     # Prepare arguments for parallel processing
     args = [
-        (group_keys, group_df.to_dict(orient="list"), all_cross_combinations)
+        (group_keys, group_df.to_dict(orient="list"), all_cross_combinations, output_dir)
         for group_keys, group_df in grouped
     ]
     # Use half the CPUs for the outer process pool, so each task gets 2 CPUs
     num_cpus = params.get('num_cpus', 1)
-    outer_pool_size = num_cpus // 2
-    logger.info(f"Using {outer_pool_size} tasks with 2 CPUs allocated per task.")
+    outer_pool_size = num_cpus // 3
+    logger.info(f"Using {outer_pool_size} tasks with 3 CPUs allocated per task.")
     # Use multiprocessing to process groups in parallel
     with Pool(outer_pool_size) as pool:
-        results = list(tqdm(pool.imap(_compute_crosscorrelations_for_chunk, args),
-                            total=len(args), desc="Calculating cross-correlations"))
-    # Flatten the list of results
-    crosscorr_results = [item for sublist in results for item in sublist]
-    # Convert results to a DataFrame
-    crosscorr_df = pd.DataFrame(crosscorr_results)
-    logger.info("Cross-correlation computation completed.")
-    return crosscorr_df
+        list(tqdm(pool.imap(_compute_and_save_crosscorrelations_for_chunk, args),
+                  total=len(args), desc="Calculating cross-correlations"))
+    logger.info(f"Cross-correlation results saved to {output_dir}.")
 
 
-def _compute_crosscorrelations_for_chunk(args):
+def _compute_and_save_crosscorrelations_for_chunk(args):
     """
-    Helper function to compute cross-correlations for a single group and chunk of combinations.
-    Parallelizes the cross-correlation computation within the chunk.
+    Compute cross-correlations for a single group and save the results to disk.
+    Use grouping column values in the filename for better identification.
     """
-    group_keys, group_dict, cross_combinations = args
+    group_keys, group_dict, cross_combinations, output_dir = args
     session_name, interaction_type, run_number = group_keys
-    results = []
     # Convert group_dict back to DataFrame
     group_df = pd.DataFrame(group_dict)
     # Split m1 and m2 data
     m1_data = group_df[group_df['agent'] == 'm1']
     m2_data = group_df[group_df['agent'] == 'm2']
     # Parallelize the computation of each cross-combination
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         results = list(executor.map(lambda comb: _compute_single_crosscorrelation(
             comb, m1_data, m2_data, session_name, interaction_type, run_number), cross_combinations))
-    return results
+    # Construct a filename using group values
+    sanitized_session_name = session_name.replace(" ", "_")
+    sanitized_interaction_type = interaction_type.replace(" ", "_")
+    filename = f"{sanitized_session_name}__{sanitized_interaction_type}__run_{run_number}.pkl"
+    output_file = os.path.join(output_dir, filename)
+    # Save the results to a file
+    with open(output_file, "wb") as f:
+        pickle.dump(results, f)
+    logger.debug(f"Saved cross-correlation results for group {group_keys} to {output_file}.")
 
 
 def _compute_single_crosscorrelation(comb, m1_data, m2_data, session_name, interaction_type, run_number):
