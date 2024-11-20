@@ -209,6 +209,76 @@ def __append_saccade_data(behav_row, total_timeline_length):
 
 
 
+def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df):
+    """
+    Merge left and right object timelines in the behavioral dataframe:
+    - For fixations, merge 'left_nonsocial_object' and 'right_nonsocial_object' into 'object'
+      using an OR operation on the binary timelines.
+    - For saccades, perform the same OR operation for 'from' and 'to' fields,
+      merging 'left_nonsocial_object' and 'right_nonsocial_object' into 'object'.
+    Args:
+        binary_behav_timeseries_df (pd.DataFrame): Input dataframe containing binary timelines.
+    Returns:
+        pd.DataFrame: Updated dataframe with merged object timelines.
+    """
+    merged_rows = []
+    # Group by event and behavior type
+    grouped = binary_behav_timeseries_df.groupby(
+        ['session_name', 'interaction_type', 'run_number', 'agent', 'behav_type']
+    )
+    for group_keys, group_df in grouped:
+        session_name, interaction_type, run_number, agent, behav_type = group_keys
+        # Handle fixations: `from` and `to` are the same
+        if behav_type == 'fixation':
+            object_mask = group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
+            object_df = group_df[object_mask]
+            if not object_df.empty:
+                merged_timeline = np.bitwise_or.reduce(object_df['binary_timeline'].values)
+                merged_rows.append({
+                    'session_name': session_name,
+                    'interaction_type': interaction_type,
+                    'run_number': run_number,
+                    'agent': agent,
+                    'behav_type': behav_type,
+                    'from': 'object',
+                    'to': 'object',
+                    'binary_timeline': merged_timeline,
+                    'row_index_in_behav_df': np.nan  # Placeholder for row index
+                })
+        # Handle saccades: `from` and `to` are independent
+        if behav_type == 'saccade':
+            for field in ['from', 'to']:
+                object_mask = group_df[field].isin(['left_nonsocial_object', 'right_nonsocial_object'])
+                object_df = group_df[object_mask]
+                if not object_df.empty:
+                    merged_timeline = np.bitwise_or.reduce(object_df['binary_timeline'].values)
+                    merged_rows.append({
+                        'session_name': session_name,
+                        'interaction_type': interaction_type,
+                        'run_number': run_number,
+                        'agent': agent,
+                        'behav_type': behav_type,
+                        field: 'object',
+                        'binary_timeline': merged_timeline,
+                        'row_index_in_behav_df': np.nan  # Placeholder for row index
+                    })
+    # Convert merged rows to a DataFrame
+    merged_df = pd.DataFrame(merged_rows)
+    # Drop original left/right nonsocial object rows
+    nonsocial_mask = binary_behav_timeseries_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object']) | \
+                     binary_behav_timeseries_df['to'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
+    updated_df = binary_behav_timeseries_df[~nonsocial_mask].copy()
+    # Append the merged rows to the updated DataFrame
+    updated_df = pd.concat([updated_df, merged_df], ignore_index=True)
+    return updated_df
+
+
+
+
+
+
+
+
 def calculate_auto_and_cross_corrs_bet_behav_vectors(binary_behav_timeseries_df, num_cpus=1, use_parallel=False):
     """
     Calculates autocorrelations and cross-correlations using FFT for each unique combination
