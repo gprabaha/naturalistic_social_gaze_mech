@@ -118,6 +118,7 @@ def load_binary_timeseries_df(file_path):
     """
     with open(file_path, 'rb') as f:
         binary_timeseries_df = pickle.load(f)
+    logger.info(f"Successfully loaded binary timeseries df from {file_path}")
     return binary_timeseries_df
 
 
