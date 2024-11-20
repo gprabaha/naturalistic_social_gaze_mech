@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
-from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pool
+from tqdm import tqdm
 import pickle
 import os
 from scipy.signal import fftconvolve
@@ -345,22 +346,27 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     # Cartesian product of combinations for m1 and m2
-    cross_combinations = [
+    all_cross_combinations = [
         (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
         for m1_type, m1_from, m1_to in product(unique_behav_types, unique_from, unique_to)
         for m2_type, m2_from, m2_to in product(unique_behav_types, unique_from, unique_to)
     ]
-    logger.debug(f"Generated {len(cross_combinations)} cross-combinations for m1 and m2.")
+    logger.debug(f"Generated {len(all_cross_combinations)} cross-combinations for m1 and m2.")
     # Group by session, interaction type, and run number
-    grouped = list(binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number']))
+    grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     logger.info(f"Processing {len(grouped)} session groups.")
     # Prepare arguments for parallel processing
-    args = [(group_keys, group_df, cross_combinations) for group_keys, group_df in grouped]
-    # Use the number of CPUs specified in params
+    args = [
+        (group_keys, group_df.to_dict(orient="list"), all_cross_combinations)
+        for group_keys, group_df in grouped
+    ]
+    # Use half the CPUs for the outer process pool, so each task gets 2 CPUs
     num_cpus = params.get('num_cpus', 1)
-    logger.info(f"Using {num_cpus} CPUs for parallel processing.")
-    with Pool(num_cpus) as pool:
-        results = list(tqdm(pool.imap(_compute_crosscorrelations_for_group, args),
+    outer_pool_size = num_cpus // 2
+    logger.info(f"Using {outer_pool_size} tasks with 2 CPUs allocated per task.")
+    # Use multiprocessing to process groups in parallel
+    with Pool(outer_pool_size) as pool:
+        results = list(tqdm(pool.imap(_compute_crosscorrelations_for_chunk, args),
                             total=len(args), desc="Calculating cross-correlations"))
     # Flatten the list of results
     crosscorr_results = [item for sublist in results for item in sublist]
@@ -370,68 +376,80 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     return crosscorr_df
 
 
-def _compute_crosscorrelations_for_group(args):
+def _compute_crosscorrelations_for_chunk(args):
     """
-    Helper function to compute cross-correlations for a single group.
+    Helper function to compute cross-correlations for a single group and chunk of combinations.
+    Parallelizes the cross-correlation computation within the chunk.
     """
-    group_keys, group_df, cross_combinations = args
+    group_keys, group_dict, cross_combinations = args
     session_name, interaction_type, run_number = group_keys
     results = []
+    # Convert group_dict back to DataFrame
+    group_df = pd.DataFrame(group_dict)
     # Split m1 and m2 data
     m1_data = group_df[group_df['agent'] == 'm1']
     m2_data = group_df[group_df['agent'] == 'm2']
-    for m1_type, m1_from, m1_to, m2_type, m2_from, m2_to in cross_combinations:
-        # Extract source and destination labels
-        m1_filter = (
-            (m1_data['behav_type'] == m1_type) &
-            (m1_data['from'] == m1_from) &
-            (m1_data['to'] == m1_to)
-        )
-        m2_filter = (
-            (m2_data['behav_type'] == m2_type) &
-            (m2_data['from'] == m2_from) &
-            (m2_data['to'] == m2_to)
-        )
-        if m1_filter.any() and m2_filter.any():
-            # If both behaviors exist, compute cross-correlation
-            binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
-            binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
-            # Cross-correlation
-            crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
-            lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
-            # Store the result
-            results.append({
-                'session_name': session_name,
-                'interaction_type': interaction_type,
-                'run_number': run_number,
-                'm1_behav_type': m1_type,
-                'm1_from': m1_from,
-                'm1_to': m1_to,
-                'm2_behav_type': m2_type,
-                'm2_from': m2_from,
-                'm2_to': m2_to,
-                'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
-                'max_correlation': crosscorr.max(),
-                'crosscorr': crosscorr.tolist()  # Full cross-correlation
-            })
-        else:
-            # Add NaN for missing data
-            results.append({
-                'session_name': session_name,
-                'interaction_type': interaction_type,
-                'run_number': run_number,
-                'm1_behav_type': m1_type,
-                'm1_from': m1_from,
-                'm1_to': m1_to,
-                'm2_behav_type': m2_type,
-                'm2_from': m2_from,
-                'm2_to': m2_to,
-                'lag': np.nan,
-                'max_correlation': np.nan,
-                'crosscorr': np.nan  # No cross-correlation available
-            })
+    # Parallelize the computation of each cross-combination
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda comb: _compute_single_crosscorrelation(
+            comb, m1_data, m2_data, session_name, interaction_type, run_number), cross_combinations))
     return results
 
+
+def _compute_single_crosscorrelation(comb, m1_data, m2_data, session_name, interaction_type, run_number):
+    """
+    Compute cross-correlation for a single combination of behavior types.
+    """
+    m1_type, m1_from, m1_to, m2_type, m2_from, m2_to = comb
+    # Filter data for m1 and m2
+    m1_filter = (
+        (m1_data['behav_type'] == m1_type) &
+        (m1_data['from'] == m1_from) &
+        (m1_data['to'] == m1_to)
+    )
+    m2_filter = (
+        (m2_data['behav_type'] == m2_type) &
+        (m2_data['from'] == m2_from) &
+        (m2_data['to'] == m2_to)
+    )
+    if m1_filter.any() and m2_filter.any():
+        # If both behaviors exist, compute cross-correlation
+        binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
+        binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
+        # Cross-correlation
+        crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
+        lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
+        # Store the result
+        return {
+            'session_name': session_name,
+            'interaction_type': interaction_type,
+            'run_number': run_number,
+            'm1_behav_type': m1_type,
+            'm1_from': m1_from,
+            'm1_to': m1_to,
+            'm2_behav_type': m2_type,
+            'm2_from': m2_from,
+            'm2_to': m2_to,
+            'lag': lags[np.argmax(crosscorr)],  # Lag with max correlation
+            'max_correlation': crosscorr.max(),
+            'crosscorr': crosscorr.tolist()  # Full cross-correlation
+        }
+    else:
+        # Add NaN for missing data
+        return {
+            'session_name': session_name,
+            'interaction_type': interaction_type,
+            'run_number': run_number,
+            'm1_behav_type': m1_type,
+            'm1_from': m1_from,
+            'm1_to': m1_to,
+            'm2_behav_type': m2_type,
+            'm2_from': m2_from,
+            'm2_to': m2_to,
+            'lag': np.nan,
+            'max_correlation': np.nan,
+            'crosscorr': np.nan  # No cross-correlation available
+        }
 
 
 
