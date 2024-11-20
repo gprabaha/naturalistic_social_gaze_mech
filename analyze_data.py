@@ -222,13 +222,17 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
     Returns:
         pd.DataFrame: Updated dataframe with merged object timelines.
     """
+    logger.info("Starting the merge of left and right object timelines.")
     merged_rows = []
     # Group by event and behavior type
     grouped = binary_behav_timeseries_df.groupby(
         ['session_name', 'interaction_type', 'run_number', 'agent', 'behav_type']
     )
-    for group_keys, group_df in grouped:
+    logger.info(f"Processing {len(grouped)} groups of data.")
+    for group_idx, (group_keys, group_df) in enumerate(grouped, start=1):
         session_name, interaction_type, run_number, agent, behav_type = group_keys
+        logger.debug(f"Processing group {group_idx}: Session {session_name}, Interaction {interaction_type}, "
+                     f"Run {run_number}, Agent {agent}, Behavior Type {behav_type}.")
         # Process each group independently
         updated_group_df = group_df.copy()
         # Handle fixations: `from` and `to` are the same
@@ -249,6 +253,7 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                     'binary_timeline': merged_timeline,
                     'row_index_in_behav_df': np.nan  # Placeholder for row index
                 })
+                logger.debug(f"Merged fixation timelines for group {group_idx}.")
         # Handle saccades: Iterate through both `from` and `to` cases
         if behav_type == 'saccade':
             # Merge for the `from` field
@@ -271,6 +276,7 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                         'binary_timeline': merged_timeline,
                         'row_index_in_behav_df': np.nan  # Placeholder for row index
                     })
+                    logger.debug(f"Merged 'from' saccade timelines for group {group_idx}, to {to_field}.")
             # Merge for the `to` field
             unique_from_fields = updated_group_df['from'].unique()
             for from_field in unique_from_fields:
@@ -291,16 +297,18 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                         'binary_timeline': merged_timeline,
                         'row_index_in_behav_df': np.nan  # Placeholder for row index
                     })
+                    logger.debug(f"Merged 'to' saccade timelines for group {group_idx}, from {from_field}.")
     # Convert merged rows to a DataFrame
     merged_df = pd.DataFrame(merged_rows)
+    logger.info(f"Created {len(merged_rows)} merged rows.")
     # Remove all original nonsocial object rows
     nonsocial_mask = binary_behav_timeseries_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object']) | \
                      binary_behav_timeseries_df['to'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
     updated_df = binary_behav_timeseries_df[~nonsocial_mask].copy()
     # Append merged rows at appropriate positions
     updated_df = pd.concat([updated_df, merged_df], ignore_index=True)
+    logger.info("Merging completed successfully.")
     return updated_df
-
 
 
 
