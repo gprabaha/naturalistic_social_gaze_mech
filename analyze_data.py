@@ -233,7 +233,7 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
             object_mask = group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
             object_df = group_df[object_mask]
             if not object_df.empty:
-                merged_timeline = np.bitwise_or.reduce(object_df['binary_timeline'].values)
+                merged_timeline = np.bitwise_or.reduce(np.stack(object_df['binary_timeline'].values))
                 merged_rows.append({
                     'session_name': session_name,
                     'interaction_type': interaction_type,
@@ -251,7 +251,7 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                 object_mask = group_df[field].isin(['left_nonsocial_object', 'right_nonsocial_object'])
                 object_df = group_df[object_mask]
                 if not object_df.empty:
-                    merged_timeline = np.bitwise_or.reduce(object_df['binary_timeline'].values)
+                    merged_timeline = np.bitwise_or.reduce(np.stack(object_df['binary_timeline'].values))
                     merged_rows.append({
                         'session_name': session_name,
                         'interaction_type': interaction_type,
