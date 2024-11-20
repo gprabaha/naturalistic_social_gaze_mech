@@ -209,6 +209,9 @@ def __append_saccade_data(behav_row, total_timeline_length):
 
 
 
+import pandas as pd
+import numpy as np
+
 def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df):
     """
     Merge left and right object timelines in the behavioral dataframe:
@@ -216,22 +219,30 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
       using an OR operation on the binary timelines.
     - For saccades, perform the same OR operation for 'from' and 'to' fields,
       merging 'left_nonsocial_object' and 'right_nonsocial_object' into 'object'.
+      Iterate through all unique `to` or `from` fields to handle all combinations.
     Args:
         binary_behav_timeseries_df (pd.DataFrame): Input dataframe containing binary timelines.
     Returns:
         pd.DataFrame: Updated dataframe with merged object timelines.
     """
     merged_rows = []
+
     # Group by event and behavior type
     grouped = binary_behav_timeseries_df.groupby(
         ['session_name', 'interaction_type', 'run_number', 'agent', 'behav_type']
     )
+
     for group_keys, group_df in grouped:
         session_name, interaction_type, run_number, agent, behav_type = group_keys
+
+        # Process each group independently
+        updated_group_df = group_df.copy()
+
         # Handle fixations: `from` and `to` are the same
         if behav_type == 'fixation':
-            object_mask = group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
-            object_df = group_df[object_mask]
+            object_mask = updated_group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
+            object_df = updated_group_df[object_mask]
+            updated_group_df = updated_group_df[~object_mask]  # Remove left/right rows
             if not object_df.empty:
                 merged_timeline = np.bitwise_or.reduce(np.stack(object_df['binary_timeline'].values))
                 merged_rows.append({
@@ -245,32 +256,64 @@ def merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df
                     'binary_timeline': merged_timeline,
                     'row_index_in_behav_df': np.nan  # Placeholder for row index
                 })
-        # Handle saccades: `from` and `to` are independent
+
+        # Handle saccades: Iterate through both `from` and `to` cases
         if behav_type == 'saccade':
-            for field in ['from', 'to']:
-                object_mask = group_df[field].isin(['left_nonsocial_object', 'right_nonsocial_object'])
-                object_df = group_df[object_mask]
-                if not object_df.empty:
-                    merged_timeline = np.bitwise_or.reduce(np.stack(object_df['binary_timeline'].values))
+            # Merge for the `from` field
+            unique_to_fields = updated_group_df['to'].unique()
+            for to_field in unique_to_fields:
+                from_mask = updated_group_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object']) & \
+                            (updated_group_df['to'] == to_field)
+                from_df = updated_group_df[from_mask]
+                updated_group_df = updated_group_df[~from_mask]  # Remove left/right rows
+                if not from_df.empty:
+                    merged_timeline = np.bitwise_or.reduce(np.stack(from_df['binary_timeline'].values))
                     merged_rows.append({
                         'session_name': session_name,
                         'interaction_type': interaction_type,
                         'run_number': run_number,
                         'agent': agent,
                         'behav_type': behav_type,
-                        field: 'object',
+                        'from': 'object',
+                        'to': to_field,
                         'binary_timeline': merged_timeline,
                         'row_index_in_behav_df': np.nan  # Placeholder for row index
                     })
+
+            # Merge for the `to` field
+            unique_from_fields = updated_group_df['from'].unique()
+            for from_field in unique_from_fields:
+                to_mask = updated_group_df['to'].isin(['left_nonsocial_object', 'right_nonsocial_object']) & \
+                          (updated_group_df['from'] == from_field)
+                to_df = updated_group_df[to_mask]
+                updated_group_df = updated_group_df[~to_mask]  # Remove left/right rows
+                if not to_df.empty:
+                    merged_timeline = np.bitwise_or.reduce(np.stack(to_df['binary_timeline'].values))
+                    merged_rows.append({
+                        'session_name': session_name,
+                        'interaction_type': interaction_type,
+                        'run_number': run_number,
+                        'agent': agent,
+                        'behav_type': behav_type,
+                        'from': from_field,
+                        'to': 'object',
+                        'binary_timeline': merged_timeline,
+                        'row_index_in_behav_df': np.nan  # Placeholder for row index
+                    })
+
     # Convert merged rows to a DataFrame
     merged_df = pd.DataFrame(merged_rows)
-    # Drop original left/right nonsocial object rows
+
+    # Remove all original nonsocial object rows
     nonsocial_mask = binary_behav_timeseries_df['from'].isin(['left_nonsocial_object', 'right_nonsocial_object']) | \
                      binary_behav_timeseries_df['to'].isin(['left_nonsocial_object', 'right_nonsocial_object'])
     updated_df = binary_behav_timeseries_df[~nonsocial_mask].copy()
-    # Append the merged rows to the updated DataFrame
+
+    # Append merged rows at appropriate positions
     updated_df = pd.concat([updated_df, merged_df], ignore_index=True)
+
     return updated_df
+
 
 
 
