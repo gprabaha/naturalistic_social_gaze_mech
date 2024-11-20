@@ -205,8 +205,9 @@ class DataManager:
                 use_parallel=use_parallel)
             # Assuming fixation_timeline_df and saccade_timeline_df are already created
             binary_behav_timeseries_df = pd.concat([fixation_timeline_df, saccade_timeline_df], ignore_index=True)
-            binary_behav_timeseries_df = analyze_data.merge_left_and_right_object_timelines_in_behav_df(self.binary_behav_timeseries_df)
+            binary_behav_timeseries_df = analyze_data.merge_left_and_right_object_timelines_in_behav_df(binary_behav_timeseries_df, self.params)
             binary_behav_timeseries_df.to_pickle(binary_timeseries_file_path)
+            self.logger.info(f"Saved binary behavior timeseries to: {binary_timeseries_file_path}")
             return binary_behav_timeseries_df
         else:
             self.logger.info("Loading existing binary behavior timeseries.")
