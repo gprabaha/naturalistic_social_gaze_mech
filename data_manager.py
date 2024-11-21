@@ -171,11 +171,15 @@ class DataManager:
 
     def create_and_submit_shuffled_cross_corr_jobs(self):
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
+        self.logger.info(f'Loading binary behavioral df from {binary_timeseries_file_path}')
         self.binary_behav_timeseries_df = load_data.load_binary_timeseries_df(binary_timeseries_file_path)
         grouped_keys = self.binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number']).groups.keys()
         hpc_handler = HPCShuffledCrossCorr(self.params)
-        job_file_path = hpc_handler.generate_job_file(grouped_keys, binary_timeseries_file_path)
-        hpc_handler.submit_job_array(job_file_path)
+        num_cpus_per_job = 18
+        num_shuffles = 50
+        job_file_path = hpc_handler.generate_job_file(grouped_keys, binary_timeseries_file_path, num_cpus_per_job, num_shuffles)
+        pdb.set_trace()
+        hpc_handler.submit_job_array(job_file_path, num_cpus_per_job)
 
 
     def _load_or_compute_fixations_and_saccades(self):

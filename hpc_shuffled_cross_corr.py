@@ -12,7 +12,8 @@ class HPCShuffledCrossCorr:
         self.logger = logging.getLogger(__name__)
         self.python_script_path = 'run_shuffled_cross_corr_for_one_job_in_array.py'  # Path to the Python script
 
-    def generate_job_file(self, groups, params_file_path):
+
+    def generate_job_file(self, groups, binary_timeseries_file_path, num_cpus, num_shuffles):
         """
         Generates a job file for submitting array jobs, with each task processing one group.
         If try_using_single_run is True, only one random group is selected for testing.
@@ -20,12 +21,10 @@ class HPCShuffledCrossCorr:
         job_file_path = os.path.join(self.job_script_out_dir, 'joblist_shuffled_cross_corr.txt')
         os.makedirs(self.job_script_out_dir, exist_ok=True)
         env_name = 'gaze_processing'
-
         # If try_using_single_run is True, randomly select one group
         if self.params.get('try_using_single_run', False):
             self.logger.info("Using a single random group for testing.")
             groups = [random.choice(list(groups))]
-
         with open(job_file_path, 'w') as file:
             for group_keys in groups:
                 group_str = f'"{group_keys}"'
@@ -33,15 +32,17 @@ class HPCShuffledCrossCorr:
                     f"module load miniconda; "
                     f"conda activate {env_name}; "
                     f"python {self.python_script_path} --group_keys {group_str} "
-                    f"--binary_timeseries_file {params_file_path} "
+                    f"--binary_timeseries_file {binary_timeseries_file_path} "
                     f"--output_dir {os.path.join(self.params.get('processed_data_dir'), 'crosscorr_chunk_outputs_shuffled')} "
-                    f"--shuffle_count 50"
+                    f"--num_cpus {num_cpus} "
+                    f"--shuffle_count {num_shuffles}"
                 )
                 file.write(command + "\n")
         self.logger.info(f"Generated job file at {job_file_path}")
         return job_file_path
 
-    def submit_job_array(self, job_file_path):
+
+    def submit_job_array(self, job_file_path, num_cpus):
         """
         Submits the generated job file as a job array to the cluster using dSQ.
         """
@@ -52,7 +53,7 @@ class HPCShuffledCrossCorr:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task 16 --mem-per-cpu 10G -t 02:00:00',
+                f'--cpus-per-task {num_cpus} --mem-per-cpu 10G -t 02:00:00',
                 shell=True, check=True, executable='/bin/bash'
             )
             self.logger.info("Successfully generated the dSQ job script.")
@@ -74,6 +75,7 @@ class HPCShuffledCrossCorr:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error during job submission process: {e}")
             raise
+
 
     def track_job_progress(self, job_id):
         """

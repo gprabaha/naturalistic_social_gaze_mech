@@ -471,22 +471,33 @@ def compute_crosscorr_distribution_for_shuffled_data(
         num_cpus (int): Total number of CPUs available for processing.
     """
     session_name, interaction_type, run_number = group_keys
+    logger.info(f"Processing group: {group_keys}")
     # Filter DataFrame for the given group
+    logger.info("Filtering data for the group...")
     group_df = binary_behav_timeseries_df.query(
         f"session_name == '{session_name}' and interaction_type == '{interaction_type}' and run_number == {run_number}"
     )
     m1_data = group_df[group_df['agent'] == 'm1']
     m2_data = group_df[group_df['agent'] == 'm2']
     # Generate all combinations of behavior types, 'from', and 'to' for m1 and m2
+    logger.info("Generating all cross-combinations...")
     unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     all_cross_combinations = _generate_cross_combinations(unique_behav_types, unique_from, unique_to)
     # Distribute combinations among processes
+    logger.info(f"Distributing {len(all_cross_combinations)} combinations among {num_cpus} processes...")
     with Pool(num_cpus) as pool:
-        results = pool.map(
-            _process_single_combination,
-            [(comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number) for comb in all_cross_combinations]
+        results = list(
+            tqdm(
+                pool.imap(
+                    _process_single_combination,
+                    [(comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number)
+                     for comb in all_cross_combinations]
+                ),
+                total=len(all_cross_combinations),
+                desc="Processing cross-combinations"
+            )
         )
     # Filter out None results
     results = [result for result in results if result is not None]
@@ -496,8 +507,10 @@ def compute_crosscorr_distribution_for_shuffled_data(
     filename = f"{sanitized_session_name}__{sanitized_interaction_type}__run_{run_number}_shuffled.pkl"
     output_file = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Saving results to {output_file}...")
     with open(output_file, "wb") as f:
         pickle.dump(results, f)
+    logger.info(f"Processing for group {group_keys} completed successfully.")
 
 
 def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
@@ -510,6 +523,7 @@ def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
     Returns:
         list: List of all possible combinations.
     """
+    logger.info("Generating cross-combinations for behavior types...")
     return [
         (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
         for m1_type, m1_from, m1_to in product(unique_behav_types, unique_from, unique_to)
@@ -544,19 +558,20 @@ def _process_single_combination(args):
         binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
         binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
         # Compute cross-correlations using threading for shuffles
-        return _compute_shuffled_correlations(
+        return __compute_shuffled_correlations(
             binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
             interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
         )
     return None
 
 
-def _compute_shuffled_correlations(
+def __compute_shuffled_correlations(
     binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
     interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
 ):
     """
     Compute shuffled cross-correlations for a single combination.
+
     Args:
         binary_timeline_m1 (np.array): Binary timeline for m1.
         binary_timeline_m2 (np.array): Binary timeline for m2.
@@ -566,15 +581,20 @@ def _compute_shuffled_correlations(
         run_number (int): Run number.
         m1_type, m1_from, m1_to (str): Behavior type, 'from', and 'to' for m1.
         m2_type, m2_from, m2_to (str): Behavior type, 'from', and 'to' for m2.
+
     Returns:
         dict: Dictionary containing cross-correlation results for the combination.
     """
-    # Use threading to shuffle and compute in parallel
+    logger.debug("Shuffling timelines and computing cross-correlations...")
     with ThreadPoolExecutor(max_workers=3) as executor:
         crosscorr_shuffles = list(
-            executor.map(
-                lambda _: __shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
-                range(shuffle_count)
+            tqdm(
+                executor.map(
+                    lambda _: ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
+                    range(shuffle_count)
+                ),
+                total=shuffle_count,
+                desc="Shuffling timelines"
             )
         )
     # Calculate mean and std for each lag
@@ -598,18 +618,21 @@ def _compute_shuffled_correlations(
     }
 
 
-def __shuffle_and_compute(binary_timeline_m1, binary_timeline_m2):
+def ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2):
     """
     Perform a single shuffle and compute cross-correlation.
+
     Args:
         binary_timeline_m1 (np.array): Binary timeline for m1.
         binary_timeline_m2 (np.array): Binary timeline for m2.
+
     Returns:
         np.array: Cross-correlation result for the shuffle.
     """
     np.random.shuffle(binary_timeline_m1)
     np.random.shuffle(binary_timeline_m2)
     return fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
+
 
 
 
