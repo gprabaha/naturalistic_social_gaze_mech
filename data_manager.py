@@ -22,6 +22,8 @@ import plotter
 
 import pdb
 
+import load_data
+from hpc_shuffled_cross_corr import HPCShuffledCrossCorr
 
 
 import os
@@ -169,6 +171,7 @@ class DataManager:
 
     def create_and_submit_shuffled_cross_corr_jobs(self):
         binary_timeseries_file_path = os.path.join(self.params['processed_data_dir'], 'binary_behav_timeseries.pkl')
+        self.binary_behav_timeseries_df = load_data.load_binary_timeseries_df(binary_timeseries_file_path)
         grouped_keys = self.binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number']).groups.keys()
         hpc_handler = HPCShuffledCrossCorr(self.params)
         job_file_path = hpc_handler.generate_job_file(grouped_keys, binary_timeseries_file_path)

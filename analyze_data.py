@@ -457,15 +457,12 @@ def _compute_single_crosscorrelation(comb, m1_data, m2_data, session_name, inter
         }
 
 
-
-
 def compute_crosscorr_distribution_for_shuffled_data(
     group_keys, binary_behav_timeseries_df, shuffle_count, output_dir, num_cpus
 ):
     """
     Compute mean and std of cross-correlation distributions from shuffled data
     using parallel processing and threading.
-
     Args:
         group_keys (tuple): Identifiers for the current group (session_name, interaction_type, run_number).
         binary_behav_timeseries_df (pd.DataFrame): DataFrame containing binary behavioral timeseries.
@@ -474,37 +471,25 @@ def compute_crosscorr_distribution_for_shuffled_data(
         num_cpus (int): Total number of CPUs available for processing.
     """
     session_name, interaction_type, run_number = group_keys
-
     # Filter DataFrame for the given group
     group_df = binary_behav_timeseries_df.query(
         f"session_name == '{session_name}' and interaction_type == '{interaction_type}' and run_number == {run_number}"
     )
     m1_data = group_df[group_df['agent'] == 'm1']
     m2_data = group_df[group_df['agent'] == 'm2']
-
     # Generate all combinations of behavior types, 'from', and 'to' for m1 and m2
     unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     all_cross_combinations = _generate_cross_combinations(unique_behav_types, unique_from, unique_to)
-
-    # Determine the number of processes and distribute combinations among them
-    num_processes = num_cpus // 3
-    chunk_size = len(all_cross_combinations) // num_processes
-    combinations_chunks = [
-        all_cross_combinations[i:i + chunk_size]
-        for i in range(0, len(all_cross_combinations), chunk_size)
-    ]
-
-    # Process chunks in parallel using multiprocessing
-    results = []
-    with Pool(num_processes) as pool:
-        for chunk_results in pool.map(
-            _process_combinations_chunk,
-            [(chunk, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number) for chunk in combinations_chunks]
-        ):
-            results.extend(chunk_results)
-
+    # Distribute combinations among processes
+    with Pool(num_cpus) as pool:
+        results = pool.map(
+            _process_single_combination,
+            [(comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number) for comb in all_cross_combinations]
+        )
+    # Filter out None results
+    results = [result for result in results if result is not None]
     # Save the aggregated results to disk
     sanitized_session_name = session_name.replace(" ", "_")
     sanitized_interaction_type = interaction_type.replace(" ", "_")
@@ -518,12 +503,10 @@ def compute_crosscorr_distribution_for_shuffled_data(
 def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
     """
     Generate all possible combinations of behavior types, 'from', and 'to' for m1 and m2.
-
     Args:
         unique_behav_types (array-like): Unique behavior types.
         unique_from (array-like): Unique 'from' values.
         unique_to (array-like): Unique 'to' values.
-
     Returns:
         list: List of all possible combinations.
     """
@@ -534,43 +517,17 @@ def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
     ]
 
 
-def _process_combinations_chunk(args):
+def _process_single_combination(args):
     """
-    Process a chunk of combinations using threading.
-
-    Args:
-        args (tuple): Contains the chunk of combinations, m1 and m2 data, shuffle count,
-                      and group identifiers.
-
-    Returns:
-        list: Results for the processed combinations.
-    """
-    combinations_chunk, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
-    results = []
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        for result in executor.map(
-            _compute_for_combination,
-            [(comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number) for comb in combinations_chunk]
-        ):
-            if result is not None:
-                results.append(result)
-    return results
-
-
-def _compute_for_combination(args):
-    """
-    Compute shuffled cross-correlation for a single combination.
-
+    Process a single cross-combination by computing shuffled cross-correlation.
     Args:
         args (tuple): Contains the combination details, m1 and m2 data, shuffle count,
                       and group identifiers.
-
     Returns:
         dict or None: Result dictionary with cross-correlation data, or None if data is missing.
     """
     comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
     m1_type, m1_from, m1_to, m2_type, m2_from, m2_to = comb
-
     # Apply filters for m1 and m2 data
     m1_filter = (
         (m1_data['behav_type'] == m1_type) &
@@ -582,41 +539,78 @@ def _compute_for_combination(args):
         (m2_data['from'] == m2_from) &
         (m2_data['to'] == m2_to)
     )
-
     if m1_filter.any() and m2_filter.any():
         # Extract binary timelines
         binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
         binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
-
-        # Perform shuffled cross-correlation
-        crosscorr_shuffles = []
-        for _ in range(shuffle_count):
-            np.random.shuffle(binary_timeline_m1)
-            np.random.shuffle(binary_timeline_m2)
-            crosscorr = fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
-            crosscorr_shuffles.append(crosscorr)
-
-        # Calculate mean and std for each lag
-        crosscorr_shuffles = np.array(crosscorr_shuffles)
-        mean_crosscorr = np.mean(crosscorr_shuffles, axis=0)
-        std_crosscorr = np.std(crosscorr_shuffles, axis=0)
-        lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
-
-        return {
-            'session_name': session_name,
-            'interaction_type': interaction_type,
-            'run_number': run_number,
-            'm1_behav_type': m1_type,
-            'm1_from': m1_from,
-            'm1_to': m1_to,
-            'm2_behav_type': m2_type,
-            'm2_from': m2_from,
-            'm2_to': m2_to,
-            'lags': lags.tolist(),
-            'mean_crosscorr': mean_crosscorr.tolist(),
-            'std_crosscorr': std_crosscorr.tolist()
-        }
+        # Compute cross-correlations using threading for shuffles
+        return _compute_shuffled_correlations(
+            binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
+            interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
+        )
     return None
+
+
+def _compute_shuffled_correlations(
+    binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
+    interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
+):
+    """
+    Compute shuffled cross-correlations for a single combination.
+    Args:
+        binary_timeline_m1 (np.array): Binary timeline for m1.
+        binary_timeline_m2 (np.array): Binary timeline for m2.
+        shuffle_count (int): Number of shuffles.
+        session_name (str): Session name.
+        interaction_type (str): Interaction type.
+        run_number (int): Run number.
+        m1_type, m1_from, m1_to (str): Behavior type, 'from', and 'to' for m1.
+        m2_type, m2_from, m2_to (str): Behavior type, 'from', and 'to' for m2.
+    Returns:
+        dict: Dictionary containing cross-correlation results for the combination.
+    """
+    # Use threading to shuffle and compute in parallel
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        crosscorr_shuffles = list(
+            executor.map(
+                lambda _: __shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
+                range(shuffle_count)
+            )
+        )
+    # Calculate mean and std for each lag
+    crosscorr_shuffles = np.array(crosscorr_shuffles)
+    mean_crosscorr = np.mean(crosscorr_shuffles, axis=0)
+    std_crosscorr = np.std(crosscorr_shuffles, axis=0)
+    lags = np.arange(-len(binary_timeline_m1) + 1, len(binary_timeline_m2))
+    return {
+        'session_name': session_name,
+        'interaction_type': interaction_type,
+        'run_number': run_number,
+        'm1_behav_type': m1_type,
+        'm1_from': m1_from,
+        'm1_to': m1_to,
+        'm2_behav_type': m2_type,
+        'm2_from': m2_from,
+        'm2_to': m2_to,
+        'lags': lags.tolist(),
+        'mean_crosscorr': mean_crosscorr.tolist(),
+        'std_crosscorr': std_crosscorr.tolist()
+    }
+
+
+def __shuffle_and_compute(binary_timeline_m1, binary_timeline_m2):
+    """
+    Perform a single shuffle and compute cross-correlation.
+    Args:
+        binary_timeline_m1 (np.array): Binary timeline for m1.
+        binary_timeline_m2 (np.array): Binary timeline for m2.
+    Returns:
+        np.array: Cross-correlation result for the shuffle.
+    """
+    np.random.shuffle(binary_timeline_m1)
+    np.random.shuffle(binary_timeline_m2)
+    return fftconvolve(binary_timeline_m1, binary_timeline_m2[::-1], mode='full')
+
 
 
 
