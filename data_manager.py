@@ -178,7 +178,6 @@ class DataManager:
         num_cpus_per_job = 18
         num_shuffles = 50
         job_file_path = hpc_handler.generate_job_file(grouped_keys, binary_timeseries_file_path, num_cpus_per_job, num_shuffles)
-        pdb.set_trace()
         hpc_handler.submit_job_array(job_file_path, num_cpus_per_job)
 
 
