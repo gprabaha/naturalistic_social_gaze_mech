@@ -349,11 +349,7 @@ def compute_interagent_cross_correlations_between_all_types_of_behavior(binary_b
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     # Cartesian product of combinations for m1 and m2
-    all_cross_combinations = [
-        (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
-        for m1_type, m1_from, m1_to in product(unique_behav_types, unique_from, unique_to)
-        for m2_type, m2_from, m2_to in product(unique_behav_types, unique_from, unique_to)
-    ]
+    all_cross_combinations = _generate_cross_combinations(unique_behav_types, unique_from, unique_to)
     logger.debug(f"Generated {len(all_cross_combinations)} cross-combinations for m1 and m2.")
     # Group by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -516,6 +512,8 @@ def compute_crosscorr_distribution_for_shuffled_data(
 def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
     """
     Generate all possible combinations of behavior types, 'from', and 'to' for m1 and m2.
+    For 'saccade', allow all combinations of 'from' and 'to'.
+    For 'fixation', restrict 'to' to match 'from'.
     Args:
         unique_behav_types (array-like): Unique behavior types.
         unique_from (array-like): Unique 'from' values.
@@ -524,11 +522,16 @@ def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
         list: List of all possible combinations.
     """
     logger.info("Generating cross-combinations for behavior types...")
-    return [
-        (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
-        for m1_type, m1_from, m1_to in product(unique_behav_types, unique_from, unique_to)
-        for m2_type, m2_from, m2_to in product(unique_behav_types, unique_from, unique_to)
-    ]
+    combinations = []
+    for m1_type in unique_behav_types:
+        for m1_from in unique_from:
+            for m1_to in (unique_to if m1_type == 'saccade' else [m1_from]):  # Restrict 'to' for fixations
+                for m2_type in unique_behav_types:
+                    for m2_from in unique_from:
+                        for m2_to in (unique_to if m2_type == 'saccade' else [m2_from]):  # Restrict 'to' for fixations
+                            combinations.append((m1_type, m1_from, m1_to, m2_type, m2_from, m2_to))
+    logger.info(f"Generated {len(combinations)} cross-combinations.")
+    return combinations
 
 
 def _process_single_combination(args):
@@ -571,7 +574,6 @@ def __compute_shuffled_correlations(
 ):
     """
     Compute shuffled cross-correlations for a single combination.
-
     Args:
         binary_timeline_m1 (np.array): Binary timeline for m1.
         binary_timeline_m2 (np.array): Binary timeline for m2.
@@ -581,7 +583,6 @@ def __compute_shuffled_correlations(
         run_number (int): Run number.
         m1_type, m1_from, m1_to (str): Behavior type, 'from', and 'to' for m1.
         m2_type, m2_from, m2_to (str): Behavior type, 'from', and 'to' for m2.
-
     Returns:
         dict: Dictionary containing cross-correlation results for the combination.
     """

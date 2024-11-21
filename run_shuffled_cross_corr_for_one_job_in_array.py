@@ -5,6 +5,15 @@ import load_data
 from analyze_data import compute_crosscorr_distribution_for_shuffled_data
 import logging
 
+# Configure the root logger
+logging.basicConfig(
+    level=logging.INFO,
+    # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(name)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 def main():
@@ -17,7 +26,7 @@ def main():
     args = parser.parse_args()
 
     group_keys = eval(args.group_keys)
-    logger.info(f'Loading binary behavioral df from {binary_timeseries_file_path}')
+    logger.info(f'Loading binary behavioral df from {args.binary_timeseries_file}')
     binary_timeseries_df = load_data.load_binary_timeseries_df(args.binary_timeseries_file)
     os.makedirs(args.output_dir, exist_ok=True)
 
