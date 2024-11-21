@@ -511,32 +511,47 @@ def compute_crosscorr_distribution_for_shuffled_data(
 
 def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
     """
-    Generate all possible combinations of behavior types, 'from', and 'to' for m1 and m2.
-    For 'saccade', allow all combinations of 'from' and 'to'.
-    For 'fixation', restrict 'to' to match 'from'.
+    Generate all possible combinations for m1 and m2:
+    - Fixations: 'from' == 'to'.
+    - Saccades:
+      - 'any' -> specific 'to'.
+      - Specific 'from' -> 'any'.
     Args:
         unique_behav_types (array-like): Unique behavior types.
         unique_from (array-like): Unique 'from' values.
         unique_to (array-like): Unique 'to' values.
     Returns:
-        list: List of all possible combinations.
+        list: List of n*n cross-combinations for m1 and m2.
     """
     logger.info("Generating cross-combinations for behavior types...")
-    combinations = []
-    for m1_type in unique_behav_types:
-        for m1_from in unique_from:
-            for m1_to in (unique_to if m1_type == 'saccade' else [m1_from]):  # Restrict 'to' for fixations
-                for m2_type in unique_behav_types:
-                    for m2_from in unique_from:
-                        for m2_to in (unique_to if m2_type == 'saccade' else [m2_from]):  # Restrict 'to' for fixations
-                            combinations.append((m1_type, m1_from, m1_to, m2_type, m2_from, m2_to))
-    logger.info(f"Generated {len(combinations)} cross-combinations.")
-    return combinations
+    m1_combinations = []
+    m2_combinations = []
+    # Fixation combinations (from == to)
+    for loc in unique_from:
+        m1_combinations.append(("fixation", loc, loc))
+        m2_combinations.append(("fixation", loc, loc))
+
+    # Saccade combinations
+    for to in unique_to:
+        m1_combinations.append(("saccade", "any", to))
+        m2_combinations.append(("saccade", "any", to))
+    for from_ in unique_from:
+        m1_combinations.append(("saccade", from_, "any"))
+        m2_combinations.append(("saccade", from_, "any"))
+    # Cartesian product for m1 and m2
+    cross_combinations = [
+        (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
+        for m1_type, m1_from, m1_to in m1_combinations
+        for m2_type, m2_from, m2_to in m2_combinations
+    ]
+    logger.info(f"Generated {len(cross_combinations)} cross-combinations.")
+    return cross_combinations
 
 
 def _process_single_combination(args):
     """
-    Process a single cross-combination by computing shuffled cross-correlation.
+    Process a single cross-combination by extracting binary vectors
+    and computing shuffled cross-correlation.
     Args:
         args (tuple): Contains the combination details, m1 and m2 data, shuffle count,
                       and group identifiers.
@@ -545,27 +560,55 @@ def _process_single_combination(args):
     """
     comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
     m1_type, m1_from, m1_to, m2_type, m2_from, m2_to = comb
-    # Apply filters for m1 and m2 data
-    m1_filter = (
-        (m1_data['behav_type'] == m1_type) &
-        (m1_data['from'] == m1_from) &
-        (m1_data['to'] == m1_to)
+    # Extract binary vectors for m1
+    binary_timeline_m1 = _extract_binary_vector(m1_type, m1_from, m1_to, m1_data)
+    if binary_timeline_m1 is None:
+        return None
+    # Extract binary vectors for m2
+    binary_timeline_m2 = _extract_binary_vector(m2_type, m2_from, m2_to, m2_data)
+    if binary_timeline_m2 is None:
+        return None
+    # Compute shuffled cross-correlation
+    return __compute_shuffled_correlations(
+        binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
+        interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
     )
-    m2_filter = (
-        (m2_data['behav_type'] == m2_type) &
-        (m2_data['from'] == m2_from) &
-        (m2_data['to'] == m2_to)
-    )
-    if m1_filter.any() and m2_filter.any():
-        # Extract binary timelines
-        binary_timeline_m1 = np.array(m1_data[m1_filter]['binary_timeline'].iloc[0])
-        binary_timeline_m2 = np.array(m2_data[m2_filter]['binary_timeline'].iloc[0])
-        # Compute cross-correlations using threading for shuffles
-        return __compute_shuffled_correlations(
-            binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
-            interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
-        )
+
+
+def _extract_binary_vector(behav_type, from_, to_, data):
+    """
+    Extract binary vectors based on behavior type and 'from'-'to' combinations.
+
+    Args:
+        behav_type (str): Behavior type ('fixation' or 'saccade').
+        from_ (str): 'From' field value.
+        to_ (str): 'To' field value.
+        data (pd.DataFrame): DataFrame containing behavioral data.
+
+    Returns:
+        np.array or None: Binary vector or None if no matching data.
+    """
+    if behav_type == "fixation":
+        # For fixations, 'from' == 'to'
+        filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
+    elif behav_type == "saccade":
+        if from_ == "any":
+            # OR across all 'from' vectors for a specific 'to'
+            filter_cond = (data['behav_type'] == behav_type) & (data['to'] == to_)
+            if filter_cond.any():
+                return np.bitwise_or.reduce(data[filter_cond]['binary_timeline'].apply(np.array))
+        elif to_ == "any":
+            # OR across all 'to' vectors for a specific 'from'
+            filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_)
+            if filter_cond.any():
+                return np.bitwise_or.reduce(data[filter_cond]['binary_timeline'].apply(np.array))
+        else:
+            # Specific from-to combination
+            filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
+    if filter_cond.any():
+        return np.array(data[filter_cond]['binary_timeline'].iloc[0])
     return None
+
 
 
 def __compute_shuffled_correlations(
