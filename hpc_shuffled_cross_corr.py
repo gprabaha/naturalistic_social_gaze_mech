@@ -4,6 +4,7 @@ import subprocess
 import logging
 import time
 
+import pdb
 
 class HPCShuffledCrossCorr:
     def __init__(self, params):

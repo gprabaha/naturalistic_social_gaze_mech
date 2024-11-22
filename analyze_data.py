@@ -480,7 +480,7 @@ def compute_crosscorr_distribution_for_shuffled_data(
     unique_behav_types = binary_behav_timeseries_df['behav_type'].unique()
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
-    all_cross_combinations = _generate_cross_combinations(unique_behav_types, unique_from, unique_to)
+    all_cross_combinations = _generate_cross_combinations(unique_from, unique_to)
     # Distribute combinations among processes
     logger.info(f"Distributing {len(all_cross_combinations)} combinations among {num_cpus} processes...")
     with Pool(num_cpus) as pool:
@@ -509,7 +509,7 @@ def compute_crosscorr_distribution_for_shuffled_data(
     logger.info(f"Processing for group {group_keys} completed successfully.")
 
 
-def _generate_cross_combinations(unique_behav_types, unique_from, unique_to):
+def _generate_cross_combinations(unique_from, unique_to):
     """
     Generate all possible combinations for m1 and m2:
     - Fixations: 'from' == 'to'.
@@ -595,20 +595,34 @@ def _extract_binary_vector(behav_type, from_, to_, data):
         if from_ == "any":
             # OR across all 'from' vectors for a specific 'to'
             filter_cond = (data['behav_type'] == behav_type) & (data['to'] == to_)
-            if filter_cond.any():
-                return np.bitwise_or.reduce(data[filter_cond]['binary_timeline'].apply(np.array))
         elif to_ == "any":
             # OR across all 'to' vectors for a specific 'from'
             filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_)
-            if filter_cond.any():
-                return np.bitwise_or.reduce(data[filter_cond]['binary_timeline'].apply(np.array))
         else:
             # Specific from-to combination
             filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
-    if filter_cond.any():
-        return np.array(data[filter_cond]['binary_timeline'].iloc[0])
-    return None
+    else:
+        logger.warning(f"Unsupported behavior type: {behav_type}")
+        return None
 
+    if filter_cond.any():
+        binary_timelines = data[filter_cond]['binary_timeline'].apply(np.array)
+        # Ensure all binary timelines are valid numpy arrays
+        valid_timelines = [arr for arr in binary_timelines if isinstance(arr, np.ndarray) and arr.ndim == 1]
+        if valid_timelines:
+            # Stack timelines for consistent shape and reduce using bitwise OR
+            try:
+                stacked_timelines = np.vstack(valid_timelines)
+                logger.debug(f"Stacked timelines shape: {stacked_timelines.shape}")
+                return np.bitwise_or.reduce(stacked_timelines)
+            except ValueError as e:
+                logger.error(f"Error stacking timelines: {e}")
+                logger.info(f"Binary timelines: {valid_timelines}")
+        else:
+            logger.warning("No valid binary timelines found after filtering.")
+    else:
+        logger.info("Filter condition did not match any rows.")
+    return None
 
 
 def __compute_shuffled_correlations(
@@ -632,13 +646,9 @@ def __compute_shuffled_correlations(
     logger.debug("Shuffling timelines and computing cross-correlations...")
     with ThreadPoolExecutor(max_workers=3) as executor:
         crosscorr_shuffles = list(
-            tqdm(
-                executor.map(
-                    lambda _: ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
-                    range(shuffle_count)
-                ),
-                total=shuffle_count,
-                desc="Shuffling timelines"
+            executor.map(
+                lambda _: ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
+                range(shuffle_count)
             )
         )
     # Calculate mean and std for each lag
