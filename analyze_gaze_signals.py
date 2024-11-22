@@ -37,7 +37,7 @@ def main():
         'remake_synchronized_gaze_data_df': False,
 
         'remake_fix_and_sacc': False,
-        'try_using_single_run': True,
+        'try_using_single_run': False,
         'recompute_fix_and_saccades_through_hpc_jobs': True,
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
         
