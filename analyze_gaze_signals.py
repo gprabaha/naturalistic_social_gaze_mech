@@ -38,7 +38,7 @@ def main():
 
         'remake_fix_and_sacc': False,
         'try_using_single_run': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
         'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
         
         'remake_binary_timeseries': False,
