@@ -162,11 +162,10 @@ class DataManager:
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        self.create_and_submit_shuffled_cross_corr_jobs()
         self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
-        pdb.set_trace()
-        self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
-        self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
+        # self.create_and_submit_shuffled_cross_corr_jobs()
+        # self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
+        # self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
 
 
     def create_and_submit_shuffled_cross_corr_jobs(self):
@@ -176,7 +175,7 @@ class DataManager:
         grouped_keys = self.binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number']).groups.keys()
         hpc_handler = HPCShuffledCrossCorr(self.params)
         num_cpus_per_job = 18
-        num_shuffles = 50
+        num_shuffles = 100
         job_file_path = hpc_handler.generate_job_file(grouped_keys, binary_timeseries_file_path, num_cpus_per_job, num_shuffles)
         hpc_handler.submit_job_array(job_file_path, num_cpus_per_job)
 
@@ -288,8 +287,8 @@ class DataManager:
     def run(self):
         """Runs the data processing steps in sequence."""
         self.populate_params_with_data_paths()
-        self.create_and_submit_shuffled_cross_corr_jobs()
+        # self.create_and_submit_shuffled_cross_corr_jobs()
         #self.get_data()
         #self.prune_data()
-        #self.analyze_behavior()
+        self.analyze_behavior()
         #self.plot_data()
