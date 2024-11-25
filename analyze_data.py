@@ -351,15 +351,15 @@ def compute_behavioral_cross_correlations(
     # Generate all cross-combinations for behavior types
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
-    all_cross_combinations = _generate_behavior_combinations(unique_from, unique_to)
-    logger.debug(f"Generated {len(all_cross_combinations)} cross-combinations.")
+    all_behavior_combinations = _generate_behavior_combinations(unique_from, unique_to)
+    logger.debug(f"Generated {len(all_behavior_combinations)} behavior combinations.")
     # Group the data by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     logger.info(f"Processing {len(grouped)} session groups.")
     # Prepare arguments for parallel or serial processing
     shuffle_count = params.get("shuffle_count", 100) if shuffled else None
     args = [
-        (group_keys, group_df.to_dict(orient="list"), all_cross_combinations, output_dir, shuffle_count)
+        (group_keys, group_df.to_dict(orient="list"), all_behavior_combinations, output_dir, shuffle_count)
         for group_keys, group_df in grouped
     ]
     if serial:
@@ -432,7 +432,7 @@ def _compute_crosscorrelations_for_group(args, shuffled):
     # Compute cross-correlations for all combinations
     results = []
     for comb in cross_combinations:
-        result = _compute_single_crosscorrelation_combination(
+        result = __compute_single_crosscorrelation_combination(
             (comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number),
             shuffled
         )
@@ -450,7 +450,7 @@ def _compute_crosscorrelations_for_group(args, shuffled):
 
 
 
-def _compute_single_crosscorrelation_combination(args, shuffled=False):
+def __compute_single_crosscorrelation_combination(args, shuffled=False):
     """
     Compute cross-correlation (regular or shuffled) for a single behavior combination.
 
@@ -465,25 +465,25 @@ def _compute_single_crosscorrelation_combination(args, shuffled=False):
     comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
     m1_type, m1_from, m1_to, m2_type, m2_from, m2_to = comb
     # Extract binary timelines for both agents
-    binary_timeline_m1 = __extract_binary_vector(m1_type, m1_from, m1_to, m1_data)
-    binary_timeline_m2 = __extract_binary_vector(m2_type, m2_from, m2_to, m2_data)
+    binary_timeline_m1 = ___extract_binary_vector(m1_type, m1_from, m1_to, m1_data)
+    binary_timeline_m2 = ___extract_binary_vector(m2_type, m2_from, m2_to, m2_data)
     if binary_timeline_m1 is None or binary_timeline_m2 is None:
         return None
     if shuffled:
         # Shuffled cross-correlation computation
-        return __compute_shuffled_crosscorrelation(
+        return ___compute_shuffled_crosscorrelation(
             binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
             interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
         )
     else:
         # Regular cross-correlation computation
-        return __compute_regular_crosscorrelation(
+        return ___compute_regular_crosscorrelation(
             binary_timeline_m1, binary_timeline_m2, session_name,
             interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
         )
 
 
-def __extract_binary_vector(behav_type, from_, to_, data):
+def ___extract_binary_vector(behav_type, from_, to_, data):
     """
     Extract binary vectors based on behavior type and 'from'-'to' combinations.
     Args:
@@ -523,7 +523,7 @@ def __extract_binary_vector(behav_type, from_, to_, data):
     return None
 
 
-def __compute_regular_crosscorrelation(
+def ___compute_regular_crosscorrelation(
     binary_timeline_m1, binary_timeline_m2, session_name, interaction_type, run_number,
     m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
 ):
@@ -558,7 +558,7 @@ def __compute_regular_crosscorrelation(
     }
 
 
-def __compute_shuffled_crosscorrelation(
+def ___compute_shuffled_crosscorrelation(
     binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
     interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
 ):
@@ -579,7 +579,7 @@ def __compute_shuffled_crosscorrelation(
     with ThreadPoolExecutor(max_workers=3) as executor:
         crosscorr_shuffles = list(
             executor.map(
-                lambda _: ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
+                lambda _: ____shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
                 range(shuffle_count)
             )
         )
@@ -603,7 +603,7 @@ def __compute_shuffled_crosscorrelation(
     }
 
 
-def ___shuffle_and_compute(binary_timeline_m1, binary_timeline_m2):
+def ____shuffle_and_compute(binary_timeline_m1, binary_timeline_m2):
     """
     Perform a single shuffle and compute cross-correlation.
     Args:
