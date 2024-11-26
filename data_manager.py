@@ -161,10 +161,12 @@ class DataManager:
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
         # self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
-        self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()        
+        self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
+
+
         # self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
-        analyze_data.compute_behavioral_cross_correlations(
-                self.binary_behav_timeseries_df, self.params, shuffled=True)
+        # self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
+        #         self.binary_behav_timeseries_df, self.params, shuffled=True)
         # self.create_and_submit_shuffled_cross_corr_jobs()
         # self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         # self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()
@@ -280,9 +282,11 @@ class DataManager:
 
 
     def plot_data(self):
+        out_dir = self.params.get('processed_data_dir')
+        plotter.process_and_plot_behaviors(self.binary_behav_timeseries_df, out_dir)
         # plotter.plot_random_run_snippets(self.neural_fr_timeseries_df)
         # plotter.plot_fixations_and_saccades(self.synchronized_gaze_data_df, self.fixation_df, self.saccade_df, self.params)
-        plotter.plot_mean_auto_and_crosscorrelations_for_monkey_pairs(self.recording_sessions_and_monkeys, self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
+        # plotter.plot_mean_auto_and_crosscorrelations_for_monkey_pairs(self.recording_sessions_and_monkeys, self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
         # plotter.plot_auto_and_cross_correlations(self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
 
 
@@ -293,4 +297,4 @@ class DataManager:
         #self.get_data()
         #self.prune_data()
         self.analyze_behavior()
-        #self.plot_data()
+        self.plot_data()

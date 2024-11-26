@@ -136,7 +136,7 @@ def add_paths_to_all_data_files_to_params(params):
             # Check and log missing values
     for key, paths in collected_paths.items():
         if any(value is None for value in paths.values()):  # Explicitly check for None
-            logger.warning(f"Missing data for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}; will be pruned out of paths df")
+            logger.debug(f"Missing data for session {key[0]}, interaction {key[1]}, run {key[2]}: {paths}; will be pruned out of paths df")
     # Filter out entries that contain None values explicitly
     complete_paths_list = [
         {
