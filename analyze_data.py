@@ -10,6 +10,7 @@ from scipy.signal import fftconvolve
 import logging
 from itertools import product
 
+from hpc_shuffled_cross_corr import HPCShuffledCrossCorr
 import util
 
 import pdb
@@ -335,13 +336,6 @@ def compute_behavioral_cross_correlations(
     """
     Main function to compute behavioral cross-correlations, supporting both regular
     and shuffled modes. Defaults to regular computation unless 'shuffled' is True.
-    Args:
-        binary_behav_timeseries_df (pd.DataFrame): Behavioral dataframe with binary timelines.
-        params (dict): Dictionary containing runtime parameters, including 'num_cpus' and 'output_dir'.
-        shuffled (bool): Whether to compute shuffled cross-correlation distributions.
-        serial (bool): Run the computations serially for debugging purposes.
-    Returns:
-        None: Results are saved to the specified output directory.
     """
     logger.info("Starting behavioral cross-correlation computation.")
     output_dir = os.path.join(
@@ -356,26 +350,42 @@ def compute_behavioral_cross_correlations(
     # Group the data by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     logger.info(f"Processing {len(grouped)} session groups.")
-    # Prepare arguments for parallel or serial processing
-    shuffle_count = params.get("shuffle_count", 100) if shuffled else None
-    args = [
-        (group_keys, group_df.to_dict(orient="list"), all_behavior_combinations, output_dir, shuffle_count)
-        for group_keys, group_df in grouped
-    ]
-    if serial:
-        # Run computations serially for debugging
-        logger.info("Running computations serially for debugging.")
-        for arg in tqdm(args, desc="Processing groups serially"):
-            _compute_crosscorrelations_for_group(arg, shuffled)
-    else:
-        # Parallel execution
+    if shuffled:
+        # Handle shuffled case with HPC job submission
+        logger.info("Submitting jobs for shuffled cross-correlation computation.")
+        binary_timeseries_file_path = os.path.join(output_dir, "binary_behav_timeseries.pkl")
+        # Initialize HPCShuffledCrossCorr
+        hpc_shuffled_cross_corr = HPCShuffledCrossCorr(params)
+        # Generate the job file
         num_cpus = params.get('num_cpus', 1)
-        outer_pool_size = max(1, num_cpus // (3 if shuffled else 1))
-        logger.info(f"Using {outer_pool_size} tasks with {num_cpus} CPUs allocated.")
-        with Pool(outer_pool_size) as pool:
-            list(tqdm(pool.imap(lambda arg: _compute_crosscorrelations_for_group(arg, shuffled), args),
-                      total=len(args), desc="Processing groups"))
+        shuffle_count = params.get("shuffle_count", 100)
+        job_file_path = hpc_shuffled_cross_corr.generate_job_file(
+            groups=grouped.groups.keys(),
+            binary_timeseries_file_path=binary_timeseries_file_path,
+            num_cpus=num_cpus,
+            num_shuffles=shuffle_count,
+            cross_combinations=all_behavior_combinations,
+            output_dir=output_dir,
+        )
+        # Submit the job array
+        hpc_shuffled_cross_corr.submit_job_array(job_file_path, num_cpus)
+    else:
+        # Handle regular or serial computation
+        args = [
+            (group_keys, group_df.to_dict(orient="list"), all_behavior_combinations, output_dir, None, shuffled)
+            for group_keys, group_df in grouped
+        ]
+        if serial:
+            logger.info("Running computations serially for debugging.")
+            for arg_tuple in tqdm(args, desc="Processing groups serially"):
+                _compute_crosscorrelations_for_group(arg_tuple)
+        else:
+            num_cpus = params.get('num_cpus', 1)
+            logger.info(f"Using {num_cpus} CPUs for parallel computation.")
+            with Pool(num_cpus) as pool:
+                list(tqdm(pool.imap(_parallel_crosscorrelation_task, args), total=len(args), desc="Processing groups"))
     logger.info(f"Behavioral cross-correlation results saved to {output_dir}.")
+
 
 
 def _generate_behavior_combinations(unique_from, unique_to):
@@ -424,7 +434,19 @@ def _generate_behavior_combinations(unique_from, unique_to):
     return cross_combinations
 
 
-def _compute_crosscorrelations_for_group(args, shuffled):
+def _parallel_crosscorrelation_task(arg_tuple):
+    """
+    Wrapper function for parallel cross-correlation task.
+    Args:
+        arg (tuple): Arguments unpacked for the `_compute_crosscorrelations_for_group` function.
+    Returns:
+        None
+    """
+    # Pass the entire tuple to the function
+    _compute_crosscorrelations_for_group(arg_tuple)
+
+
+def _compute_crosscorrelations_for_group(arg_tuple):
     """
     Compute cross-correlations for a single session group and save the results.
     Args:
@@ -433,16 +455,14 @@ def _compute_crosscorrelations_for_group(args, shuffled):
     Returns:
         None: Results are saved to disk.
     """
-    group_keys, group_dict, cross_combinations, output_dir, shuffle_count = args
+    group_keys, group_dict, cross_combinations, output_dir, shuffle_count, shuffled = arg_tuple
     session_name, interaction_type, run_number = group_keys
     group_df = pd.DataFrame(group_dict)
-    m1_data = group_df[group_df['agent'] == 'm1']
-    m2_data = group_df[group_df['agent'] == 'm2']
     # Compute cross-correlations for all combinations
     results = []
     for comb in cross_combinations:
         result = __compute_single_crosscorrelation_combination(
-            (comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number),
+            (comb, group_df, shuffle_count, session_name, interaction_type, run_number),
             shuffled
         )
         if result is not None:
@@ -468,11 +488,11 @@ def __compute_single_crosscorrelation_combination(args, shuffled=False):
     Returns:
         dict or None: Result dictionary with cross-correlation data, or None if data is missing.
     """
-    comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
+    comb, group_df, shuffle_count, session_name, interaction_type, run_number = args
     behav_type_m1, m1_from, m1_to, behav_type_m2, m2_from, m2_to = comb
     # Extract binary timelines for both agents
-    binary_timeline_m1 = ___extract_binary_vector(behav_type_m1, m1_from, m1_to, m1_data, "m1")
-    binary_timeline_m2 = ___extract_binary_vector(behav_type_m2, m2_from, m2_to, m2_data, "m2")
+    binary_timeline_m1 = ___extract_binary_vector(behav_type_m1, m1_from, m1_to, group_df, "m1")
+    binary_timeline_m2 = ___extract_binary_vector(behav_type_m2, m2_from, m2_to, group_df, "m2")
     if binary_timeline_m1 is None or binary_timeline_m2 is None:
         return None
     if shuffled:
@@ -547,9 +567,7 @@ def ___extract_binary_vector(behav_type, from_, to_, data, agent):
             logger.error(f"Error combining timelines: {e}")
             logger.debug(f"Valid timelines: {valid_timelines}")
     else:
-        logger.info(
-            f"No valid binary timelines found after filtering for: {behav_type}, {from_}, {to_}, {agent}"
-        )
+        logger.debug(f"No valid binary timelines found after filtering for: {agent}: {behav_type} from {from_} to {to_}")
     return None
 
 

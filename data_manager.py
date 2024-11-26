@@ -231,14 +231,12 @@ class DataManager:
 
 
     def _load_or_compute_crosscorr_df(self):
-        #!! Function calculating cross correlations has been updated to `compute_behavioral_cross_correlations` in `analyze_data`
-        #!! Have to update this method appropriately; fnction returns no dataframe
         crosscorr_file_path = os.path.join(self.params['processed_data_dir'], 'inter_agent_crosscorrelation_df.pkl')
         if 1:
             self.logger.info("Computing inter-agent cross-correlations for all behavioral types.")
             crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
-                self.binary_behav_timeseries_df, self.params, False, True)
-            crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(crosscorr_file_path)
+                self.binary_behav_timeseries_df, self.params, shuffled=False)
+            # crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(crosscorr_file_path)
             self.logger.info(f"Saved interagent cross-correlation df to: {crosscorr_file_path}")
             return crosscorrelation_df_between_all_m1_amd_m2_behavior
         else:
