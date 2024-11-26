@@ -352,8 +352,6 @@ def compute_behavioral_cross_correlations(
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     all_behavior_combinations = _generate_behavior_combinations(unique_from, unique_to)
-    print(all_behavior_combinations)
-    pdb.set_trace()
     logger.debug(f"Generated {len(all_behavior_combinations)} behavior combinations.")
     # Group the data by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -460,16 +458,13 @@ def _compute_crosscorrelations_for_group(args, shuffled):
     logger.debug(f"Saved results for group {group_keys} to {output_file}.")
 
 
-
 def __compute_single_crosscorrelation_combination(args, shuffled=False):
     """
     Compute cross-correlation (regular or shuffled) for a single behavior combination.
-
     Args:
         args (tuple): Contains combination details, m1 and m2 data, shuffle count,
                       and group identifiers.
         shuffled (bool): Whether to compute shuffled cross-correlation distributions.
-
     Returns:
         dict or None: Result dictionary with cross-correlation data, or None if data is missing.
     """
@@ -506,7 +501,10 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
         np.array or None: Binary vector or None if no matching data.
     """
     # Build the filter condition based on behavior type
-    if behav_type == "fixation":
+    if from_ == "any" and to_ == "any":
+        # No need for 'from' or 'to' filtering; take all cases
+        filter_cond = data['behav_type'] == behav_type
+    elif behav_type == "fixation":
         filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
     elif behav_type == "saccade":
         if from_ == "any":
@@ -518,7 +516,6 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
     else:
         logger.warning(f"Unsupported behavior type: {behav_type}")
         return None
-    pdb.set_trace()
     # Apply the filter and extract binary timelines
     filtered_timelines = data[filter_cond]['binary_timeline'].apply(np.array)
     valid_timelines = [arr for arr in filtered_timelines if isinstance(arr, np.ndarray) and arr.ndim == 1]
@@ -526,7 +523,6 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
     if valid_timelines:
         try:
             combined_timelines = np.bitwise_or.reduce(np.vstack(valid_timelines))
-            pdb.set_trace()
             return combined_timelines
         except ValueError as e:
             logger.error(f"Error combining timelines: {e}")
