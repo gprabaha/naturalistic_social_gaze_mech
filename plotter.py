@@ -242,6 +242,217 @@ def plot_random_run_snippets(neural_fr_timeseries_df, snippet_duration=1, bin_wi
 
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+from datetime import datetime
+from matplotlib.colors import to_rgba
+
+def process_and_plot_behaviors(binary_behav_timeseries_df, save_dir):
+    """
+    Process behaviors for all runs and agents, and plot/save them.
+    Args:
+        binary_behav_timeseries_df (pd.DataFrame): DataFrame with binary behavior timelines and labels.
+        save_dir (str): Directory to save the plots.
+    """
+    # Create a date-based directory under save_dir
+    date_dir = os.path.join(save_dir, datetime.now().strftime("%Y-%m-%d"))
+    os.makedirs(date_dir, exist_ok=True)
+
+    grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    for (session_name, interaction_type, run_number), group_df in grouped:
+        unique_from = group_df["from"].unique()
+        unique_to = group_df["to"].unique()
+
+        # Generate behaviors
+        behaviors = _generate_unique_behaviors(unique_from, unique_to)
+
+        # Extract binary timelines for both agents
+        agent_timelines_m1 = _extract_agent_timelines(group_df, behaviors, "m1")
+        agent_timelines_m2 = _extract_agent_timelines(group_df, behaviors, "m2")
+
+        # Create session-specific folder under date_dir
+        session_dir = os.path.join(date_dir, session_name)
+        os.makedirs(session_dir, exist_ok=True)
+
+        # Plot and save the tiling of behaviors for both agents
+        _plot_behavior_tiling(agent_timelines_m1, "m1", session_dir, session_name, interaction_type, run_number)
+        _plot_behavior_tiling(agent_timelines_m2, "m2", session_dir, session_name, interaction_type, run_number)
+
+
+def _generate_unique_behaviors(unique_from, unique_to):
+    """
+    Generate all possible behaviors for an agent.
+    Args:
+        unique_from (array-like): Unique 'from' values.
+        unique_to (array-like): Unique 'to' values.
+    Returns:
+        list: List of all possible behaviors for an agent.
+    """
+    unique_from = [loc for loc in unique_from if loc != "all"]
+    unique_to = [loc for loc in unique_to if loc != "all"]
+
+    behaviors = []
+    for loc in unique_from:
+        behaviors.append(("fixation", loc, loc))
+    behaviors.append(("fixation", "any", "any"))
+
+    for to in unique_to:
+        behaviors.append(("saccade", "any", to))
+    for from_ in unique_from:
+        behaviors.append(("saccade", from_, "any"))
+    behaviors.append(("saccade", "any", "any"))
+
+    return behaviors
+
+
+def _extract_agent_timelines(group_df, behaviors, agent):
+    """
+    Extract binary timelines for all behaviors of a specific agent.
+    Args:
+        group_df (pd.DataFrame): Grouped DataFrame for a run.
+        behaviors (list): List of behaviors to extract.
+        agent (str): Agent name ('m1' or 'm2').
+    Returns:
+        dict: Dictionary with behavior names as keys and binary timelines as values.
+    """
+    return {
+        f"{behav_type}_{from_}_{to}": _extract_binary_vector(behav_type, from_, to, group_df, agent)
+        for behav_type, from_, to in behaviors
+    }
+
+
+def _extract_binary_vector(behav_type, behav_from, behav_to, data, agent):
+    """
+    Extract binary vectors based on behavior type, agent, and 'from'-'to' combinations.
+    Args:
+        behav_type (str): Behavior type ('fixation' or 'saccade').
+        behav_from (str): 'From' field value.
+        behav_to (str): 'To' field value.
+        data (pd.DataFrame): DataFrame containing behavioral data.
+        agent (str): The agent ('m1' or 'm2') whose data to extract.
+    Returns:
+        np.array or None: Binary vector or None if no matching data.
+    """
+    # Build the filter condition based on behavior type
+    if behav_from == "any" and behav_to == "any":
+        # No need for 'from' or 'to' filtering; take all cases for the agent
+        filter_cond = (data['behav_type'] == behav_type) & (data['agent'] == agent)
+    elif behav_type == "fixation":
+        filter_cond = (
+            (data['behav_type'] == behav_type) &
+            (data['from'] == behav_from) &
+            (data['to'] == behav_to) &
+            (data['agent'] == agent)
+        )
+    elif behav_type == "saccade":
+        if behav_from == "any":
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['to'] == behav_to) &
+                (data['agent'] == agent)
+            )
+        elif behav_to == "any":
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['from'] == behav_from) &
+                (data['agent'] == agent)
+            )
+        else:
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['from'] == behav_from) &
+                (data['to'] == behav_to) &
+                (data['agent'] == agent)
+            )
+    else:
+        logger.warning(f"Unsupported behavior type: {behav_type}")
+        return None
+
+    # Apply the filter and extract binary timelines
+    filtered_timelines = data[filter_cond]['binary_vector'].apply(np.array)
+    valid_timelines = [
+        arr for arr in filtered_timelines 
+        if isinstance(arr, np.ndarray) and arr.ndim == 1
+    ]
+    # Combine timelines with a bitwise OR if valid timelines exist
+    if valid_timelines:
+        try:
+            combined_timelines = np.bitwise_or.reduce(np.vstack(valid_timelines))
+            return combined_timelines
+        except ValueError as e:
+            logger.error(f"Error combining timelines: {e}")
+            logger.debug(f"Valid timelines: {valid_timelines}")
+    else:
+        logger.debug(
+            f"No valid binary timelines found after filtering for: {agent}: {behav_type} from {behav_from} to {behav_to}"
+        )
+    return None
+
+
+
+def _plot_behavior_tiling(agent_timelines, agent, session_dir, session_name, interaction_type, run_number):
+    """
+    Plot behaviors tiling the timeline with overlaps shown via colors.
+    Args:
+        agent_timelines (dict): Dictionary with behavior names as keys and binary vectors as values.
+        agent (str): Agent name ('m1' or 'm2').
+        session_dir (str): Directory to save the plots for the session.
+        session_name (str): Session name for subfolder.
+        interaction_type (str): Interaction type for the filename.
+        run_number (int): Run number for the plot name.
+    """
+    timeline_length = len(next(iter(agent_timelines.values())))
+    behavior_matrix = np.zeros((len(agent_timelines), timeline_length), dtype=int)
+    behavior_names = list(agent_timelines.keys())
+
+    # Fill behavior matrix
+    for i, (behavior, timeline) in enumerate(agent_timelines.items()):
+        if timeline is not None:
+            behavior_matrix[i, :] = timeline
+
+    # Assign unique colors to behaviors
+    num_behaviors = len(behavior_names)
+    color_palette = plt.cm.get_cmap('tab20', num_behaviors)
+    behavior_colors = [to_rgba(color_palette(i)) for i in range(num_behaviors)]
+
+    # Combine behavior timelines for tiling
+    plt.figure(figsize=(12, 6))
+    for i in range(timeline_length):
+        active_behaviors = np.where(behavior_matrix[:, i] == 1)[0]
+        if len(active_behaviors) == 1:
+            # Single behavior active
+            plt.plot([i, i + 1], [0, 0], color=behavior_colors[active_behaviors[0]], linewidth=5)
+        elif len(active_behaviors) > 1:
+            # Multiple behaviors active (blend colors)
+            blended_color = np.mean([behavior_colors[j] for j in active_behaviors], axis=0)
+            plt.plot([i, i + 1], [0, 0], color=blended_color, linewidth=5)
+
+    # Create legend
+    legend_handles = [
+        plt.Line2D([0], [0], color=color, lw=4, label=behavior)
+        for behavior, color in zip(behavior_names, behavior_colors)
+    ]
+    plt.legend(handles=legend_handles, bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.title(f"{agent} Behaviors Tiling - Session: {session_name}, Interaction: {interaction_type}, Run: {run_number}")
+    plt.xlabel("Time (bins)")
+    plt.yticks([])  # Remove y-axis ticks
+    plt.grid(True, axis='x', linestyle='--', alpha=0.5)
+
+    # Save plot with interaction type in the filename
+    plot_path = os.path.join(
+        session_dir, f"{agent}_behavior_tiling_{interaction_type}_run_{run_number}.png"
+    )
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
+
+
+
+
+
+
+
+
 # Define the plotting function
 def plot_auto_and_cross_correlations(binary_timeseries_scaled_auto_and_crosscorr_df, params):
     """

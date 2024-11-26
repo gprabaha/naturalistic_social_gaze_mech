@@ -8,7 +8,7 @@ import pickle
 import os
 from scipy.signal import fftconvolve
 import logging
-from itertools import product
+import glob
 
 from hpc_shuffled_cross_corr import HPCShuffledCrossCorr
 import util
@@ -350,6 +350,8 @@ def compute_behavioral_cross_correlations(
     # Group the data by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
     logger.info(f"Processing {len(grouped)} session groups.")
+    num_cpus = params.get('num_cpus', 1)
+    outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
     if shuffled:
         # Handle shuffled case with HPC job submission
         logger.info("Submitting jobs for shuffled cross-correlation computation.")
@@ -357,7 +359,7 @@ def compute_behavioral_cross_correlations(
         # Initialize HPCShuffledCrossCorr
         hpc_shuffled_cross_corr = HPCShuffledCrossCorr(params)
         # Generate the job file
-        num_cpus = 18
+        num_cpus = outer_pool_size
         shuffle_count = params.get("shuffle_count", 100)
         job_file_path = hpc_shuffled_cross_corr.generate_job_file(
             groups=grouped.groups.keys(),
@@ -381,10 +383,38 @@ def compute_behavioral_cross_correlations(
                 _compute_crosscorrelations_for_group(arg_tuple)
         else:
             num_cpus = params.get('num_cpus', 1)
-            logger.info(f"Using {num_cpus} CPUs for parallel computation.")
-            with Pool(num_cpus) as pool:
+            outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
+            logger.info(f"Using {outer_pool_size} tasks with {num_cpus} CPUs allocated.")
+            with Pool(outer_pool_size) as pool:
                 list(tqdm(pool.imap(_parallel_crosscorrelation_task, args), total=len(args), desc="Processing groups"))
     logger.info(f"Behavioral cross-correlation results saved to {output_dir}.")
+    return _collate_crosscorrelation_results(output_dir)
+
+
+def _collate_crosscorrelation_results(output_dir):
+    """
+    Load cross-correlation results from the output directory and collate them into a single DataFrame.
+    Args:
+        output_dir (str): Path to the directory containing the cross-correlation result files.
+    Returns:
+        pd.DataFrame: DataFrame containing all collated results.
+    """
+    logger.info(f"Collating results from {output_dir}.")
+    result_files = glob.glob(os.path.join(output_dir, "*.pkl"))
+    logger.info(f"Found {len(result_files)} result files.")
+    results = []
+    for file_path in tqdm(result_files, desc="Loading result files"):
+        try:
+            with open(file_path, "rb") as f:
+                data = pickle.load(f)
+                if isinstance(data, list):
+                    results.extend(data)
+                else:
+                    results.append(data)
+        except Exception as e:
+            logger.error(f"Failed to load {file_path}: {e}")
+    logger.info(f"Loaded {len(results)} cross-correlation results.")
+    return pd.DataFrame(results)
 
 
 def _generate_behavior_combinations(unique_from, unique_to):
@@ -625,9 +655,13 @@ def ___compute_shuffled_crosscorrelation(
     """
     with ThreadPoolExecutor(max_workers=3) as executor:
         crosscorr_shuffles = list(
-            executor.map(
-                lambda _: ____shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
-                range(shuffle_count)
+            tqdm(
+                executor.map(
+                    lambda _: ____shuffle_and_compute(binary_timeline_m1, binary_timeline_m2),
+                    range(shuffle_count)
+                ),
+                total=shuffle_count,
+                desc="Shuffling and computing cross-correlations"
             )
         )
     crosscorr_shuffles = np.array(crosscorr_shuffles)

@@ -58,7 +58,7 @@ class HPCShuffledCrossCorr:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task {num_cpus} --mem 180G -t 01:00:00',
+                f'--cpus-per-task {num_cpus} --mem 100G -t 2:00:00',
                 shell=True, check=True, executable='/bin/bash'
             )
             self.logger.info("Successfully generated the dSQ job script.")
