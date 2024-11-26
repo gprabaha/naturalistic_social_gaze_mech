@@ -3,6 +3,7 @@ import random
 import subprocess
 import logging
 import time
+import pickle
 
 import pdb
 
@@ -14,15 +15,17 @@ class HPCShuffledCrossCorr:
         self.python_script_path = 'run_shuffled_cross_corr_for_one_job_in_array.py'  # Path to the Python script
 
 
-    def generate_job_file(self, groups, binary_timeseries_file_path, num_cpus, num_shuffles):
+    def generate_job_file(self, groups, binary_timeseries_file_path, num_cpus, num_shuffles, cross_combinations, output_dir):
         """
         Generates a job file for submitting array jobs, with each task processing one group.
-        If try_using_single_run is True, only one random group is selected for testing.
         """
         job_file_path = os.path.join(self.job_script_out_dir, 'joblist_shuffled_cross_corr.txt')
         os.makedirs(self.job_script_out_dir, exist_ok=True)
         env_name = 'gaze_processing'
-        # If try_using_single_run is True, randomly select one group
+        # Serialize cross-combinations to a file for reuse
+        cross_combinations_file = os.path.join(output_dir, "cross_combinations.pkl")
+        with open(cross_combinations_file, "wb") as f:
+            pickle.dump(cross_combinations, f)
         if self.params.get('try_using_single_run', False):
             self.logger.info("Using a single random group for testing.")
             groups = [random.choice(list(groups))]
@@ -34,7 +37,8 @@ class HPCShuffledCrossCorr:
                     f"conda activate {env_name}; "
                     f"python {self.python_script_path} --group_keys {group_str} "
                     f"--binary_timeseries_file {binary_timeseries_file_path} "
-                    f"--output_dir {os.path.join(self.params.get('processed_data_dir'), 'crosscorr_chunk_outputs_shuffled')} "
+                    f"--cross_combinations_file {cross_combinations_file} "
+                    f"--output_dir {output_dir} "
                     f"--num_cpus {num_cpus} "
                     f"--shuffle_count {num_shuffles}"
                 )
@@ -54,7 +58,7 @@ class HPCShuffledCrossCorr:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task {num_cpus} --mem-per-cpu 10G -t 00:30:00',
+                f'--cpus-per-task {num_cpus} --mem-per-cpu 10G -t 01:00:00',
                 shell=True, check=True, executable='/bin/bash'
             )
             self.logger.info("Successfully generated the dSQ job script.")
