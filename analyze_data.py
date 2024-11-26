@@ -469,50 +469,69 @@ def __compute_single_crosscorrelation_combination(args, shuffled=False):
         dict or None: Result dictionary with cross-correlation data, or None if data is missing.
     """
     comb, m1_data, m2_data, shuffle_count, session_name, interaction_type, run_number = args
-    m1_type, m1_from, m1_to, m2_type, m2_from, m2_to = comb
+    behav_type_m1, m1_from, m1_to, behav_type_m2, m2_from, m2_to = comb
     # Extract binary timelines for both agents
-    binary_timeline_m1 = ___extract_binary_vector(m1_type, m1_from, m1_to, m1_data)
-    binary_timeline_m2 = ___extract_binary_vector(m2_type, m2_from, m2_to, m2_data)
+    binary_timeline_m1 = ___extract_binary_vector(behav_type_m1, m1_from, m1_to, m1_data, "m1")
+    binary_timeline_m2 = ___extract_binary_vector(behav_type_m2, m2_from, m2_to, m2_data, "m2")
     if binary_timeline_m1 is None or binary_timeline_m2 is None:
         return None
     if shuffled:
         # Shuffled cross-correlation computation
         return ___compute_shuffled_crosscorrelation(
             binary_timeline_m1, binary_timeline_m2, shuffle_count, session_name,
-            interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
+            interaction_type, run_number, behav_type_m1, m1_from, m1_to, behav_type_m2, m2_from, m2_to
         )
     else:
         # Regular cross-correlation computation
         return ___compute_regular_crosscorrelation(
             binary_timeline_m1, binary_timeline_m2, session_name,
-            interaction_type, run_number, m1_type, m1_from, m1_to, m2_type, m2_from, m2_to
+            interaction_type, run_number, behav_type_m1, m1_from, m1_to, behav_type_m2, m2_from, m2_to
         )
 
 
-def ___extract_binary_vector(behav_type, from_, to_, data):
+def ___extract_binary_vector(behav_type, from_, to_, data, agent):
     """
-    Extract binary vectors based on behavior type and 'from'-'to' combinations.
+    Extract binary vectors based on behavior type, agent, and 'from'-'to' combinations.
     Args:
         behav_type (str): Behavior type ('fixation' or 'saccade').
         from_ (str): 'From' field value.
         to_ (str): 'To' field value.
         data (pd.DataFrame): DataFrame containing behavioral data.
+        agent (str): The agent ('m1' or 'm2') whose data to extract.
     Returns:
         np.array or None: Binary vector or None if no matching data.
     """
     # Build the filter condition based on behavior type
     if from_ == "any" and to_ == "any":
-        # No need for 'from' or 'to' filtering; take all cases
-        filter_cond = data['behav_type'] == behav_type
+        # No need for 'from' or 'to' filtering; take all cases for the agent
+        filter_cond = (data['behav_type'] == behav_type) & (data['agent'] == agent)
     elif behav_type == "fixation":
-        filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
+        filter_cond = (
+            (data['behav_type'] == behav_type) &
+            (data['from'] == from_) &
+            (data['to'] == to_) &
+            (data['agent'] == agent)
+        )
     elif behav_type == "saccade":
         if from_ == "any":
-            filter_cond = (data['behav_type'] == behav_type) & (data['to'] == to_)
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['to'] == to_) &
+                (data['agent'] == agent)
+            )
         elif to_ == "any":
-            filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_)
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['from'] == from_) &
+                (data['agent'] == agent)
+            )
         else:
-            filter_cond = (data['behav_type'] == behav_type) & (data['from'] == from_) & (data['to'] == to_)
+            filter_cond = (
+                (data['behav_type'] == behav_type) &
+                (data['from'] == from_) &
+                (data['to'] == to_) &
+                (data['agent'] == agent)
+            )
     else:
         logger.warning(f"Unsupported behavior type: {behav_type}")
         return None
@@ -528,7 +547,9 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
             logger.error(f"Error combining timelines: {e}")
             logger.debug(f"Valid timelines: {valid_timelines}")
     else:
-        logger.info("No valid binary timelines found after filtering.")
+        logger.info(
+            f"No valid binary timelines found after filtering for: {behav_type}, {from_}, {to_}, {agent}"
+        )
     return None
 
 
