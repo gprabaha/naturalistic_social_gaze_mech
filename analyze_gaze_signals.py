@@ -31,15 +31,15 @@ def main():
         'remake_toy_data': False,
         'num_cpus': None,
 
-
         'remake_gaze_data_df': False,
         'remake_spike_times_df': False,
         'remake_synchronized_gaze_data_df': False,
 
         'remake_fix_and_sacc': False,
-        'try_using_single_run': False,
+        
+        'try_using_single_run': True,
         'recompute_fix_and_saccades_through_hpc_jobs': False,
-        'hpc_job_output_subfolder': 'single_run_fix_saccade_results',
+        'hpc_job_output_subfolder': 'single_behav_crosscorr_results',
         
         'remake_binary_timeseries': False,
         'remake_scaled_autocorr': False,

@@ -353,11 +353,11 @@ def compute_behavioral_cross_correlations(
     if shuffled:
         # Handle shuffled case with HPC job submission
         logger.info("Submitting jobs for shuffled cross-correlation computation.")
-        binary_timeseries_file_path = os.path.join(output_dir, "binary_behav_timeseries.pkl")
+        binary_timeseries_file_path = os.path.join(params.get("processed_data_dir"), "binary_behav_timeseries.pkl")
         # Initialize HPCShuffledCrossCorr
         hpc_shuffled_cross_corr = HPCShuffledCrossCorr(params)
         # Generate the job file
-        num_cpus = params.get('num_cpus', 1)
+        num_cpus = 18
         shuffle_count = params.get("shuffle_count", 100)
         job_file_path = hpc_shuffled_cross_corr.generate_job_file(
             groups=grouped.groups.keys(),
@@ -385,7 +385,6 @@ def compute_behavioral_cross_correlations(
             with Pool(num_cpus) as pool:
                 list(tqdm(pool.imap(_parallel_crosscorrelation_task, args), total=len(args), desc="Processing groups"))
     logger.info(f"Behavioral cross-correlation results saved to {output_dir}.")
-
 
 
 def _generate_behavior_combinations(unique_from, unique_to):

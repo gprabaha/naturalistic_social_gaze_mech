@@ -179,7 +179,7 @@ def prune_data_file_paths_with_pos_time_filename_mismatch(params):
     params['data_file_paths_df'] = consistent_paths_df
     params['discarded_paths_df'] = discarded_paths_df
     # Log how many paths were discarded
-    logger.info(f"Discarded {len(discarded_paths_df)} runs due to inconsistent or missing filenames within their respective session and interaction type.")
+    logger.debug(f"Discarded {len(discarded_paths_df)} runs due to inconsistent or missing filenames within their respective session and interaction type.")
     return params
 
 
@@ -305,7 +305,7 @@ def make_gaze_data_df(params):
                 'agent': row['agent']
             })
     if len(missing_data_info) > 0:
-        logger.info(f"Found missing or empty data for {len(missing_data_info)} runs:\n{missing_data_info}")
+        logger.debug(f"Found missing or empty data for {len(missing_data_info)} runs:\n{missing_data_info}")
     else:
         logger.info("No missing data found.")
     # Remove rows with any missing data
