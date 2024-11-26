@@ -352,6 +352,8 @@ def compute_behavioral_cross_correlations(
     unique_from = binary_behav_timeseries_df['from'].unique()
     unique_to = binary_behav_timeseries_df['to'].unique()
     all_behavior_combinations = _generate_behavior_combinations(unique_from, unique_to)
+    print(all_behavior_combinations)
+    pdb.set_trace()
     logger.debug(f"Generated {len(all_behavior_combinations)} behavior combinations.")
     # Group the data by session, interaction type, and run number
     grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -381,10 +383,10 @@ def compute_behavioral_cross_correlations(
 def _generate_behavior_combinations(unique_from, unique_to):
     """
     Generate all possible behavior combinations for m1 and m2:
-    - Fixations: 'from' == 'to'.
+    - Fixations: 'from' == 'to', including an additional ('any', 'any') entry.
     - Saccades:
-      - 'any' -> specific 'to'.
-      - Specific 'from' -> 'any'.
+      - Older version preserved with 'any' and specific 'to' or 'from'.
+      - Includes an additional ('any', 'any') entry for each monkey.
     Args:
         unique_from (array-like): Unique 'from' values.
         unique_to (array-like): Unique 'to' values.
@@ -392,19 +394,28 @@ def _generate_behavior_combinations(unique_from, unique_to):
         list: List of all possible behavior combinations for m1 and m2.
     """
     logger.info("Generating behavior combinations for cross-correlation.")
+    # Remove 'all' from unique_from and unique_to
+    unique_from = [loc for loc in unique_from if loc != "all"]
+    unique_to = [loc for loc in unique_to if loc != "all"]
     m1_combinations = []
     m2_combinations = []
     # Fixation combinations (from == to)
     for loc in unique_from:
         m1_combinations.append(("fixation", loc, loc))
         m2_combinations.append(("fixation", loc, loc))
-    # Saccade combinations
+    # Add ('any', 'any') for fixation
+    m1_combinations.append(("fixation", "any", "any"))
+    m2_combinations.append(("fixation", "any", "any"))
+    # Saccade combinations (older logic preserved)
     for to in unique_to:
         m1_combinations.append(("saccade", "any", to))
         m2_combinations.append(("saccade", "any", to))
     for from_ in unique_from:
         m1_combinations.append(("saccade", from_, "any"))
         m2_combinations.append(("saccade", from_, "any"))
+    # Add ('any', 'any') for saccades
+    m1_combinations.append(("saccade", "any", "any"))
+    m2_combinations.append(("saccade", "any", "any"))
     # Cartesian product for m1 and m2 combinations
     cross_combinations = [
         (m1_type, m1_from, m1_to, m2_type, m2_from, m2_to)
@@ -507,6 +518,7 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
     else:
         logger.warning(f"Unsupported behavior type: {behav_type}")
         return None
+    pdb.set_trace()
     # Apply the filter and extract binary timelines
     filtered_timelines = data[filter_cond]['binary_timeline'].apply(np.array)
     valid_timelines = [arr for arr in filtered_timelines if isinstance(arr, np.ndarray) and arr.ndim == 1]
@@ -514,6 +526,7 @@ def ___extract_binary_vector(behav_type, from_, to_, data):
     if valid_timelines:
         try:
             combined_timelines = np.bitwise_or.reduce(np.vstack(valid_timelines))
+            pdb.set_trace()
             return combined_timelines
         except ValueError as e:
             logger.error(f"Error combining timelines: {e}")
