@@ -12,6 +12,7 @@ import multiprocessing
 from datetime import datetime
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 
 import util
 import curate_data
@@ -93,8 +94,8 @@ class DataManager:
     def get_data(self):
         """Load or compute necessary gaze and spike data, filtering for sessions with ephys data."""
         self.recording_sessions_and_monkeys = self._load_ephys_sessions()
-        self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
-        self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
+        # self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
+        # self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
         self.spike_times_df = self._load_or_compute_spike_times()
         self.spike_times_df = self._filter_sessions_with_ephys(self.spike_times_df)
 
@@ -290,11 +291,50 @@ class DataManager:
         # plotter.plot_auto_and_cross_correlations(self.binary_timeseries_scaled_auto_and_crosscorr_df, self.params)
 
 
+
+
+    def calculate_firing_rate_statistics(self):
+        """
+        Calculate the average and standard deviation of firing rates in Hz for different regions.
+
+        Returns:
+            firing_rate_stats_df (pd.DataFrame): A dataframe containing regions, 
+                                                average firing rates, and standard deviations.
+        """
+        # Extract relevant columns
+        spike_times_df = self.spike_times_df.copy()
+
+        # Calculate the firing rate for each unit
+        def compute_firing_rate(spike_times):
+            if len(spike_times) < 2:
+                return 0  # Avoid division by zero for units with less than two spikes
+            duration = spike_times[-1] - spike_times[0]  # Time range in seconds
+            return len(spike_times) / duration if duration > 0 else 0
+
+        # Ensure spike_ts is a list of floats for calculations
+        spike_times_df['spike_rate'] = spike_times_df['spike_ts'].apply(
+            lambda spike_ts: compute_firing_rate(sorted(spike_ts))
+        )
+
+        # Group by region and calculate mean and std for firing rates
+        region_stats = (
+            spike_times_df.groupby('region')['spike_rate']
+            .agg(['mean', 'std'])
+            .reset_index()
+            .rename(columns={'mean': 'avg_firing_rate', 'std': 'std_firing_rate'})
+        )
+
+        return region_stats
+
+
     def run(self):
         """Runs the data processing steps in sequence."""
         self.populate_params_with_data_paths()
         # self.create_and_submit_shuffled_cross_corr_jobs()
-        #self.get_data()
+        self.get_data()
+        firing_rate_stats_df = self.calculate_firing_rate_statistics()
+        print(firing_rate_stats_df)
+
         #self.prune_data()
-        self.analyze_behavior()
-        self.plot_data()
+        # self.analyze_behavior()
+        # self.plot_data()
