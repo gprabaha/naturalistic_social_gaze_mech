@@ -331,7 +331,7 @@ def _merge_saccade_timelines(group_df, session_name, interaction_type, run_numbe
 
 
 def compute_behavioral_cross_correlations(
-    binary_behav_timeseries_df, params, shuffled=False, serial=False
+    binary_behav_timeseries_df, params, shuffled=False, serial=False, remake_results=True
 ):
     """
     Main function to compute behavioral cross-correlations, supporting both regular
@@ -342,53 +342,57 @@ def compute_behavioral_cross_correlations(
         params.get("processed_data_dir"), "crosscorr_outputs_shuffled" if shuffled else "crosscorr_outputs"
     )
     os.makedirs(output_dir, exist_ok=True)
+    remake_results = False
     # Generate all cross-combinations for behavior types
-    unique_from = binary_behav_timeseries_df['from'].unique()
-    unique_to = binary_behav_timeseries_df['to'].unique()
-    all_behavior_combinations = _generate_behavior_combinations(unique_from, unique_to)
-    logger.debug(f"Generated {len(all_behavior_combinations)} behavior combinations.")
-    # Group the data by session, interaction type, and run number
-    grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
-    logger.info(f"Processing {len(grouped)} session groups.")
-    num_cpus = params.get('num_cpus', 1)
-    outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
-    if shuffled:
-        # Handle shuffled case with HPC job submission
-        logger.info("Submitting jobs for shuffled cross-correlation computation.")
-        binary_timeseries_file_path = os.path.join(params.get("processed_data_dir"), "binary_behav_timeseries.pkl")
-        # Initialize HPCShuffledCrossCorr
-        hpc_shuffled_cross_corr = HPCShuffledCrossCorr(params)
-        # Generate the job file
-        num_cpus = outer_pool_size
-        shuffle_count = params.get("shuffle_count", 100)
-        job_file_path = hpc_shuffled_cross_corr.generate_job_file(
-            groups=grouped.groups.keys(),
-            binary_timeseries_file_path=binary_timeseries_file_path,
-            num_cpus=num_cpus,
-            num_shuffles=shuffle_count,
-            cross_combinations=all_behavior_combinations,
-            output_dir=output_dir,
-        )
-        # Submit the job array
-        hpc_shuffled_cross_corr.submit_job_array(job_file_path, num_cpus)
-    else:
-        # Handle regular or serial computation
-        args = [
-            (group_keys, group_df.to_dict(orient="list"), all_behavior_combinations, output_dir, None, shuffled)
-            for group_keys, group_df in grouped
-        ]
-        if serial:
-            logger.info("Running computations serially for debugging.")
-            for arg_tuple in tqdm(args, desc="Processing groups serially"):
-                _compute_crosscorrelations_for_group(arg_tuple)
+    if remake_results:
+        unique_from = binary_behav_timeseries_df['from'].unique()
+        unique_to = binary_behav_timeseries_df['to'].unique()
+        all_behavior_combinations = _generate_behavior_combinations(unique_from, unique_to)
+        logger.debug(f"Generated {len(all_behavior_combinations)} behavior combinations.")
+        # Group the data by session, interaction type, and run number
+        grouped = binary_behav_timeseries_df.groupby(['session_name', 'interaction_type', 'run_number'])
+        logger.info(f"Processing {len(grouped)} session groups.")
+        num_cpus = params.get('num_cpus', 1)
+        outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
+        if shuffled:
+            # Handle shuffled case with HPC job submission
+            logger.info("Submitting jobs for shuffled cross-correlation computation.")
+            binary_timeseries_file_path = os.path.join(params.get("processed_data_dir"), "binary_behav_timeseries.pkl")
+            # Initialize HPCShuffledCrossCorr
+            hpc_shuffled_cross_corr = HPCShuffledCrossCorr(params)
+            # Generate the job file
+            num_cpus = outer_pool_size
+            shuffle_count = params.get("shuffle_count", 100)
+            job_file_path = hpc_shuffled_cross_corr.generate_job_file(
+                groups=grouped.groups.keys(),
+                binary_timeseries_file_path=binary_timeseries_file_path,
+                num_cpus=num_cpus,
+                num_shuffles=shuffle_count,
+                cross_combinations=all_behavior_combinations,
+                output_dir=output_dir,
+            )
+            # Submit the job array
+            hpc_shuffled_cross_corr.submit_job_array(job_file_path, num_cpus)
         else:
-            num_cpus = params.get('num_cpus', 1)
-            outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
-            logger.info(f"Using {outer_pool_size} tasks with {num_cpus} CPUs allocated.")
-            with Pool(outer_pool_size) as pool:
-                list(tqdm(pool.imap(_parallel_crosscorrelation_task, args), total=len(args), desc="Processing groups"))
-    logger.info(f"Behavioral cross-correlation results saved to {output_dir}.")
-    return _collate_crosscorrelation_results(output_dir)
+            # Handle regular or serial computation
+            args = [
+                (group_keys, group_df.to_dict(orient="list"), all_behavior_combinations, output_dir, None, shuffled)
+                for group_keys, group_df in grouped
+            ]
+            if serial:
+                logger.info("Running computations serially for debugging.")
+                for arg_tuple in tqdm(args, desc="Calculating behavioral crosscorrelations for runs in serial"):
+                    _compute_crosscorrelations_for_group(arg_tuple)
+            else:
+                num_cpus = params.get('num_cpus', 1)
+                outer_pool_size = max(1, num_cpus // (3 if shuffled else 2))
+                logger.info(f"Using {outer_pool_size} tasks with {num_cpus} CPUs allocated.")
+                with Pool(outer_pool_size) as pool:
+                    list(tqdm(pool.imap(_parallel_crosscorrelation_task, args), total=len(args), desc="Calculating behavioral crosscorrelations for runs in parallel"))
+        logger.info(f"Behavioral cross-correlation results saved to {output_dir}.")
+        return _collate_crosscorrelation_results(output_dir)
+    else:
+        return _collate_crosscorrelation_results(output_dir)
 
 
 def _collate_crosscorrelation_results(output_dir):

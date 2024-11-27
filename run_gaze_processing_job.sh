@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=crosscorr_reg_and_shuffled
 #SBATCH --partition=psych_day
-#SBATCH --time=10:00:00                # 1 hour time limit
-#SBATCH --cpus-per-task=18            # CPUs
-#SBATCH --mem=180G                     # total memory
+#SBATCH --time=1:00:00                # 1 hour time limit
+#SBATCH --cpus-per-task=8            # CPUs
+#SBATCH --mem=240G                     # total memory
 #SBATCH --output=crosscorr_all.out  # Output file
 #SBATCH --error=crosscorr_all.err   # Error file
 
