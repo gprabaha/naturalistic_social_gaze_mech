@@ -165,7 +165,7 @@ class DataManager:
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
         self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
-            self.binary_behav_timeseries_df, self.params, shuffled=True)
+            self.binary_behav_timeseries_df, self.params, shuffled=True, serial=False, remake_results=True)
         shuffled_crosscorr_file_path = os.path.join(self.params['processed_data_dir'], 'inter_agent_shuffled_crosscorrelation_df.pkl')
         self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(shuffled_crosscorr_file_path)
         self.logger.info(f"Saved interagent cross-correlation df to: {shuffled_crosscorr_file_path}")
@@ -241,7 +241,7 @@ class DataManager:
         if 1:
             self.logger.info("Computing inter-agent cross-correlations for all behavioral types.")
             crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
-                self.binary_behav_timeseries_df, self.params, shuffled=False)
+                self.binary_behav_timeseries_df, self.params, shuffled=False, serial=False, remake_results=True)
             crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(crosscorr_file_path)
             self.logger.info(f"Saved interagent cross-correlation df to: {crosscorr_file_path}")
             return crosscorrelation_df_between_all_m1_amd_m2_behavior
