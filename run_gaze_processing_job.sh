@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=top_shuffled_crosscorr
+#SBATCH --job-name=crosscorr_reg_and_shuffled
 #SBATCH --partition=psych_day
-#SBATCH --time=10:00:00                # 1 hour time limit
+#SBATCH --time=1:00:00                # 1 hour time limit
 #SBATCH --cpus-per-task=8            # CPUs
-#SBATCH --mem=150G                     # total memory
-#SBATCH --output=shuffled_crosscorr.out  # Output file
-#SBATCH --error=shuffled_crosscorr.err   # Error file
+#SBATCH --mem=240G                     # total memory
+#SBATCH --output=crosscorr_all.out  # Output file
+#SBATCH --error=crosscorr_all.err   # Error file
 
 # Load the necessary module and activate the conda environment
 module load miniconda
