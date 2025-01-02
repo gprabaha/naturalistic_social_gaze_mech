@@ -38,6 +38,21 @@ import analyze_data
 import fix_and_saccades
 import plotter
 
+'''
+To implement:
+
+- For each run make sure that the behavioral dataframe is updated such that if the `from` field is specified
+then the `to` field is always `anywhere`. Similarly, if the `to` field is specified then the same for `from`
+
+- Update the `elsewhere` lavelled behavior to `out_of_roi` to make it less confusing and distinguishing from `anywhere`
+
+- Make a dataframe where for each run, we have the entire behavioral matrix where the rows represent the 
+binary timeseries of a particular behavior. Assign a column with the behavioral `from-to` labels as well
+    - Now fit the SLDS model to this
+    - We need to create a similar behavioral matrix but where the ROIs are shiuffled or something and then show
+    that the prediction is off in that case
+
+'''
 
 class DataManager:
     def __init__(self, params):
@@ -96,6 +111,10 @@ class DataManager:
         self.recording_sessions_and_monkeys = self._load_ephys_sessions()
         # self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
         # self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
+        
+        self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
+        print("Head of binary behavior timeseries dataframe:")
+        print(self.binary_behav_timeseries_df.head(30))
         self.spike_times_df = self._load_or_compute_spike_times()
         self.spike_times_df = self._filter_sessions_with_ephys(self.spike_times_df)
 
