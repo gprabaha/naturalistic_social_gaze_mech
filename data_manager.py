@@ -111,8 +111,6 @@ class DataManager:
         self.recording_sessions_and_monkeys = self._load_ephys_sessions()
         # self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
         # self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
-        print("Head of binary behavior timeseries dataframe:")
-        print(self.binary_behav_timeseries_df.head(30))
         self.spike_times_df = self._load_or_compute_spike_times()
         self.spike_times_df = self._filter_sessions_with_ephys(self.spike_times_df)
 
@@ -353,6 +351,6 @@ class DataManager:
         # firing_rate_stats_df = self.calculate_firing_rate_statistics()
         # print(firing_rate_stats_df)
 
-        #self.prune_data()
+        self.prune_data()
         self.analyze_behavior()
-        # self.plot_data()
+        # self.plot_data()cat
