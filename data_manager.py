@@ -111,8 +111,6 @@ class DataManager:
         self.recording_sessions_and_monkeys = self._load_ephys_sessions()
         # self.gaze_data_df, self.missing_data_paths = self._load_or_compute_gaze_data()
         # self.gaze_data_df = self._filter_sessions_with_ephys(self.gaze_data_df)
-        
-        self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
         print("Head of binary behavior timeseries dataframe:")
         print(self.binary_behav_timeseries_df.head(30))
         self.spike_times_df = self._load_or_compute_spike_times()
@@ -180,14 +178,14 @@ class DataManager:
 
     def analyze_behavior(self):
         """Analyze behavior by detecting fixations and saccades and computing binary timeseries and autocorrelations."""
-        # self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
+        self.fixation_df, self.saccade_df = self._load_or_compute_fixations_and_saccades()
         self.binary_behav_timeseries_df = self._load_or_compute_binary_behav_timeseries()
-        self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
-        self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
-            self.binary_behav_timeseries_df, self.params, shuffled=True, serial=False, remake_results=True)
-        shuffled_crosscorr_file_path = os.path.join(self.params['processed_data_dir'], 'inter_agent_shuffled_crosscorrelation_df.pkl')
-        self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(shuffled_crosscorr_file_path)
-        self.logger.info(f"Saved interagent cross-correlation df to: {shuffled_crosscorr_file_path}")
+        # self.crosscorrelation_df_between_all_m1_amd_m2_behavior = self._load_or_compute_crosscorr_df()
+        # self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior = analyze_data.compute_behavioral_cross_correlations(
+        #     self.binary_behav_timeseries_df, self.params, shuffled=True, serial=False, remake_results=True)
+        # shuffled_crosscorr_file_path = os.path.join(self.params['processed_data_dir'], 'inter_agent_shuffled_crosscorrelation_df.pkl')
+        # self.shuffled_crosscorrelation_df_between_all_m1_amd_m2_behavior.to_pickle(shuffled_crosscorr_file_path)
+        # self.logger.info(f"Saved interagent cross-correlation df to: {shuffled_crosscorr_file_path}")
         # self.create_and_submit_shuffled_cross_corr_jobs()
         # self.binary_timeseries_scaled_auto_and_crosscorr_df = self._load_or_compute_binary_timeseries_auto_and_crosscorr()
         # self.neural_fr_timeseries_df = self._load_or_compute_neural_fr_timeseries_df()

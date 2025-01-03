@@ -631,8 +631,8 @@ def _process_fixation_row(row, gaze_data_df):
         for roi_name, rect in roi_rects.items():
             if rect[0] <= mean_position[0] <= rect[2] and rect[1] <= mean_position[1] <= rect[3]:
                 matched_rois.append(roi_name)
-        # Store all matched ROIs or 'elsewhere' if none matched
-        location = matched_rois if matched_rois else ['elsewhere']
+        # Store all matched ROIs or 'out_of_roi' if none matched
+        location = matched_rois if matched_rois else ['out_of_roi']
         location_labels.append(location)
     return location_labels
 
@@ -702,9 +702,9 @@ def _process_saccade_row(row, gaze_data_df):
         from_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]]
         to_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]]
         
-        # Assign 'elsewhere' if no ROIs match
-        from_labels.append(from_rois if from_rois else ['elsewhere'])
-        to_labels.append(to_rois if to_rois else ['elsewhere'])
+        # Assign 'out_of_roi' if no ROIs match
+        from_labels.append(from_rois if from_rois else ['out_of_roi'])
+        to_labels.append(to_rois if to_rois else ['out_of_roi'])
     
     return from_labels, to_labels
 
