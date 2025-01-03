@@ -1,45 +1,45 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-2025-01-03 01:50:05,527 - INFO - Starting the main function
-2025-01-03 01:50:05,533 - INFO - Parameters loaded successfully.
-2025-01-03 01:50:13,502 - INFO - Gaze data dataframe loaded successfully.
-2025-01-03 01:50:13,503 - INFO - Parsed task key successfully: session: 01022019; interaction_type: interactive; run: 1; agent: m1
-2025-01-03 01:50:13,531 - INFO - Successfully extracted positions for fixation and saccade detection.
-2025-01-03 01:50:13,746 - fixation_detector_class - INFO - Starting global_clustering...
-2025-01-03 01:50:13,746 - fixation_detector_class - INFO - Using parallel processing for global clustering
-2025-01-03 01:50:13,746 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
-Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]Parallel Global Clustering Progress:  25%|██▌       | 1/4 [00:01<00:04,  1.55s/it]Parallel Global Clustering Progress:  50%|█████     | 2/4 [00:02<00:02,  1.23s/it]Parallel Global Clustering Progress:  75%|███████▌  | 3/4 [00:02<00:00,  1.09it/s]Parallel Global Clustering Progress: 100%|██████████| 4/4 [00:02<00:00,  1.73it/s]
-2025-01-03 01:50:16,201 - fixation_detector_class - INFO - Optimal number of clusters: 2
-2025-01-03 01:50:16,710 - fixation_detector_class - INFO - Starting local_reclustering...
-2025-01-03 01:50:16,710 - fixation_detector_class - INFO - Serial local_reclustering over detected fix time points
-Serial Reclustering Progress:   0%|          | 0/42 [00:00<?, ?it/s]Serial Reclustering Progress:   2%|▏         | 1/42 [00:00<00:06,  5.89it/s]Serial Reclustering Progress:  12%|█▏        | 5/42 [00:00<00:04,  7.73it/s]Serial Reclustering Progress:  21%|██▏       | 9/42 [00:00<00:03, 10.05it/s]Serial Reclustering Progress:  29%|██▊       | 12/42 [00:00<00:02, 12.54it/s]Serial Reclustering Progress:  38%|███▊      | 16/42 [00:00<00:01, 15.20it/s]Serial Reclustering Progress:  48%|████▊     | 20/42 [00:00<00:01, 18.07it/s]Serial Reclustering Progress:  55%|█████▍    | 23/42 [00:00<00:00, 19.70it/s]Serial Reclustering Progress:  64%|██████▍   | 27/42 [00:01<00:00, 22.77it/s]Serial Reclustering Progress:  74%|███████▍  | 31/42 [00:01<00:00, 24.84it/s]Serial Reclustering Progress:  83%|████████▎ | 35/42 [00:01<00:00, 27.72it/s]Serial Reclustering Progress:  93%|█████████▎| 39/42 [00:01<00:00, 29.20it/s]Serial Reclustering Progress: 100%|██████████| 42/42 [00:01<00:00, 28.69it/s]
-2025-01-03 01:50:18,174 - fixation_detector_class - INFO - Finished local_reclustering...
-2025-01-03 01:50:18,176 - fixation_detector_class - INFO - Final number of fixations identified: 32
-2025-01-03 01:50:18,176 - saccade_detector_class - INFO - Detecting saccades using method: hubel_2000
-2025-01-03 01:50:18,176 - saccade_detector_class - INFO - Using Hubel et al. (2000) method for saccade detection
-2025-01-03 01:50:18,176 - saccade_detector_class - DEBUG - Preprocessing x and y data using old method
-2025-01-03 01:50:18,176 - saccade_detector_class - DEBUG - Resampling data
-2025-01-03 01:50:18,177 - saccade_detector_class - DEBUG - Resampling data
-2025-01-03 01:50:18,177 - saccade_detector_class - DEBUG - Applying filter to data
-2025-01-03 01:50:18,204 - saccade_detector_class - DEBUG - Applying filter to data
-Processing velocity data:   0%|          | 0/11828 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 11828/11828 [00:00<00:00, 594968.13it/s]
-2025-01-03 01:50:18,229 - saccade_detector_class - INFO - Detected 38 saccades and 61 microsaccades
-2025-01-03 01:50:18,229 - saccade_detector_class - INFO - Final number of saccades detected: 38
-2025-01-03 01:50:18,229 - saccade_detector_class - INFO - Final number of microsaccades detected: 61
-2025-01-03 01:50:18,235 - fixation_detector_class - WARNING - Data too short for processing
-2025-01-03 01:50:18,235 - saccade_detector_class - INFO - Detecting saccades using method: hubel_2000
-2025-01-03 01:50:18,235 - saccade_detector_class - INFO - Using Hubel et al. (2000) method for saccade detection
-2025-01-03 01:50:18,235 - saccade_detector_class - DEBUG - Preprocessing x and y data using old method
-2025-01-03 01:50:18,236 - saccade_detector_class - DEBUG - Resampling data
-2025-01-03 01:50:18,236 - saccade_detector_class - DEBUG - Resampling data
-2025-01-03 01:50:18,236 - saccade_detector_class - DEBUG - Applying filter to data
-2025-01-03 01:50:18,236 - saccade_detector_class - DEBUG - Applying filter to data
-Processing velocity data:   0%|          | 0/11 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 11/11 [00:00<00:00, 152268.46it/s]
-2025-01-03 01:50:18,237 - saccade_detector_class - INFO - Detected 0 saccades and 0 microsaccades
-2025-01-03 01:50:18,237 - saccade_detector_class - INFO - Final number of saccades detected: 0
-2025-01-03 01:50:18,237 - saccade_detector_class - INFO - Final number of microsaccades detected: 0
-2025-01-03 01:50:18,272 - fixation_detector_class - INFO - Starting global_clustering...
-2025-01-03 01:50:18,272 - fixation_detector_class - INFO - Using parallel processing for global clustering
-2025-01-03 01:50:18,272 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
-Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]slurmstepd: error: *** JOB 28073321 ON r811u32n02 CANCELLED AT 2025-01-03T01:55:13 DUE TO TIME LIMIT ***
+2025-01-03 02:09:30,605 - INFO - Starting the main function
+2025-01-03 02:09:30,699 - INFO - Parameters loaded successfully.
+2025-01-03 02:09:39,010 - INFO - Gaze data dataframe loaded successfully.
+2025-01-03 02:09:39,013 - INFO - Parsed task key successfully: session: 01022019; interaction_type: interactive; run: 1; agent: m1
+2025-01-03 02:09:39,021 - INFO - Successfully extracted positions for fixation and saccade detection.
+2025-01-03 02:09:39,090 - fixation_detector_class - INFO - Starting global_clustering...
+2025-01-03 02:09:39,090 - fixation_detector_class - INFO - Using parallel processing for global clustering
+2025-01-03 02:09:39,090 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
+Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]Parallel Global Clustering Progress:  25%|██▌       | 1/4 [00:01<00:04,  1.57s/it]Parallel Global Clustering Progress:  50%|█████     | 2/4 [00:02<00:02,  1.23s/it]Parallel Global Clustering Progress:  75%|███████▌  | 3/4 [00:02<00:00,  1.05it/s]Parallel Global Clustering Progress: 100%|██████████| 4/4 [00:02<00:00,  1.65it/s]
+2025-01-03 02:09:41,656 - fixation_detector_class - INFO - Optimal number of clusters: 2
+2025-01-03 02:09:42,172 - fixation_detector_class - INFO - Starting local_reclustering...
+2025-01-03 02:09:42,172 - fixation_detector_class - INFO - Serial local_reclustering over detected fix time points
+Serial Reclustering Progress:   0%|          | 0/42 [00:00<?, ?it/s]Serial Reclustering Progress:   2%|▏         | 1/42 [00:00<00:06,  5.97it/s]Serial Reclustering Progress:  12%|█▏        | 5/42 [00:00<00:04,  7.83it/s]Serial Reclustering Progress:  21%|██▏       | 9/42 [00:00<00:03, 10.16it/s]Serial Reclustering Progress:  29%|██▊       | 12/42 [00:00<00:02, 12.59it/s]Serial Reclustering Progress:  38%|███▊      | 16/42 [00:00<00:01, 15.18it/s]Serial Reclustering Progress:  48%|████▊     | 20/42 [00:00<00:01, 17.95it/s]Serial Reclustering Progress:  55%|█████▍    | 23/42 [00:00<00:00, 19.45it/s]Serial Reclustering Progress:  64%|██████▍   | 27/42 [00:01<00:00, 22.52it/s]Serial Reclustering Progress:  74%|███████▍  | 31/42 [00:01<00:00, 24.54it/s]Serial Reclustering Progress:  83%|████████▎ | 35/42 [00:01<00:00, 27.21it/s]Serial Reclustering Progress:  93%|█████████▎| 39/42 [00:01<00:00, 28.63it/s]Serial Reclustering Progress: 100%|██████████| 42/42 [00:01<00:00, 28.16it/s]
+2025-01-03 02:09:43,664 - fixation_detector_class - INFO - Finished local_reclustering...
+2025-01-03 02:09:43,665 - fixation_detector_class - INFO - Final number of fixations identified: 32
+2025-01-03 02:09:43,666 - saccade_detector_class - INFO - Detecting saccades using method: hubel_2000
+2025-01-03 02:09:43,666 - saccade_detector_class - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-03 02:09:43,666 - saccade_detector_class - DEBUG - Preprocessing x and y data using old method
+2025-01-03 02:09:43,666 - saccade_detector_class - DEBUG - Resampling data
+2025-01-03 02:09:43,667 - saccade_detector_class - DEBUG - Resampling data
+2025-01-03 02:09:43,667 - saccade_detector_class - DEBUG - Applying filter to data
+2025-01-03 02:09:43,676 - saccade_detector_class - DEBUG - Applying filter to data
+Processing velocity data:   0%|          | 0/11828 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 11828/11828 [00:00<00:00, 571223.94it/s]
+2025-01-03 02:09:43,702 - saccade_detector_class - INFO - Detected 38 saccades and 61 microsaccades
+2025-01-03 02:09:43,702 - saccade_detector_class - INFO - Final number of saccades detected: 38
+2025-01-03 02:09:43,702 - saccade_detector_class - INFO - Final number of microsaccades detected: 61
+2025-01-03 02:09:43,704 - fixation_detector_class - WARNING - Data too short for processing
+2025-01-03 02:09:43,705 - saccade_detector_class - INFO - Detecting saccades using method: hubel_2000
+2025-01-03 02:09:43,705 - saccade_detector_class - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-03 02:09:43,705 - saccade_detector_class - DEBUG - Preprocessing x and y data using old method
+2025-01-03 02:09:43,705 - saccade_detector_class - DEBUG - Resampling data
+2025-01-03 02:09:43,705 - saccade_detector_class - DEBUG - Resampling data
+2025-01-03 02:09:43,705 - saccade_detector_class - DEBUG - Applying filter to data
+2025-01-03 02:09:43,706 - saccade_detector_class - DEBUG - Applying filter to data
+Processing velocity data:   0%|          | 0/11 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 11/11 [00:00<00:00, 167772.16it/s]
+2025-01-03 02:09:43,706 - saccade_detector_class - INFO - Detected 0 saccades and 0 microsaccades
+2025-01-03 02:09:43,707 - saccade_detector_class - INFO - Final number of saccades detected: 0
+2025-01-03 02:09:43,707 - saccade_detector_class - INFO - Final number of microsaccades detected: 0
+2025-01-03 02:09:43,741 - fixation_detector_class - INFO - Starting global_clustering...
+2025-01-03 02:09:43,742 - fixation_detector_class - INFO - Using parallel processing for global clustering
+2025-01-03 02:09:43,742 - fixation_detector_class - INFO - Using parallel processing with multiprocessing.Pool
+Parallel Global Clustering Progress:   0%|          | 0/4 [00:00<?, ?it/s]slurmstepd: error: *** JOB 28073540 ON r811u32n02 CANCELLED AT 2025-01-03T02:21:53 ***
