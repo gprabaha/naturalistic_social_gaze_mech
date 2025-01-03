@@ -680,7 +680,6 @@ def _process_saccade_row(row, gaze_data_df):
     run_number = row['run_number']
     agent = row['agent']
     saccades = row['saccade_start_stop']
-    
     # Filter the gaze data to match the current row's session, interaction type, run, and agent
     gaze_row = gaze_data_df[
         (gaze_data_df['session_name'] == session_name) &
@@ -691,29 +690,18 @@ def _process_saccade_row(row, gaze_data_df):
     positions = gaze_row['positions']
     roi_rects = gaze_row['roi_rects']
     from_labels, to_labels = [], []
-    
     # Process each saccade to identify all 'from' and 'to' ROIs
     for start_stop in saccades:
         start_idx, stop_idx = start_stop
         start_pos = positions[start_idx]
         stop_pos = positions[stop_idx]
-        
         # Gather all ROIs for start and stop positions
         from_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= start_pos[0] <= rect[2] and rect[1] <= start_pos[1] <= rect[3]]
         to_rois = [roi_name for roi_name, rect in roi_rects.items() if rect[0] <= stop_pos[0] <= rect[2] and rect[1] <= stop_pos[1] <= rect[3]]
-        
         # Assign 'out_of_roi' if no ROIs match
         from_labels.append(from_rois if from_rois else ['out_of_roi'])
         to_labels.append(to_rois if to_rois else ['out_of_roi'])
-    
     return from_labels, to_labels
-
-
-
-
-
-
-
 
 
 
