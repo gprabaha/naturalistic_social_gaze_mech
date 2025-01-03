@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=crosscorr_reg_and_shuffled
+#SBATCH --job-name=fix_sacc_recompute
 #SBATCH --partition=psych_day
-#SBATCH --time=1:00:00                # 1 hour time limit
+#SBATCH --time=6:00:00                #6 hour time limit
 #SBATCH --cpus-per-task=8            # CPUs
-#SBATCH --mem=500G                     # total memory
-#SBATCH --output=crosscorr_all.out  # Output file
-#SBATCH --error=crosscorr_all.err   # Error file
+#SBATCH --mem=50G                     # total memory
+#SBATCH --output=fix_sacc.out  # Output file
+#SBATCH --error=fix_sacc.err   # Error file
 
 # Load the necessary module and activate the conda environment
 module load miniconda
