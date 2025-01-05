@@ -19,7 +19,8 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         now that global clustering is done, we have to identify which clusters are fixations based on velocity
         and then we have to find other clusters within 3 sd of the fixation cluster. after that, the fixations
         will need to be labelled, and then for each consecutive points, we have to do a local reclustering like
-        we have done before to eliminate points which are not fixations
+        we have done before to eliminate points which are not fixations. ensure that all stop indices are
+        larger than the start indices but smaller than the position array size. throw error otherwise
         '''
     else:
         print("!! Data too short for fixation detectionprocessing !!")
