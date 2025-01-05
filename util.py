@@ -369,3 +369,38 @@ def merge_dictionaries(dest_dict, src_dict):
             dest_dict[key] = value
 
 
+import pandas as pd
+def find_mismatched_gaze_data(synchronized_gaze_data_df):
+    mismatch_cases = []  # To store problematic cases
+    # Group by session_name, interaction_type, and run_number
+    grouped = synchronized_gaze_data_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    for group_key, group in grouped:
+        agents = group['agent'].unique()
+        if len(agents) != 2 or set(agents) != {'m1', 'm2'}:
+            mismatch_cases.append({
+                'group_key': group_key,
+                'issue': 'Missing agents',
+                'agents_present': agents
+            })
+            continue
+        # Get data for m1 and m2
+        m1_data = group[group['agent'] == 'm1'].iloc[0]
+        m2_data = group[group['agent'] == 'm2'].iloc[0]
+        # Check positions and pupil_size lengths
+        if len(m1_data['positions']) != len(m2_data['positions']):
+            mismatch_cases.append({
+                'group_key': group_key,
+                'issue': 'Position lengths mismatch',
+                'm1_positions_len': len(m1_data['positions']),
+                'm2_positions_len': len(m2_data['positions'])
+            })
+        elif len(m1_data['pupil_size']) != len(m2_data['pupil_size']):
+            mismatch_cases.append({
+                'group_key': group_key,
+                'issue': 'Pupil size lengths mismatch',
+                'm1_pupil_size_len': len(m1_data['pupil_size']),
+                'm2_pupil_size_len': len(m2_data['pupil_size'])
+            })
+    # Convert mismatch cases to a DataFrame for easier viewing
+    mismatch_df = pd.DataFrame(mismatch_cases)
+    return mismatch_df

@@ -26,7 +26,7 @@ def main():
 
         'is_cluster': True,
         'is_grace': False,
-        'use_parallel': True,
+        'use_parallel': False,
         'use_toy_data': False,
         'remake_toy_data': False,
         'num_cpus': None,
@@ -39,6 +39,7 @@ def main():
         
         'try_using_single_run': False,
         'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'recompute_fix_and_saccades': False,
         'hpc_job_output_subfolder': 'single_behav_crosscorr_results',
         
         'remake_binary_timeseries': True,

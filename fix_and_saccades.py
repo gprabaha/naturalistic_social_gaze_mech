@@ -42,7 +42,7 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     use_one_run = params.get('try_using_single_run')
     if use_one_run:
         df_keys_for_tasks = [df_keys_for_tasks[3]]
-        logger.warning(f"!! Testing using positions data from single run: {df_keys_for_tasks[0]}!!")
+        logger.warning(f"!! Testing using positions data from single run: {df_keys_for_tasks[3]}!!")
     # Save params for HPC job submission if needed
     params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
@@ -51,10 +51,11 @@ def detect_fixations_and_saccades(nan_removed_gaze_data_df, params):
     fixation_rows = []
     saccade_rows = []
     if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
-        # Use HPCFixAndSaccadeDetector to submit jobs for each task
-        detector = hpc_fix_and_saccade_detector.HPCFixAndSaccadeDetector(params)
-        job_file_path = detector.generate_job_file(df_keys_for_tasks, params_file_path)
-        detector.submit_job_array(job_file_path)
+        if params.get('recompute_fix_and_saccades', False):
+            # Use HPCFixAndSaccadeDetector to submit jobs for each task
+            detector = hpc_fix_and_saccade_detector.HPCFixAndSaccadeDetector(params)
+            job_file_path = detector.generate_job_file(df_keys_for_tasks, params_file_path)
+            detector.submit_job_array(job_file_path)
         # Combine results after jobs have completed
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         for task in df_keys_for_tasks:
