@@ -26,16 +26,6 @@ params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(param
 synchronized_gaze_data_file_path = os.path.join(params['processed_data_dir'], 'synchronized_gaze_data_df.pkl')
 synchronized_gaze_data_df = load_data.get_synchronized_gaze_data_df(synchronized_gaze_data_file_path)
 
-# Check if there are any m1-m2 data length mismatches in teh synchronized gaze data df
-mismatch_df = util.find_mismatched_gaze_data(synchronized_gaze_data_df)
-
-# Display mismatch cases if any
-if not mismatch_df.empty:
-    print("Mismatch cases found:")
-    display(mismatch_df)
-else:
-    print("No mismatches found. All groups passed.")
-
 # Separate out sessions and run to process separately
 df_keys_for_tasks = synchronized_gaze_data_df[['session_name', 'interaction_type', 'run_number', 'agent', 'positions']].values.tolist()
 
@@ -93,6 +83,10 @@ if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
                     'agent': agent,
                     'saccade_start_stop': sacc_indices
                 })
+else:
+    for task in df_keys_for_tasks:
+        session, interaction_type, run, agent, positions = task
+
 # Convert fixation and saccade lists to DataFrames
 fixation_df = pd.DataFrame(fixation_rows)
 saccade_df = pd.DataFrame(saccade_rows)
