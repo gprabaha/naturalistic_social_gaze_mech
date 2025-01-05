@@ -15,12 +15,18 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         print("Normalizing parameters for k-means clustering")
         normalized_data_params = _normalize_motion_parameters(dist, vel, accel, rot)
         clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params)
+        '''
+        now that global clustering is done, we have to identify which clusters are fixations based on velocity
+        and then we have to find other clusters within 3 sd of the fixation cluster. after that, the fixations
+        will need to be labelled, and then for each consecutive points, we have to do a local reclustering like
+        we have done before to eliminate points which are not fixations
+        '''
     else:
         print("!! Data too short for fixation detectionprocessing !!")
-            return {
-                'fixationindices': [],
-                'XY': np.array([positions[0], positions[1]])
-            }
+        return {
+            'fixationindices': [],
+            'XY': np.array([positions[0], positions[1]])
+        }
 
 
 
