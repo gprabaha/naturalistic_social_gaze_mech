@@ -2,7 +2,7 @@
 import numpy as np
 from scipy import signal
 from scipy.interpolate import interp1d
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import silhouette_score
 
 import pdb
@@ -17,7 +17,7 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         print("Normalizing parameters for k-means clustering")
         normalized_data_params = _normalize_motion_parameters(dist, vel, accel, rot)
         print("Performing global clustering of points for 2 to 5 cluster size")
-        clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params)
+        clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params[:,1:]) # exclude distance for clustering
         print("Determining fixation cluster based on smallest mean velocity and additional clusters with velocity within 3sd velocity of fixation cluster")
         fixation_cluster, additional_fixation_clusters = _determine_fixation_clusters(cluster_means, cluster_stds)
         print("Updating point labels to fixation and not-fixation clusters based on previous analysis")
@@ -186,11 +186,16 @@ def _kmeans_cluster_all_points_globally(normalized_data):
     for n_clusters in range(2, 6):  # Try clustering with 2 to 5 clusters
         print(f"Clustering with {n_clusters} clusters...")
         # Perform KMeans clustering
-        kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=42)
+        start_time = time.time()
+        kmeans = MiniBatchKMeans(n_clusters=n_clusters, batch_size=10000, n_init=5, random_state=42, n_jobs=-1)
         cluster_labels = kmeans.fit_predict(normalized_data)
+        elapsed_time = time.time() - start_time
+        print(f"Time taken for MiniBatchKMeans on {n_clusters} clusters: {time.strftime('%H:%M:%S', time.gmtime(elapsed_time))}")
         # Compute the silhouette score
-        # Silhouette score compares intra-cluster and inter-cluster distances
+        start_time = time.time()
         score = silhouette_score(normalized_data, cluster_labels)
+        elapsed_time = time.time() - start_time
+        print(f"Time taken for silhouette_score calculation on {n_clusters} clusters: {time.strftime('%H:%M:%S', time.gmtime(elapsed_time))}")
         print(f"Number of clusters: {n_clusters}, Silhouette score: {score:.3f}")
         # Update the best clustering if the current score is higher
         if score > best_score:
@@ -205,6 +210,7 @@ def _kmeans_cluster_all_points_globally(normalized_data):
     print(f"Optimal number of clusters determined: {len(best_means)}")
     print(f"Best silhouette score: {best_score:.3f}")
     return best_labels, best_means, best_stds
+
 
 
 

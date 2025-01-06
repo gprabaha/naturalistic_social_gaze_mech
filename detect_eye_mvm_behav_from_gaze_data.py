@@ -107,6 +107,7 @@ def _detect_fixation_and_saccade_in_run(positions, session_name):
     positions = __interpolate_nans_in_positions_with_sliding_window(positions)
     print(f"Number of NaNs after interpolation: {np.isnan(positions).sum()}")
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
+    print(f"Number of non-NaN chunks of data found: {len(chunk_start_indices)} of lengths {[chunk.shape[0] for chunk in non_nan_chunks]}")
     for position_chunk, start_ind in zip(non_nan_chunks, chunk_start_indices):
         fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
         pdb.set_trace()
