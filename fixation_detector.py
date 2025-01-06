@@ -4,15 +4,17 @@ from scipy import signal
 from scipy.interpolate import interp1d
 from sklearn.cluster import KMeans
 
+import pdb
 
 def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
     fix_params = _get_fixation_parameters(session_name, samprate)
-    if len(positions[0]) > int(30 / (fix_params['samprate'] * 1000)):
+    if positions.shape[0] > int(30 / (fix_params['samprate'] * 1000)):
         print("Preprocessing positions data for fixation detection")
         x, y = _preprocess_data(positions, fix_params)
         print("Extracting vel, accel, etc. parameters for k-means clustering")
         dist, vel, accel, rot = _extract_motion_parameters(x, y)
         print("Normalizing parameters for k-means clustering")
+        pdb.set_trace()
         normalized_data_params = _normalize_motion_parameters(dist, vel, accel, rot)
         print("Performing global clustering of points for 2 to 5 cluster size")
         clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params)
@@ -71,8 +73,8 @@ def _preprocess_data(positions, fix_params):
         tuple: Preprocessed x and y coordinates.
     """
     print("Preprocessing x and y data")
-    x = np.pad(positions[0], (fix_params['buffer'], fix_params['buffer']), 'reflect')
-    y = np.pad(positions[1], (fix_params['buffer'], fix_params['buffer']), 'reflect')
+    x = np.pad(positions[:, 0], (fix_params['buffer'], fix_params['buffer']), 'reflect')
+    y = np.pad(positions[:, 1], (fix_params['buffer'], fix_params['buffer']), 'reflect')
     x = __resample_data(x, fix_params)
     y = __resample_data(y, fix_params)
     x = __apply_filter(x, fix_params)
