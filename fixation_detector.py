@@ -1,8 +1,9 @@
 
 import numpy as np
+import time
 from scipy import signal
 from scipy.interpolate import interp1d
-from sklearn.cluster import MiniBatchKMeans
+from sklearn.cluster import MiniBatchKMeans, KMeans
 from sklearn.metrics import silhouette_score
 
 import pdb
@@ -25,7 +26,7 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
             clustering_labels, fixation_cluster, additional_fixation_clusters)
         print("Calculating the start and stop indices of each fixation")
         fixation_start_stop_indices = _find_fixation_start_stop_indices(fixation_labels)
-        return fixation_start_stop_indices
+        return fixation_start_stop_indices if fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
         '''
         now that global clustering is done, we have to identify which clusters are fixations based on velocity
         and then we have to find other clusters within 3 sd of the fixation cluster. after that, the fixations
@@ -35,7 +36,7 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         '''
     else:
         print("!! Data too short for fixation detection processing !!")
-        return []
+        return np.empty((0, 2), dtype=int) 
 
 
 
@@ -186,16 +187,11 @@ def _kmeans_cluster_all_points_globally(normalized_data):
     for n_clusters in range(2, 6):  # Try clustering with 2 to 5 clusters
         print(f"Clustering with {n_clusters} clusters...")
         # Perform KMeans clustering
-        start_time = time.time()
-        kmeans = MiniBatchKMeans(n_clusters=n_clusters, batch_size=10000, n_init=5, random_state=42, n_jobs=-1)
+        kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=42)
         cluster_labels = kmeans.fit_predict(normalized_data)
-        elapsed_time = time.time() - start_time
-        print(f"Time taken for MiniBatchKMeans on {n_clusters} clusters: {time.strftime('%H:%M:%S', time.gmtime(elapsed_time))}")
         # Compute the silhouette score
-        start_time = time.time()
-        score = silhouette_score(normalized_data, cluster_labels)
-        elapsed_time = time.time() - start_time
-        print(f"Time taken for silhouette_score calculation on {n_clusters} clusters: {time.strftime('%H:%M:%S', time.gmtime(elapsed_time))}")
+        sample_size_for_silhouette_scoring = min(100000, len(normalized_data))  # Subsample if data size exceeds 10,000
+        score = silhouette_score(normalized_data, cluster_labels, sample_size=sample_size_for_silhouette_scoring, random_state=42)
         print(f"Number of clusters: {n_clusters}, Silhouette score: {score:.3f}")
         # Update the best clustering if the current score is higher
         if score > best_score:
