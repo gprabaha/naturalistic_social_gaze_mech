@@ -21,6 +21,11 @@ def main():
     params = _initialize_params()
     # Load synchronized gaze data
     synchronized_gaze_data_df = _load_synchronized_gaze_data(params)
+    # Sparse NaN removal from each run's positions
+    sparse_nan_removed_sync_gaze_df = synchronized_gaze_data_df.copy()
+    sparse_nan_removed_sync_gaze_df['positions'] = sparse_nan_removed_sync_gaze_df['positions'].apply(
+        lambda pos: _interpolate_nans_in_positions_with_sliding_window(pos)
+    )
     # Separate sessions and runs to process separately
     df_keys_for_tasks = _prepare_tasks(synchronized_gaze_data_df, params)
     # Save params to a file
@@ -47,6 +52,36 @@ def _initialize_params():
 def _load_synchronized_gaze_data(params):
     synchronized_gaze_data_file_path = os.path.join(params['processed_data_dir'], 'synchronized_gaze_data_df.pkl')
     return load_data.get_synchronized_gaze_data_df(synchronized_gaze_data_file_path)
+
+
+
+def _interpolate_nans_in_positions_with_sliding_window(positions, window_size=10, max_nans=3):
+    positions = positions.copy()
+    num_points, num_dims = positions.shape
+    stride = max_nans
+    # Calculate the nan mask for the entire array
+    global_nan_mask = np.isnan(positions).any(axis=1)
+    for start in range(0, num_points - window_size + 1, stride):
+        end = start + window_size
+        # Use the global_nan_mask to count NaNs in the current window
+        window_nan_mask = global_nan_mask[start:end]
+        nan_count = np.sum(window_nan_mask)
+        if 0 < nan_count <= max_nans:
+            window = positions[start:end].copy()  # Extract and copy the current window
+            for col in range(num_dims):
+                col_values = window[:, col]
+                valid_indices = np.where(~np.isnan(col_values))[0]
+                valid_values = col_values[valid_indices]
+                if len(valid_indices) > 1:  # Ensure there are enough points for interpolation
+                    interp_func = interp1d(
+                        valid_indices, valid_values, kind='cubic', bounds_error=False, fill_value="extrapolate"
+                    )
+                    nan_indices = np.where(window_nan_mask)[0]
+                    interpolated_values = interp_func(nan_indices)
+                    col_values[nan_indices] = interpolated_values
+            positions[start:end] = window  # Update the positions array for the interpolated window
+    return positions
+
 
 
 def _prepare_tasks(synchronized_gaze_data_df, params):
@@ -105,9 +140,6 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
 
 
 def _detect_fixation_and_saccade_in_run(positions, session_name):
-    print(f"Number of NaNs before interpolation: {np.isnan(positions).sum()}")
-    positions = __interpolate_nans_in_positions_with_sliding_window(positions)
-    print(f"Number of NaNs after interpolation: {np.isnan(positions).sum()}")
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
     print(f"Number of non-NaN chunks of data found: {len(chunk_start_indices)} of lengths {[chunk.shape[0] for chunk in non_nan_chunks]}")
     all_fix_start_stops = np.empty((0, 2), dtype=int) 
@@ -122,34 +154,6 @@ def _detect_fixation_and_saccade_in_run(positions, session_name):
         # saccade_indices = saccade_detector.detect_saccade_in_position_array(position_chunk)
         # saccade_indices += start_ind
     return all_fix_start_stops
-
-
-def __interpolate_nans_in_positions_with_sliding_window(positions, window_size=10, max_nans=3):
-    positions = positions.copy()
-    num_points, num_dims = positions.shape
-    stride = max_nans
-    # Calculate the nan mask for the entire array
-    global_nan_mask = np.isnan(positions).any(axis=1)
-    for start in range(0, num_points - window_size + 1, stride):
-        end = start + window_size
-        # Use the global_nan_mask to count NaNs in the current window
-        window_nan_mask = global_nan_mask[start:end]
-        nan_count = np.sum(window_nan_mask)
-        if 0 < nan_count <= max_nans:
-            window = positions[start:end].copy()  # Extract and copy the current window
-            for col in range(num_dims):
-                col_values = window[:, col]
-                valid_indices = np.where(~np.isnan(col_values))[0]
-                valid_values = col_values[valid_indices]
-                if len(valid_indices) > 1:  # Ensure there are enough points for interpolation
-                    interp_func = interp1d(
-                        valid_indices, valid_values, kind='cubic', bounds_error=False, fill_value="extrapolate"
-                    )
-                    nan_indices = np.where(window_nan_mask)[0]
-                    interpolated_values = interp_func(nan_indices)
-                    col_values[nan_indices] = interpolated_values
-            positions[start:end] = window  # Update the positions array for the interpolated window
-    return positions
 
 
 

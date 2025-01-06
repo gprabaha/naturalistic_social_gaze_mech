@@ -20,7 +20,7 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         print("Performing global clustering of points for 2 to 5 cluster size")
         clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params[:,1:]) # exclude distance for clustering
         print("Determining fixation cluster based on smallest mean velocity and additional clusters with velocity within 3sd velocity of fixation cluster")
-        fixation_cluster, additional_fixation_clusters = _determine_fixation_clusters(cluster_means, cluster_stds)
+        fixation_cluster, additional_fixation_clusters = _determine_fixation_related_clusters(cluster_means, cluster_stds)
         print("Updating point labels to fixation and not-fixation clusters based on previous analysis")
         fixation_labels = _classify_clusters_as_fixations_or_non_fixations(
             clustering_labels, fixation_cluster, additional_fixation_clusters)
@@ -205,7 +205,7 @@ def _kmeans_cluster_all_points_globally(normalized_data):
 
 
 
-def _determine_fixation_clusters(cluster_means, cluster_stds):
+def _determine_fixation_related_clusters(cluster_means, cluster_stds):
     """
     Identifies the fixation-related clusters based on cluster means and standard deviations.
     Args:
