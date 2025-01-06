@@ -26,14 +26,9 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
             clustering_labels, fixation_cluster, additional_fixation_clusters)
         print("Calculating the start and stop indices of each fixation")
         fixation_start_stop_indices = _find_fixation_start_stop_indices(fixation_labels)
+        refined_fixation_start_stop_indices = _refine_fixation_start_stop_with_reclustering(
+            fixation_start_stop_indices, normalized_data_params, padding=50)
         return fixation_start_stop_indices if fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
-        '''
-        now that global clustering is done, we have to identify which clusters are fixations based on velocity
-        and then we have to find other clusters within 3 sd of the fixation cluster. after that, the fixations
-        will need to be labelled, and then for each consecutive points, we have to do a local reclustering like
-        we have done before to eliminate points which are not fixations. ensure that all stop indices are
-        larger than the start indices but smaller than the position array size. throw error otherwise
-        '''
     else:
         print("!! Data too short for fixation detection processing !!")
         return np.empty((0, 2), dtype=int) 
@@ -289,3 +284,90 @@ def _find_fixation_start_stop_indices(fixation_labels):
     # Log the results for debugging
     print(f"Found {len(fixation_chunks)} fixation chunks after global clustering.")
     return fixation_chunks
+
+
+
+def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, normalized_data_params, padding=50):
+    """
+    Refines fixation start-stop indices by performing local reclustering within each fixation window.
+    Fixations are split into smaller valid chunks if non-fixation points are detected.
+    Args:
+        fixation_start_stop_indices (np.ndarray): 2D array of fixation start and stop indices.
+        normalized_data_params (np.ndarray): Normalized feature parameters (e.g., velocity, acceleration).
+        padding (int): Number of points to pad before and after each fixation for reclustering.
+    Returns:
+        np.ndarray: Updated 2D array of refined fixation start and stop indices.
+    """
+    refined_fixation_indices = []
+    for start, stop in fixation_start_stop_indices:
+        # Extract fixation window and extend with padding for reclustering
+        extended_indices = np.arange(start - padding, stop + padding + 1)
+        extended_indices = extended_indices[(extended_indices >= 0) & (extended_indices < len(normalized_data_params))]
+        data_subset = normalized_data_params[extended_indices]
+        # Determine the optimal number of clusters using silhouette scores
+        max_clusters = min(6, len(data_subset))
+        if max_clusters <= 1:
+            refined_fixation_indices.append([start, stop])
+            continue
+        silhouette_scores = []
+        for num_clusters in range(2, max_clusters + 1):
+            kmeans = KMeans(n_clusters=num_clusters, n_init=5, random_state=42)
+            labels = kmeans.fit_predict(data_subset)
+            score = silhouette_score(data_subset, labels)
+            silhouette_scores.append((num_clusters, score))
+        if not silhouette_scores:
+            refined_fixation_indices.append([start, stop])
+            continue
+        optimal_clusters = max(silhouette_scores, key=lambda x: x[1])[0]
+        # Perform KMeans clustering with the optimal number of clusters
+        kmeans = KMeans(n_clusters=optimal_clusters, n_init=5, random_state=42)
+        cluster_labels = kmeans.fit_predict(data_subset)
+        # Identify the fixation cluster as the one with the smallest median velocity and acceleration
+        median_values = np.array([
+            np.median(data_subset[cluster_labels == i], axis=0) for i in range(optimal_clusters)
+        ])
+        fixation_cluster = np.argmin(np.sum(median_values[:, [1, 2]], axis=1))  # Velocity at index 1, acceleration at index 2
+        # Include additional fixation clusters based on velocity and acceleration thresholds
+        additional_fixation_clusters = np.where(
+            (median_values[:, 1] < median_values[fixation_cluster, 1] + 3 * np.std(data_subset[cluster_labels == fixation_cluster][:, 1])) &
+            (median_values[:, 2] < median_values[fixation_cluster, 2] + 3 * np.std(data_subset[cluster_labels == fixation_cluster][:, 2]))
+        )[0]
+        additional_fixation_clusters = additional_fixation_clusters[additional_fixation_clusters != fixation_cluster]
+        # Mark all fixation clusters
+        fixation_mask = np.isin(cluster_labels, np.concatenate(([fixation_cluster], additional_fixation_clusters)))
+        # Extract non-fixation points based on the original fixation window
+        original_indices = np.arange(start, stop + 1)
+        relative_indices_within_original = np.isin(extended_indices, original_indices)
+        non_fixation_relative_indices = np.where(
+            ~fixation_mask[relative_indices_within_original]
+        )[0]
+        # Split the original fixation start-stop indices based on non-fixation points
+        if len(non_fixation_relative_indices) == 0:
+            refined_fixation_indices.append([start, stop])
+        else:
+            valid_chunks = __split_fixation_on_non_fixation(
+                start, stop, non_fixation_relative_indices + start
+            )
+            refined_fixation_indices.extend(valid_chunks)
+    return np.array(refined_fixation_indices)
+
+def __split_fixation_on_non_fixation(start, stop, non_fix_indices):
+    """
+    Splits a fixation into valid periods by excluding non-fixation points.
+    Args:
+        start (int): Start index of the fixation.
+        stop (int): Stop index of the fixation.
+        non_fix_indices (np.ndarray): Indices of non-fixation points within the fixation.
+    Returns:
+        list: List of valid fixation start and stop indices.
+    """
+    valid_chunks = []
+    current_start = start
+    for non_fix in non_fix_indices:
+        if current_start < non_fix:
+            valid_chunks.append([current_start, non_fix - 1])
+        current_start = non_fix + 1
+    if current_start <= stop:
+        valid_chunks.append([current_start, stop])
+    return valid_chunks
+
