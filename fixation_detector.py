@@ -14,7 +14,15 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         dist, vel, accel, rot = _extract_motion_parameters(x, y)
         print("Normalizing parameters for k-means clustering")
         normalized_data_params = _normalize_motion_parameters(dist, vel, accel, rot)
+        print("Performing global clustering of points for 2 to 5 cluster size")
         clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params)
+        print("Determining fixation cluster based on smallest mean velocity and additional clusters with velocity within 3sd velocity of fixation cluster")
+        fixation_cluster, additional_fixation_clusters = _determine_fixation_clusters(cluster_means, cluster_stds)
+        print("Updating point labels to fixation and not-fixation clusters based on previous analysis")
+        fixation_labels = _classify_clusters_as_fixations_or_non_fixations(
+            clustering_labels, fixation_cluster, additional_fixation_clusters)
+        print("Calculating the start and stop indices of each fixation")
+        fixation_start_stop_indices = _find_fixation_start_stop_indices(fixation_labels)
         '''
         now that global clustering is done, we have to identify which clusters are fixations based on velocity
         and then we have to find other clusters within 3 sd of the fixation cluster. after that, the fixations
@@ -215,3 +223,90 @@ def __evaluate_clustering_quality(data, labels):
     # Silhouette score
     silhouette_scores = (b_values - a_values) / np.maximum(a_values, b_values)
     return np.nanmean(silhouette_scores)  # Average silhouette score
+
+
+
+def _determine_fixation_clusters(cluster_means, cluster_stds):
+    """
+    Identifies the fixation-related clusters based on cluster means and standard deviations.
+    Args:
+        cluster_means (np.ndarray): Mean values of the clusters, shape (n_clusters, n_features).
+        cluster_stds (np.ndarray): Standard deviation values of the clusters, shape (n_clusters, n_features).
+    Returns:
+        tuple: 
+            fixation_cluster (int): The primary fixation cluster index.
+            additional_fixation_clusters (np.ndarray): Indices of additional fixation-related clusters.
+    """
+    # Log the operation for debugging
+    logger.debug("Determining fixation-related clusters based on cluster statistics.")
+    # Determine the primary fixation cluster as the one with the smallest sum of means in the x and y dimensions
+    fixation_cluster = np.argmin(np.sum(cluster_means[:, :2], axis=1))
+    # Identify additional fixation-related clusters
+    additional_fixation_clusters = np.where(
+        cluster_means[:, 0] < cluster_means[fixation_cluster, 0] + 3 * cluster_stds[fixation_cluster, 0]
+    )[0]
+    # Exclude the primary fixation cluster from the additional clusters
+    additional_fixation_clusters = additional_fixation_clusters[additional_fixation_clusters != fixation_cluster]
+    # Log the identified clusters
+    logger.debug(f"Primary fixation cluster: {fixation_cluster}")
+    logger.debug(f"Additional fixation clusters: {additional_fixation_clusters}")
+    return fixation_cluster, additional_fixation_clusters
+
+
+
+def _classify_clusters_as_fixations_or_non_fixations(clustering_labels, fixation_cluster, additional_fixation_clusters):
+    """
+    Classifies clusters into fixation-related and non-fixation categories.
+    Args:
+        clustering_labels (np.ndarray): Array of cluster labels assigned to each point.
+        fixation_cluster (int): Primary fixation cluster index.
+        additional_fixation_clusters (np.ndarray): Indices of additional fixation-related clusters.
+    Returns:
+        np.ndarray: Updated labels where:
+            1 indicates fixation-related clusters,
+            2 indicates non-fixation clusters.
+    """
+    # Log the operation for debugging
+    logger.debug("Classifying clusters into fixation-related and non-fixation categories.")
+    # Update labels for fixation-related clusters
+    updated_labels = np.copy(clustering_labels)
+    updated_labels[updated_labels == fixation_cluster] = 100  # Temporary marker for fixations
+    for cluster in additional_fixation_clusters:
+        updated_labels[updated_labels == cluster] = 100
+    # Assign final labels: 1 for fixation-related clusters, 2 for non-fixation clusters
+    updated_labels[updated_labels != 100] = 2  # Non-fixation clusters
+    updated_labels[updated_labels == 100] = 1  # Fixation-related clusters
+    # Log summary of classifications
+    logger.debug("Cluster classification completed.")
+    logger.debug(f"Total fixation-related points: {(updated_labels == 1).sum()}")
+    logger.debug(f"Total non-fixation points: {(updated_labels == 2).sum()}")
+    return updated_labels
+
+
+def _find_fixation_start_stop_indices(fixation_labels):
+    """
+    Finds continuous chunks of fixation labels and returns their start and stop indices.
+    Args:
+        fixation_labels (np.ndarray): Array of fixation labels (1 for fixation, 2 for non-fixation).
+    Returns:
+        np.ndarray: A 2D array where each row contains [start_index, stop_index] of a fixation.
+    """
+    # Log the operation for debugging
+    logger.debug("Finding continuous chunks of fixations.")
+    # Identify indices where fixation labels are equal to 1
+    fixation_indices = np.where(fixation_labels == 1)[0]
+    # If no fixations are found, return an empty array
+    if len(fixation_indices) == 0:
+        logger.debug("No fixations found in the labels.")
+        return np.empty((0, 2), dtype=int)
+    # Find the boundaries of continuous chunks
+    chunk_boundaries = np.diff(fixation_indices) > 1
+    # Start indices of each fixation chunk
+    start_indices = fixation_indices[np.insert(chunk_boundaries, 0, True)]
+    # Stop indices of each fixation chunk
+    stop_indices = fixation_indices[np.append(chunk_boundaries, True)]
+    # Combine start and stop indices into a 2D array
+    fixation_chunks = np.column_stack((start_indices, stop_indices))
+    # Log the results for debugging
+    logger.debug(f"Found {len(fixation_chunks)} fixation chunks.")
+    return fixation_chunks
