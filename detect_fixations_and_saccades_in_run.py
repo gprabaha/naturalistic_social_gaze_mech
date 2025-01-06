@@ -6,12 +6,16 @@ import fixation_detector
 import saccade_detector
 
 
-def detect_fixation_and_saccade_in_run(positions):
+def detect_fixation_and_saccade_in_run(positions, session_name):
+    pdb.set_trace()
     positions = interpolate_nans_in_positions_with_sliding_window(positions)
+    pdb.set_trace()
     non_nan_chunks, chunk_start_indices = extract_non_nan_chunks(positions)
+    
+    pdb.set_trace()
 
     for position_chunk, start_ind in zip(non_nan_chunks, chunk_start_indices):
-        fixation_indices = fixation_detector.detect_fixation_in_position_array(position_chunk)
+        fixation_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
         fixation_indices = fixation_indices + start_ind
         saccade_indices = saccade_detector.detect_saccade_in_position_array(position_chunk)
         saccade_indices = saccade_indices + start_ind

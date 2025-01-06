@@ -31,8 +31,9 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         larger than the start indices but smaller than the position array size. throw error otherwise
         '''
     else:
-        print("!! Data too short for fixation detectionprocessing !!")
+        print("!! Data too short for fixation detection processing !!")
         return {
+            'session_name': fix_params['session_name'],
             'fixationindices': [],
             'XY': np.array([positions[0], positions[1]])
         }
@@ -41,6 +42,7 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
 
 def _get_fixation_parameters(session_name=None, samprate=1/1000, num_cpus=1):
     # Initialize parameters
+    session_names = session_name
     variables = ['Dist', 'Vel', 'Accel', 'Angular Velocity']
     fltord = 60
     lowpasfrq = 30
@@ -281,6 +283,7 @@ def _classify_clusters_as_fixations_or_non_fixations(clustering_labels, fixation
     logger.debug(f"Total fixation-related points: {(updated_labels == 1).sum()}")
     logger.debug(f"Total non-fixation points: {(updated_labels == 2).sum()}")
     return updated_labels
+
 
 
 def _find_fixation_start_stop_indices(fixation_labels):
