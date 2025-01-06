@@ -96,6 +96,7 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds = _detect_fixation_and_saccade_in_run(positions, session)
             fixation_rows.append({'session_name': session, 'interaction_type': interaction_type, 'run_number': run, 'agent': agent, 'fixation_start_stop': fixation_start_stop_inds})
+            pdb.set_trace()
             '''
             add stuff to make dataframes in here
             '''
@@ -114,6 +115,10 @@ def _detect_fixation_and_saccade_in_run(positions, session_name):
         fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
         fixation_start_stop_indices += start_ind
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fixation_start_stop_indices), axis=0)
+        '''
+        fixations handled, now implement the saccade part here
+        '''
+
         # saccade_indices = saccade_detector.detect_saccade_in_position_array(position_chunk)
         # saccade_indices += start_ind
     return all_fix_start_stops
@@ -148,7 +153,6 @@ def __interpolate_nans_in_positions_with_sliding_window(positions, window_size=1
 
 
 
-
 def __extract_non_nan_chunks(positions):
     non_nan_chunks = []
     start_indices = []
@@ -165,6 +169,8 @@ def __extract_non_nan_chunks(positions):
         non_nan_chunks.append(positions[start:end])
         start_indices.append(start)
     return non_nan_chunks, start_indices
+
+
 
 if __name__ == "__main__":
     main()

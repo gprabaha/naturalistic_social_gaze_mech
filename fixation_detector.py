@@ -11,7 +11,7 @@ import pdb
 def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
     fix_params = _get_fixation_parameters(session_name, samprate)
     if positions.shape[0] > int(30 / (fix_params['samprate'] * 1000)):
-        print("Preprocessing positions data for fixation detection")
+        print("\nPreprocessing positions data for fixation detection")
         x, y = _preprocess_data(positions, fix_params)
         print("Extracting vel, accel, etc. parameters for k-means clustering")
         dist, vel, accel, rot = _extract_motion_parameters(x, y)
@@ -26,11 +26,12 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
             clustering_labels, fixation_cluster, additional_fixation_clusters)
         print("Calculating the start and stop indices of each fixation")
         fixation_start_stop_indices = _find_fixation_start_stop_indices(fixation_labels)
+        print("Refining fixation start-stop indices using local reclustering")
         refined_fixation_start_stop_indices = _refine_fixation_start_stop_with_reclustering(
-            fixation_start_stop_indices, normalized_data_params, padding=50)
-        return fixation_start_stop_indices if fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
+            fixation_start_stop_indices, normalized_data_params, padding=50, fix_params=fix_params)
+        return refined_fixation_start_stop_indices if refined_fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
     else:
-        print("!! Data too short for fixation detection processing !!")
+        print("\n!! Data too short for fixation detection processing !!\n")
         return np.empty((0, 2), dtype=int) 
 
 
@@ -204,7 +205,6 @@ def _kmeans_cluster_all_points_globally(normalized_data):
 
 
 
-
 def _determine_fixation_clusters(cluster_means, cluster_stds):
     """
     Identifies the fixation-related clusters based on cluster means and standard deviations.
@@ -287,7 +287,7 @@ def _find_fixation_start_stop_indices(fixation_labels):
 
 
 
-def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, normalized_data_params, padding=50):
+def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, normalized_data_params, padding=50, fix_params=None):
     """
     Refines fixation start-stop indices by performing local reclustering within each fixation window.
     Fixations are split into smaller valid chunks if non-fixation points are detected.
@@ -295,6 +295,7 @@ def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, n
         fixation_start_stop_indices (np.ndarray): 2D array of fixation start and stop indices.
         normalized_data_params (np.ndarray): Normalized feature parameters (e.g., velocity, acceleration).
         padding (int): Number of points to pad before and after each fixation for reclustering.
+        fix_params (dict): Fixation parameters dictionary containing sampling rate (samprate).
     Returns:
         np.ndarray: Updated 2D array of refined fixation start and stop indices.
     """
@@ -345,13 +346,28 @@ def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, n
         if len(non_fixation_relative_indices) == 0:
             refined_fixation_indices.append([start, stop])
         else:
-            valid_chunks = __split_fixation_on_non_fixation(
+            valid_chunks = __split_fixations_at_non_fixations(
                 start, stop, non_fixation_relative_indices + start
             )
             refined_fixation_indices.extend(valid_chunks)
-    return np.array(refined_fixation_indices)
+    # Post-process refined fixations
+    refined_fixation_indices = np.array(refined_fixation_indices)
+    if refined_fixation_indices.size > 0:
+        # Check for invalid start-stop intervals and warn if found
+        invalid_indices = refined_fixation_indices[refined_fixation_indices[:, 0] >= refined_fixation_indices[:, 1]]
+        if invalid_indices.size > 0:
+            print(f"\nWARNING: Detected {len(invalid_indices)} invalid fixation intervals where stop index is before or equal to start index.")
+            print(f"Invalid intervals: {invalid_indices}\n")
+        # Remove invalid intervals
+        refined_fixation_indices = refined_fixation_indices[refined_fixation_indices[:, 0] < refined_fixation_indices[:, 1]]
+        # Apply minimum duration threshold
+        min_duration = int(0.025 / fix_params['samprate'])
+        refined_fixation_indices = refined_fixation_indices[
+            (refined_fixation_indices[:, 1] - refined_fixation_indices[:, 0] + 1) >= min_duration
+        ]
+    return refined_fixation_indices
 
-def __split_fixation_on_non_fixation(start, stop, non_fix_indices):
+def __split_fixations_at_non_fixations(start, stop, non_fix_indices):
     """
     Splits a fixation into valid periods by excluding non-fixation points.
     Args:
