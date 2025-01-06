@@ -5,6 +5,7 @@ import pandas as pd
 import pickle
 import numpy as np
 from scipy.interpolate import interp1d
+from numpy.lib.stride_tricks import sliding_window_view
 
 import curate_data
 import load_data
@@ -102,37 +103,40 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
 
 
 def _detect_fixation_and_saccade_in_run(positions, session_name):
-    pdb.set_trace()
+    print(f"Number of NaNs before interpolation: {np.isnan(positions).sum()}")
     positions = __interpolate_nans_in_positions_with_sliding_window(positions)
-    pdb.set_trace()
+    print(f"Number of NaNs after interpolation: {np.isnan(positions).sum()}")
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
-    pdb.set_trace()
     for position_chunk, start_ind in zip(non_nan_chunks, chunk_start_indices):
-        fixation_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
-        fixation_indices += start_ind
+        fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
+        pdb.set_trace()
+        fixation_start_stop_indices += start_ind
+        pdb.set_trace()
         # saccade_indices = saccade_detector.detect_saccade_in_position_array(position_chunk)
         # saccade_indices += start_ind
 
 
-def __interpolate_nans_in_positions_with_sliding_window(positions, window_size=15, max_nans=5):
+def __interpolate_nans_in_positions_with_sliding_window(positions, window_size=10, max_nans=3):
     positions = positions.copy()
-    num_points = positions.shape[0]
-    for start in range(num_points - window_size + 1):
+    num_points, num_dims = positions.shape
+    stride = int(window_size / max_nans)
+    for start in range(0, num_points - window_size + 1, stride):
         end = start + window_size
-        window = positions[start:end]
+        window = positions[start:end].copy()  # Extract and copy the current window
         nan_mask = np.isnan(window).any(axis=1)
         nan_count = np.sum(nan_mask)
-        if nan_count <= max_nans:
-            for col in range(positions.shape[1]):
-                valid_indices = np.where(~np.isnan(window[:, col]))[0]
-                if len(valid_indices) > 1:
-                    valid_values = window[valid_indices, col]
-                    interp_func = interp1d(valid_indices, valid_values, kind='cubic', bounds_error=False, fill_value="extrapolate")
-                    nan_indices = np.where(nan_mask)[0]
-                    interpolated_values = interp_func(nan_indices)
-                    window[nan_indices, col] = interpolated_values
-            positions[start:end] = window
+        if 0 < nan_count <= max_nans:
+            for col in range(num_dims):
+                col_values = window[:, col]
+                valid_indices = np.where(~np.isnan(col_values))[0]
+                valid_values = col_values[valid_indices]
+                interp_func = interp1d(valid_indices, valid_values, kind='cubic', bounds_error=False, fill_value="extrapolate")
+                nan_indices = np.where(nan_mask)[0]
+                interpolated_values = interp_func(nan_indices)
+                col_values[nan_indices] = interpolated_values
+            positions[start:end] = window  # Update the positions array
     return positions
+
 
 
 def __extract_non_nan_chunks(positions):
