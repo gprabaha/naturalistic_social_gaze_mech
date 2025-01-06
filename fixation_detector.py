@@ -3,6 +3,7 @@ import numpy as np
 from scipy import signal
 from scipy.interpolate import interp1d
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 import pdb
 
@@ -14,7 +15,6 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         print("Extracting vel, accel, etc. parameters for k-means clustering")
         dist, vel, accel, rot = _extract_motion_parameters(x, y)
         print("Normalizing parameters for k-means clustering")
-        pdb.set_trace()
         normalized_data_params = _normalize_motion_parameters(dist, vel, accel, rot)
         print("Performing global clustering of points for 2 to 5 cluster size")
         clustering_labels, cluster_means, cluster_stds = _kmeans_cluster_all_points_globally(normalized_data_params)
@@ -162,67 +162,49 @@ def _normalize_motion_parameters(dist, vel, accel, rot):
 
 def _kmeans_cluster_all_points_globally(normalized_data):
     """
-    Performs global KMeans clustering with 2 to 5 clusters and selects the optimal configuration.
+    Performs global KMeans clustering with 2 to 5 clusters and selects the optimal configuration 
+    based on the silhouette score.
+    The silhouette score measures the quality of clustering by comparing the distance between 
+    each data point and points within the same cluster (intra-cluster distance) with the distance 
+    between that data point and points in the nearest cluster (inter-cluster distance). 
+    The silhouette score ranges from -1 to 1:
+        - A score close to 1 indicates that the data points are well clustered (intra-cluster distances are smaller).
+        - A score near 0 indicates overlapping clusters.
+        - A score close to -1 indicates poor clustering (data points are closer to points in other clusters).
     Args:
-        normalized_data (np.ndarray): Normalized motion parameters.
+        normalized_data (np.ndarray): Normalized motion parameters with shape (n_samples, n_features).
     Returns:
         tuple: 
-            - clustering_labels (np.ndarray): Cluster labels for each data point.
+            - clustering_labels (np.ndarray): Cluster labels for each data point based on the best clustering.
             - cluster_means (np.ndarray): Mean values for each cluster.
             - cluster_stds (np.ndarray): Standard deviations for each cluster.
     """
-    best_score = -1
-    best_labels = None
-    best_means = None
-    best_stds = None
-    for n_clusters in range(2, 6):  # Try 2 to 5 clusters
+    best_score = -1  # Initialize the best silhouette score
+    best_labels = None  # Store the labels corresponding to the best clustering
+    best_means = None  # Mean values for each cluster in the best configuration
+    best_stds = None  # Standard deviation values for each cluster in the best configuration
+    for n_clusters in range(2, 6):  # Try clustering with 2 to 5 clusters
+        print(f"Clustering with {n_clusters} clusters...")
         # Perform KMeans clustering
-        kmeans = KMeans(n_clusters=n_clusters, n_init=5).fit(normalized_data)
-        # Evaluate clustering quality
-        score = __evaluate_clustering_quality(normalized_data, kmeans.labels_)
+        kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=42)
+        cluster_labels = kmeans.fit_predict(normalized_data)
+        # Compute the silhouette score
+        # Silhouette score compares intra-cluster and inter-cluster distances
+        score = silhouette_score(normalized_data, cluster_labels)
         print(f"Number of clusters: {n_clusters}, Silhouette score: {score:.3f}")
-        # Update best clustering based on silhouette score
+        # Update the best clustering if the current score is higher
         if score > best_score:
             best_score = score
-            best_labels = kmeans.labels_
-            best_means = np.array([np.mean(normalized_data[best_labels == i], axis=0) for i in range(n_clusters)])
-            best_stds = np.array([np.std(normalized_data[best_labels == i], axis=0) for i in range(n_clusters)])
+            best_labels = cluster_labels
+            best_means = np.array([
+                np.mean(normalized_data[best_labels == i], axis=0) for i in range(n_clusters)
+            ])
+            best_stds = np.array([
+                np.std(normalized_data[best_labels == i], axis=0) for i in range(n_clusters)
+            ])
     print(f"Optimal number of clusters determined: {len(best_means)}")
+    print(f"Best silhouette score: {best_score:.3f}")
     return best_labels, best_means, best_stds
-
-def __evaluate_clustering_quality(data, labels):
-    """
-    Evaluates the quality of clustering using silhouette scores.
-    Args:
-        data (np.ndarray): The data points used for clustering.
-        labels (np.ndarray): Cluster labels assigned to the data points.
-    Returns:
-        float: The average silhouette score across all data points.
-    """
-    unique_labels = np.unique(labels)
-    if len(unique_labels) < 2:
-        return -1  # Invalid silhouette score for fewer than 2 clusters
-    n_points = len(data)
-    a_values = np.zeros(n_points)  # Intra-cluster distances
-    b_values = np.full(n_points, np.inf)  # Inter-cluster distances
-    # Compute distances between all points
-    distances = np.linalg.norm(data[:, None] - data[None, :], axis=2)
-    for label in unique_labels:
-        # Points in the current cluster
-        cluster_points = (labels == label)
-        other_points = ~cluster_points
-        # Intra-cluster distance (a): Mean distance to points in the same cluster
-        cluster_distances = distances[cluster_points][:, cluster_points]
-        np.fill_diagonal(cluster_distances, np.nan)  # Exclude self-distances
-        a_values[cluster_points] = np.nanmean(cluster_distances, axis=1)
-        # Inter-cluster distance (b): Mean distance to points in other clusters
-        for other_label in unique_labels:
-            if other_label != label:
-                inter_distances = distances[cluster_points][:, labels == other_label]
-                b_values[cluster_points] = np.minimum(b_values[cluster_points], np.mean(inter_distances, axis=1))
-    # Silhouette score
-    silhouette_scores = (b_values - a_values) / np.maximum(a_values, b_values)
-    return np.nanmean(silhouette_scores)  # Average silhouette score
 
 
 
