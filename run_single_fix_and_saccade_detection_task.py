@@ -6,7 +6,7 @@ import logging
 import pandas as pd
 
 import load_data
-import fix_and_saccades
+import detect_eye_mvm_behav_from_gaze_data
 
 
 # Configure logger
@@ -72,7 +72,8 @@ def main(task_key, params_file_path):
         positions = filtered_df['positions'].iloc[0]  # Assuming 'positions' is a single column per row
         logger.info("Successfully extracted positions for fixation and saccade detection.")
         # Run fixation and saccade detection
-        fix_indices, sacc_indices = fix_and_saccades.process_fix_and_saccade_for_specific_run(session, positions, params)
+        fix_indices, sacc_indices, microsacc_indices = \
+            detect_eye_mvm_behav_from_gaze_data._detect_fixations_saccades_and_microsaccades_in_run(positions, session)
         logger.info("Fixation and saccade detection completed successfully.")
     except Exception as e:
         logger.error(f"Failed during fixation and saccade detection: {e}")
@@ -88,7 +89,7 @@ def main(task_key, params_file_path):
             pickle.dump(fix_indices, f)
         logger.info(f"Fixation results saved successfully at {fixation_output_path}")
         with open(saccade_output_path, 'wb') as f:
-            pickle.dump(sacc_indices, f)
+            pickle.dump((sacc_indices, microsacc_indices), f)
         logger.info(f"Saccade results saved successfully at {saccade_output_path}")
     except Exception as e:
         logger.error(f"Failed to save results: {e}")

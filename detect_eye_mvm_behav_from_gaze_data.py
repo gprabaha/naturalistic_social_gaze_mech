@@ -39,7 +39,8 @@ def main():
 def _initialize_params():
     params = {
         'try_using_single_run': True,
-        'recompute_fix_and_saccades_through_hpc_jobs': False
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -129,13 +130,14 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
                         'fixation_start_stop': fix_indices})
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
-                    sacc_indices = pickle.load(f)
+                    sacc_indices, miscosacc_inds = pickle.load(f)
                     saccade_rows.append({
                         'session_name': session,
                         'interaction_type': interaction_type,
                         'run_number': run,
                         'agent': agent,
-                        'saccade_start_stop': sacc_indices})
+                        'saccade_start_stop': sacc_indices,
+                        'microsaccade_start_stop': miscosacc_inds})
     else:
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
@@ -156,7 +158,7 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
     return pd.DataFrame(fixation_rows), pd.DataFrame(saccade_rows)
 
 
-def _detect_fixation_and_saccade_in_run(positions, session_name):
+def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name):
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
     print(f"Number of non-NaN chunks of data found: {len(chunk_start_indices)} of lengths {[chunk.shape[0] for chunk in non_nan_chunks]}")
     all_fix_start_stops = np.empty((0, 2), dtype=int) 
@@ -166,8 +168,8 @@ def _detect_fixation_and_saccade_in_run(positions, session_name):
         # Fixation detection
         fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
         fixation_start_stop_indices += start_ind
-        # Saccade and microsaccade detection
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fixation_start_stop_indices), axis=0)
+        # Saccade and microsaccade detection
         saccades_start_stop_inds, microsaccades_start_stop_inds = saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk)
         saccades_start_stop_inds += start_ind
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, saccades_start_stop_inds), axis=0)

@@ -10,13 +10,13 @@ from tqdm import tqdm
 def detect_saccades_and_microsaccades_in_position_array(positions, session_name, samprate=1/1000):
     sacc_params = _get_saccade_parameters(session_name, samprate)
     if positions.shape[0] > int(30 / (sacc_params['samprate'] * 1000)):
-        print("\nPreprocessing positions data for fixation detection")
+        print("\nPreprocessing positions data for saccade detection")
         x, y = _preprocess_data(positions, sacc_params)
         saccades_start_stop_inds, microsaccades_start_stop_inds = _detect_saccades_mayo_2023(x, y, sacc_params)
         return saccades_start_stop_inds, microsaccades_start_stop_inds
     else:
         print("\n!! Data too short for saccade detection processing !!\n")
-        return np.empty((0, 2), dtype=int) 
+        return np.empty((0, 2), dtype=int), np.empty((0, 2), dtype=int) 
 
 
 
