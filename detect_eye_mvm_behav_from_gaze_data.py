@@ -12,7 +12,7 @@ import load_data
 import util
 import hpc_fix_and_saccade_detector
 import fixation_detector
-# import saccade_detector
+import saccade_detector
 
 import pdb
 
@@ -34,6 +34,11 @@ def main():
     fixation_df, saccade_df = _process_fixations_and_saccades(df_keys_for_tasks, params)
     # Print results
     print("Detection completed for both agents.")
+    fixation_file_path = os.path.join(params['processed_data_dir'], 'fixation_df.pkl')
+    saccade_file_path = os.path.join(params['processed_data_dir'], 'saccade_df.pkl')
+    fixation_df.to_pickle(fixation_file_path)
+    saccade_df.to_pickle(saccade_file_path)
+    print(f"Fix and saccade dataframes saved to {fixation_file_path} and {saccade_file_path} respectively.")
 
 
 def _initialize_params():
@@ -141,7 +146,8 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
     else:
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
-            fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = _detect_fixation_and_saccade_in_run(positions, session)
+            fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = \
+                _detect_fixations_saccades_and_microsaccades_in_run(positions, session)
             fixation_rows.append(
                 {'session_name': session,
                 'interaction_type': interaction_type,
@@ -174,7 +180,7 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
         saccades_start_stop_inds += start_ind
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, saccades_start_stop_inds), axis=0)
         microsaccades_start_stop_inds += start_ind
-        all_microsacc_start_stops = = np.concatenate((all_microsacc_start_stops, microsaccades_start_stop_inds), axis=0)
+        all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, microsaccades_start_stop_inds), axis=0)
     return all_fix_start_stops, all_sacc_start_stops, all_microsacc_start_stops
 
 
