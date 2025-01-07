@@ -10,7 +10,7 @@ import pdb
 
 def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
     fix_params = _get_fixation_parameters(session_name, samprate)
-    if positions.shape[0] > int(30 / (fix_params['samprate'] * 1000)):
+    if positions.shape[0] > int(30 / (fix_params['samprate'] * 1000)):    
         print("\nPreprocessing positions data for fixation detection")
         x, y = _preprocess_data(positions, fix_params)
         print("Extracting vel, accel, etc. parameters for k-means clustering")
