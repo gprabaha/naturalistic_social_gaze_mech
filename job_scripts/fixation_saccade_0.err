@@ -1,79 +1,1387 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-Processing velocity data:   0%|          | 0/35 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 35/35 [00:00<00:00, 280689.56it/s]Processing velocity data:   0%|          | 0/221 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 221/221 [00:00<00:00, 475842.50it/s]Processing velocity data:   0%|          | 0/59 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 59/59 [00:00<00:00, 361261.22it/s]
-Processing velocity data:   0%|          | 0/173 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 173/173 [00:00<00:00, 580956.44it/s]Processing velocity data:   0%|          | 0/383 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 383/383 [00:00<00:00, 911701.72it/s]Processing velocity data:   0%|          | 0/1067 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1067/1067 [00:00<00:00, 1183321.62it/s]Processing velocity data:   0%|          | 0/629 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 629/629 [00:00<00:00, 853791.98it/s]
-Processing velocity data:   0%|          | 0/878 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 878/878 [00:00<00:00, 1195649.00it/s]
-Processing velocity data:   0%|          | 0/53 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 53/53 [00:00<00:00, 380647.45it/s]
-Processing velocity data:   0%|          | 0/203 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 203/203 [00:00<00:00, 1499020.62it/s]
-Processing velocity data:   0%|          | 0/1001 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1001/1001 [00:00<00:00, 927844.93it/s]Processing velocity data:   0%|          | 0/3836 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 3836/3836 [00:00<00:00, 1020509.33it/s]
-Processing velocity data:   0%|          | 0/2798 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2798/2798 [00:00<00:00, 855743.23it/s]
-Processing velocity data:   0%|          | 0/248 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 248/248 [00:00<00:00, 832149.91it/s]
-Processing velocity data:   0%|          | 0/308 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 308/308 [00:00<00:00, 922088.25it/s]
-Processing velocity data:   0%|          | 0/242 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 242/242 [00:00<00:00, 594971.61it/s]
-Processing velocity data:   0%|          | 0/1754 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1754/1754 [00:00<00:00, 959667.26it/s]
-Processing velocity data:   0%|          | 0/578 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 578/578 [00:00<00:00, 1366577.06it/s]
-Processing velocity data:   0%|          | 0/209 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 209/209 [00:00<00:00, 557994.61it/s]
-Processing velocity data:   0%|          | 0/1346 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1346/1346 [00:00<00:00, 1330238.73it/s]
-Processing velocity data:   0%|          | 0/242 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 242/242 [00:00<00:00, 1136642.29it/s]
-Processing velocity data:   0%|          | 0/2576 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2576/2576 [00:00<00:00, 1040096.95it/s]
-Processing velocity data:   0%|          | 0/7332 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 7332/7332 [00:00<00:00, 121820.12it/s]
-Processing velocity data:   0%|          | 0/7811 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 7811/7811 [00:00<00:00, 219191.71it/s]
-Processing velocity data:   0%|          | 0/2315 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2315/2315 [00:00<00:00, 1169716.15it/s]
-Processing velocity data:   0%|          | 0/857 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 857/857 [00:00<00:00, 928816.16it/s]
-Processing velocity data:   0%|          | 0/326 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 326/326 [00:00<00:00, 588610.89it/s]
-Processing velocity data:   0%|          | 0/281 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 281/281 [00:00<00:00, 549463.60it/s]
-Processing velocity data:   0%|          | 0/10685 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 10685/10685 [00:00<00:00, 399210.22it/s]
-Processing velocity data:   0%|          | 0/3299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 3299/3299 [00:00<00:00, 129781.17it/s]
-Processing velocity data:   0%|          | 0/1718 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1718/1718 [00:00<00:00, 985747.51it/s]
-Processing velocity data:   0%|          | 0/4703 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 4703/4703 [00:00<00:00, 189961.69it/s]
-Processing velocity data:   0%|          | 0/1883 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1883/1883 [00:00<00:00, 1390715.70it/s]
-Processing velocity data:   0%|          | 0/569 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 569/569 [00:00<00:00, 1104377.13it/s]
-Processing velocity data:   0%|          | 0/1418 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1418/1418 [00:00<00:00, 757742.78it/s]
-Processing velocity data:   0%|          | 0/5600 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 5600/5600 [00:00<00:00, 107165.97it/s]
-Processing velocity data:   0%|          | 0/5318 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 5318/5318 [00:00<00:00, 86861.38it/s]
-Processing velocity data:   0%|          | 0/281 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 281/281 [00:00<00:00, 873036.61it/s]
-Processing velocity data:   0%|          | 0/1106 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1106/1106 [00:00<00:00, 1276878.67it/s]
-Processing velocity data:   0%|          | 0/863 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 863/863 [00:00<00:00, 842178.77it/s]
-Processing velocity data:   0%|          | 0/269 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 269/269 [00:00<00:00, 547702.80it/s]
-Processing velocity data:   0%|          | 0/152 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 152/152 [00:00<00:00, 958698.06it/s]Processing velocity data:   0%|          | 0/12221 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 12221/12221 [00:00<00:00, 166592.75it/s]
-Processing velocity data:   0%|          | 0/623 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 623/623 [00:00<00:00, 840209.45it/s]
-Processing velocity data:   0%|          | 0/698 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 698/698 [00:00<00:00, 934149.39it/s]
-Processing velocity data:   0%|          | 0/2339 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2339/2339 [00:00<00:00, 984789.91it/s]
-Processing velocity data:   0%|          | 0/536 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 536/536 [00:00<00:00, 1661601.58it/s]
-Processing velocity data:   0%|          | 0/260 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 260/260 [00:00<00:00, 695927.91it/s]
-Processing velocity data:   0%|          | 0/353 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 353/353 [00:00<00:00, 544134.26it/s]
-Processing velocity data:   0%|          | 0/2297 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2297/2297 [00:00<00:00, 1030408.16it/s]
-Processing velocity data:   0%|          | 0/308 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 308/308 [00:00<00:00, 566847.58it/s]
-Processing velocity data:   0%|          | 0/299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 299/299 [00:00<00:00, 1110803.27it/s]
-Processing velocity data:   0%|          | 0/59 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 59/59 [00:00<00:00, 418013.41it/s]
-Processing velocity data:   0%|          | 0/674 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 674/674 [00:00<00:00, 1318545.19it/s]
-Processing velocity data:   0%|          | 0/764 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 764/764 [00:00<00:00, 1599824.39it/s]
-Processing velocity data:   0%|          | 0/2468 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2468/2468 [00:00<00:00, 848626.19it/s]
-Processing velocity data:   0%|          | 0/899 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 899/899 [00:00<00:00, 1812826.58it/s]
-Processing velocity data:   0%|          | 0/2522 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2522/2522 [00:00<00:00, 125713.48it/s]
-Processing velocity data:   0%|          | 0/257 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 257/257 [00:00<00:00, 699958.52it/s]
-Processing velocity data:   0%|          | 0/8234 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 8234/8234 [00:00<00:00, 107645.48it/s]
-Processing velocity data:   0%|          | 0/2210 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2210/2210 [00:00<00:00, 1007106.89it/s]
-Processing velocity data:   0%|          | 0/1646 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1646/1646 [00:00<00:00, 785686.17it/s]
-Processing velocity data:   0%|          | 0/1502 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1502/1502 [00:00<00:00, 815408.31it/s]
-Processing velocity data:   0%|          | 0/311 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 311/311 [00:00<00:00, 1163629.39it/s]
-Processing velocity data:   0%|          | 0/684 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 684/684 [00:00<00:00, 654851.39it/s]
-Processing velocity data:   0%|          | 0/527 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 527/527 [00:00<00:00, 1282877.66it/s]
-Processing velocity data:   0%|          | 0/362 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 362/362 [00:00<00:00, 989790.12it/s]
-Processing velocity data:   0%|          | 0/1778 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1778/1778 [00:00<00:00, 1148894.24it/s]
-Processing velocity data:   0%|          | 0/1493 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1493/1493 [00:00<00:00, 1284005.71it/s]
-Processing velocity data:   0%|          | 0/4022 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 4022/4022 [00:00<00:00, 156907.98it/s]
-Processing velocity data:   0%|          | 0/239 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 239/239 [00:00<00:00, 1044206.93it/s]
-Processing velocity data:   0%|          | 0/455 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 455/455 [00:00<00:00, 812434.36it/s]
-Processing velocity data:   0%|          | 0/10952 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 10952/10952 [00:00<00:00, 222401.98it/s]
-Processing velocity data:   0%|          | 0/425 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 425/425 [00:00<00:00, 1228517.71it/s]
-Processing velocity data:   0%|          | 0/32 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 32/32 [00:00<00:00, 361772.85it/s]
-Processing velocity data:   0%|          | 0/1391 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1391/1391 [00:00<00:00, 2066693.89it/s]
-Processing velocity data:   0%|          | 0/2057 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2057/2057 [00:00<00:00, 1051387.20it/s]
-Processing velocity data:   0%|          | 0/1262 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1262/1262 [00:00<00:00, 811344.52it/s]
-Processing velocity data:   0%|          | 0/413 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 413/413 [00:00<00:00, 630137.34it/s]
-Processing velocity data:   0%|          | 0/530 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 530/530 [00:00<00:00, 1400744.25it/s]
-Processing velocity data:   0%|          | 0/893 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 893/893 [00:00<00:00, 840743.76it/s]
-Processing velocity data:   0%|          | 0/15299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 15299/15299 [00:00<00:00, 604982.29it/s]
-Processing velocity data:   0%|          | 0/13604 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 13604/13604 [00:00<00:00, 1245265.52it/s]
+2025-01-08 07:15:40,649 - __main__ - INFO - Starting the main function
+2025-01-08 07:15:40,684 - __main__ - INFO - Parameters loaded successfully from /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl
+2025-01-08 07:15:51,385 - __main__ - INFO - Gaze data dataframe loaded successfully from /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/sparse_nan_removed_sync_gaze_data_df.pkl
+2025-01-08 07:15:51,396 - __main__ - INFO - Parsed task key successfully: session=01022019, interaction_type=interactive, run=1, agent=m1
+2025-01-08 07:15:51,814 - numexpr.utils - INFO - Note: NumExpr detected 48 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2025-01-08 07:15:51,876 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+2025-01-08 07:15:51,958 - __main__ - INFO - Successfully extracted positions for fixation and saccade detection.
+2025-01-08 07:15:51,994 - detect_eye_mvm_behav_from_gaze_data - INFO - Detecting fixations, saccades, and microsaccades for session: 01022019
+2025-01-08 07:15:52,022 - detect_eye_mvm_behav_from_gaze_data - INFO - Detected 48 CPUs for parallel processing
+2025-01-08 07:15:52,228 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,229 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,229 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,229 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,230 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,230 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,231 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,231 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:52,271 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:52,285 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:15:52,314 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:52,519 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:52,576 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:52,636 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:52,674 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:15:53,044 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:53,397 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:53,434 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:15:53,840 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:53,868 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:54,045 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:54,064 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:54,140 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:15:54,154 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:54,183 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:54,482 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:15:54,696 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:54,711 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:54,760 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:54,985 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,088 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:15:55,119 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,465 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,687 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:55,794 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,867 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,939 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:55,976 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:56,052 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:15:56,117 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:56,133 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,253 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:56,903 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:56,304 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,441 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,497 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,697 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,714 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:15:57,185 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:15:56,797 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,870 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:56,940 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:56,979 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:57,128 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:57,212 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:57,221 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:57,319 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:57,467 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:57,534 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:57,586 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:57,588 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:57,719 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:57,925 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:57,992 - fixation_detector - INFO - Resampling data
+2025-01-08 07:15:58,062 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:58,209 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:15:58,554 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:58,572 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:58,623 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:58,661 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:58,682 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:58,760 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:58,853 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:59,509 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:58,878 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:15:58,926 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:59,183 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:59,779 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 6271.86it/s]2025-01-08 07:15:59,226 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:59,282 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:59,340 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:59,477 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:15:59,588 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 4951.95it/s]2025-01-08 07:15:59,677 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:15:59,699 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+
+2025-01-08 07:15:59,843 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:15:59,912 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 4066.22it/s]2025-01-08 07:15:59,966 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 3636.15it/s]2025-01-08 07:15:59,971 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 8136.38it/s]2025-01-08 07:16:00,019 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+
+2025-01-08 07:16:00,217 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:00,313 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 4491.89it/s]2025-01-08 07:16:00,398 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:16:00,868 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]
+2025-01-08 07:16:01,160 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+
+2025-01-08 07:16:02,070 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+
+2025-01-08 07:16:02,204 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:02,252 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:16:02,345 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]
+2025-01-08 07:16:02,400 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:02,568 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:16:02,589 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:02,629 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:02,792 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:03,811 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:03,126 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:04,012 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:03,243 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:03,247 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:16:04,118 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 5363.56it/s]2025-01-08 07:16:03,290 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:04,160 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:03,362 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 6762.28it/s]2025-01-08 07:16:03,738 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.654
+KMeans Clustering:  25%|██▌       | 1/4 [00:01<00:04,  1.66s/it]2025-01-08 07:16:04,248 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:03,753 - fixation_detector - INFO - Clustering with 2 clusters...
+
+2025-01-08 07:16:04,145 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:04,347 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]
+2025-01-08 07:16:04,235 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:04,478 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:04,449 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:04,512 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:05,224 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.649
+KMeans Clustering:  50%|█████     | 2/4 [00:02<00:02,  1.46s/it]2025-01-08 07:16:05,242 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:05,675 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.502
+KMeans Clustering:  25%|██▌       | 1/4 [00:01<00:03,  1.18s/it]2025-01-08 07:16:05,692 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:05,682 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.726
+KMeans Clustering:  25%|██▌       | 1/4 [00:01<00:05,  1.74s/it]2025-01-08 07:16:05,751 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:06,173 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.688
+KMeans Clustering:  75%|███████▌  | 3/4 [00:03<00:01,  1.33s/it]2025-01-08 07:16:06,281 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:06,671 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.496
+KMeans Clustering:  50%|█████     | 2/4 [00:02<00:02,  1.13s/it]2025-01-08 07:16:06,700 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:07,394 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.628
+KMeans Clustering: 100%|██████████| 4/4 [00:04<00:00,  1.28s/it]KMeans Clustering: 100%|██████████| 4/4 [00:04<00:00,  1.21s/it]
+2025-01-08 07:16:07,427 - fixation_detector - INFO - Optimal number of clusters: 4, Best silhouette score: 0.688
+2025-01-08 07:16:07,448 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:07,473 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:07,493 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:07,522 - fixation_detector - INFO - Additional fixation clusters: [3]
+2025-01-08 07:16:07,606 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:07,647 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:07,671 - fixation_detector - INFO - Total fixation-related points: 123
+2025-01-08 07:16:07,693 - fixation_detector - INFO - Total non-fixation points: 71
+2025-01-08 07:16:07,673 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.519
+KMeans Clustering:  75%|███████▌  | 3/4 [00:03<00:01,  1.13s/it]2025-01-08 07:16:07,780 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:07,862 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:07,850 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:07,890 - fixation_detector - INFO - Found 1 fixation chunks after global clustering
+2025-01-08 07:16:07,931 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:07,942 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/1 [00:00<?, ?it/s]2025-01-08 07:16:08,335 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.683
+KMeans Clustering:  50%|█████     | 2/4 [00:04<00:04,  2.12s/it]2025-01-08 07:16:08,758 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:08,781 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.562
+KMeans Clustering: 100%|██████████| 4/4 [00:04<00:00,  1.16s/it]KMeans Clustering: 100%|██████████| 4/4 [00:04<00:00,  1.14s/it]
+2025-01-08 07:16:09,054 - fixation_detector - INFO - Optimal number of clusters: 5, Best silhouette score: 0.562
+2025-01-08 07:16:09,080 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:09,101 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:09,121 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:09,142 - fixation_detector - INFO - Additional fixation clusters: [2]
+2025-01-08 07:16:09,159 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:09,201 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:09,509 - fixation_detector - INFO - Total fixation-related points: 122
+2025-01-08 07:16:09,565 - fixation_detector - INFO - Total non-fixation points: 87
+2025-01-08 07:16:09,576 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:09,590 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:09,632 - fixation_detector - INFO - Found 1 fixation chunks after global clustering
+2025-01-08 07:16:09,867 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:09,883 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/1 [00:00<?, ?it/s]2025-01-08 07:16:10,275 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.686
+KMeans Clustering:  75%|███████▌  | 3/4 [00:06<00:01,  1.94s/it]2025-01-08 07:16:10,286 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:10,283 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.732
+KMeans Clustering:  25%|██▌       | 1/4 [00:07<00:21,  7.08s/it]2025-01-08 07:16:10,326 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:11,590 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.734
+KMeans Clustering:  25%|██▌       | 1/4 [00:07<00:22,  7.36s/it]2025-01-08 07:16:11,811 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:12,164 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.685
+KMeans Clustering: 100%|██████████| 4/4 [00:08<00:00,  1.93s/it]KMeans Clustering: 100%|██████████| 4/4 [00:08<00:00,  2.05s/it]2025-01-08 07:16:12,176 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.777
+KMeans Clustering:  25%|██▌       | 1/4 [00:08<00:24,  8.05s/it]Refining fixations: 100%|██████████| 1/1 [00:04<00:00,  4.28s/it]Refining fixations: 100%|██████████| 1/1 [00:04<00:00,  4.28s/it]2025-01-08 07:16:12,209 - fixation_detector - INFO - Clustering with 3 clusters...
+
+2025-01-08 07:16:12,195 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.726
+
+2025-01-08 07:16:12,229 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:16:12,330 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:16:12,272 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:12,460 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:12,397 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:12,516 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:12,496 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:12,584 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:12,542 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:12,662 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:12,612 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:12,718 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:12,766 - fixation_detector - INFO - Total fixation-related points: 324
+2025-01-08 07:16:12,783 - fixation_detector - INFO - Total non-fixation points: 77
+2025-01-08 07:16:12,825 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:12,879 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:12,916 - fixation_detector - INFO - Found 2 fixation chunks after global clustering
+2025-01-08 07:16:12,947 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:13,184 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/2 [00:00<?, ?it/s]2025-01-08 07:16:12,955 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.724
+KMeans Clustering:  25%|██▌       | 1/4 [00:09<00:29,  9.70s/it]2025-01-08 07:16:13,508 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:13,036 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:13,936 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.657
+KMeans Clustering:  50%|█████     | 2/4 [00:10<00:12,  6.05s/it]2025-01-08 07:16:13,951 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:13,996 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.737
+KMeans Clustering:  25%|██▌       | 1/4 [00:10<00:31, 10.35s/it]2025-01-08 07:16:14,105 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:14,164 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:16:14,195 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations: 100%|██████████| 1/1 [00:04<00:00,  4.33s/it]Refining fixations: 100%|██████████| 1/1 [00:04<00:00,  4.33s/it]2025-01-08 07:16:14,193 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:16:14,517 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/194 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 194/194 [00:00<00:00, 533570.48it/s]
+2025-01-08 07:16:14,247 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:16:14,573 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+
+2025-01-08 07:16:14,553 - saccade_detector - INFO - Number of saccades detected: 0
+2025-01-08 07:16:14,701 - saccade_detector - INFO - Number of microsaccades detected: 3
+2025-01-08 07:16:14,661 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:14,726 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:14,715 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:16:15,079 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:16:14,740 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:15,183 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:15,179 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:15,429 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:15,452 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:15,474 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:15,490 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:15,525 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:16:15,605 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:16:15,581 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:15,634 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:16:15,904 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 9581.51it/s]
+2025-01-08 07:16:15,934 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:15,974 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:15,999 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:16,124 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:16:16,169 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/209 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 209/209 [00:00<00:00, 557285.15it/s]
+2025-01-08 07:16:16,446 - saccade_detector - INFO - Number of saccades detected: 1
+2025-01-08 07:16:16,475 - saccade_detector - INFO - Number of microsaccades detected: 1
+2025-01-08 07:16:16,564 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:16:16,893 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:16:17,246 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:17,256 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:17,267 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:17,277 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:17,523 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:17,779 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:16:17,803 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:16:17,828 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:16:17,838 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 9320.68it/s]
+2025-01-08 07:16:17,847 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:17,855 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:17,864 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:19,268 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.684
+KMeans Clustering:  50%|█████     | 2/4 [00:14<00:14,  7.40s/it]2025-01-08 07:16:19,305 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:20,036 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.754
+KMeans Clustering:  25%|██▌       | 1/4 [00:04<00:12,  4.07s/it]2025-01-08 07:16:20,067 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:20,658 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.707
+KMeans Clustering:  50%|█████     | 2/4 [00:16<00:16,  8.18s/it]2025-01-08 07:16:20,700 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:22,242 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.668
+KMeans Clustering:  75%|███████▌  | 3/4 [00:19<00:06,  6.76s/it]2025-01-08 07:16:22,367 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:22,584 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.688
+KMeans Clustering:  25%|██▌       | 1/4 [00:04<00:14,  4.75s/it]2025-01-08 07:16:22,615 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:16:23,191 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.663
+KMeans Clustering:  50%|█████     | 2/4 [00:19<00:19,  9.70s/it]2025-01-08 07:16:23,219 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:  50%|█████     | 1/2 [00:12<00:12, 12.94s/it]2025-01-08 07:16:26,494 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.673
+KMeans Clustering:  50%|█████     | 2/4 [00:22<00:21, 10.97s/it]2025-01-08 07:16:26,515 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:27,097 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.681
+KMeans Clustering:  50%|█████     | 2/4 [00:11<00:10,  5.03s/it]2025-01-08 07:16:27,327 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:27,451 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.679
+KMeans Clustering:  50%|█████     | 2/4 [00:09<00:09,  4.78s/it]2025-01-08 07:16:27,474 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:16:27,649 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.676
+KMeans Clustering:  75%|███████▌  | 3/4 [00:23<00:07,  7.69s/it]2025-01-08 07:16:27,677 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:30,350 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.674
+KMeans Clustering: 100%|██████████| 4/4 [00:27<00:00,  7.14s/it]KMeans Clustering: 100%|██████████| 4/4 [00:27<00:00,  6.79s/it]
+2025-01-08 07:16:30,385 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.732
+2025-01-08 07:16:30,406 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:30,421 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:30,426 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:30,431 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:30,439 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:30,447 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:30,458 - fixation_detector - INFO - Total fixation-related points: 4236
+2025-01-08 07:16:30,471 - fixation_detector - INFO - Total non-fixation points: 659
+2025-01-08 07:16:30,479 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:30,483 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:30,486 - fixation_detector - INFO - Found 21 fixation chunks after global clustering
+2025-01-08 07:16:30,489 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:30,493 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/21 [00:00<?, ?it/s]2025-01-08 07:16:31,785 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:16:31,800 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations: 100%|██████████| 2/2 [00:18<00:00, 10.75s/it]Refining fixations: 100%|██████████| 2/2 [00:18<00:00,  9.29s/it]
+2025-01-08 07:16:31,800 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:16:31,801 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:16:31,801 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:31,801 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:31,801 - saccade_detector - INFO - Resampling data
+2025-01-08 07:16:31,801 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:32,050 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.706
+KMeans Clustering:  75%|███████▌  | 3/4 [00:27<00:09,  9.13s/it]2025-01-08 07:16:32,056 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:32,382 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:33,032 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:16:33,039 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/401 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 401/401 [00:00<00:00, 876454.35it/s]
+2025-01-08 07:16:33,062 - saccade_detector - INFO - Number of saccades detected: 0
+2025-01-08 07:16:33,069 - saccade_detector - INFO - Number of microsaccades detected: 2
+2025-01-08 07:16:33,073 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:16:33,125 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:16:33,131 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:16:33,135 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:33,138 - fixation_detector - INFO - Resampling data
+2025-01-08 07:16:33,141 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:33,416 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.682
+KMeans Clustering:  75%|███████▌  | 3/4 [00:15<00:05,  5.14s/it]2025-01-08 07:16:33,440 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:33,430 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:16:34,105 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:16:34,125 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:16:34,229 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:16:34,282 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 5722.11it/s]
+2025-01-08 07:16:34,299 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:16:34,309 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:16:34,313 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:16:34,345 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.691
+KMeans Clustering:  75%|███████▌  | 3/4 [00:18<00:05,  5.63s/it]2025-01-08 07:16:34,362 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:35,434 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.577
+KMeans Clustering: 100%|██████████| 4/4 [00:30<00:00,  7.71s/it]KMeans Clustering: 100%|██████████| 4/4 [00:30<00:00,  7.75s/it]
+2025-01-08 07:16:35,440 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.734
+2025-01-08 07:16:35,460 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:35,467 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:35,477 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:35,485 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:35,489 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:35,493 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:35,496 - fixation_detector - INFO - Total fixation-related points: 6050
+2025-01-08 07:16:35,499 - fixation_detector - INFO - Total non-fixation points: 813
+2025-01-08 07:16:35,503 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:35,506 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:35,510 - fixation_detector - INFO - Found 27 fixation chunks after global clustering
+2025-01-08 07:16:35,513 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:35,516 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/27 [00:00<?, ?it/s]2025-01-08 07:16:36,072 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:16:36,094 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   5%|▍         | 1/21 [00:05<01:52,  5.61s/it]2025-01-08 07:16:36,387 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.664
+KMeans Clustering:  75%|███████▌  | 3/4 [00:32<00:10, 10.75s/it]2025-01-08 07:16:36,406 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:16:39,295 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.659
+KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.36s/it]KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.37s/it]
+2025-01-08 07:16:39,328 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.688
+2025-01-08 07:16:39,357 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:39,367 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:39,377 - fixation_detector - INFO - Primary fixation cluster: 1
+2025-01-08 07:16:39,391 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:39,394 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:39,616 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Total fixation-related points: 1861
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Total non-fixation points: 313
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Found 7 fixation chunks after global clustering
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:39,665 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/7 [00:00<?, ?it/s]2025-01-08 07:16:40,399 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:16:40,442 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  10%|▉         | 2/21 [00:09<01:39,  5.23s/it]2025-01-08 07:16:41,198 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.665
+KMeans Clustering:  75%|███████▌  | 3/4 [00:37<00:12, 12.08s/it]2025-01-08 07:16:41,199 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:   4%|▎         | 1/27 [00:05<02:28,  5.73s/it]2025-01-08 07:16:41,565 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.696
+KMeans Clustering: 100%|██████████| 4/4 [00:25<00:00,  6.10s/it]KMeans Clustering: 100%|██████████| 4/4 [00:25<00:00,  6.40s/it]
+2025-01-08 07:16:41,609 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.754
+2025-01-08 07:16:41,629 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:41,639 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:41,644 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:41,657 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:41,673 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:41,690 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:41,693 - fixation_detector - INFO - Total fixation-related points: 2268
+2025-01-08 07:16:41,700 - fixation_detector - INFO - Total non-fixation points: 272
+2025-01-08 07:16:41,705 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:41,708 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:41,711 - fixation_detector - INFO - Found 9 fixation chunks after global clustering
+2025-01-08 07:16:41,714 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:41,717 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/9 [00:00<?, ?it/s]Refining fixations:   7%|▋         | 2/27 [00:10<02:13,  5.34s/it]2025-01-08 07:16:45,925 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.644
+KMeans Clustering: 100%|██████████| 4/4 [00:41<00:00, 10.56s/it]KMeans Clustering: 100%|██████████| 4/4 [00:41<00:00, 10.44s/it]
+2025-01-08 07:16:45,939 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.777
+2025-01-08 07:16:45,967 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:45,982 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:45,989 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:46,000 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:46,006 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:46,011 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:46,020 - fixation_detector - INFO - Total fixation-related points: 9148
+2025-01-08 07:16:46,044 - fixation_detector - INFO - Total non-fixation points: 976
+2025-01-08 07:16:46,051 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:46,063 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:46,081 - fixation_detector - INFO - Found 19 fixation chunks after global clustering
+2025-01-08 07:16:46,088 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:46,106 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/19 [00:00<?, ?it/s]2025-01-08 07:16:46,348 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.747
+KMeans Clustering:  25%|██▌       | 1/4 [00:12<00:36, 12.06s/it]2025-01-08 07:16:46,369 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  11%|█         | 3/27 [00:14<02:01,  5.04s/it]2025-01-08 07:16:51,419 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.662
+KMeans Clustering: 100%|██████████| 4/4 [00:47<00:00, 12.03s/it]KMeans Clustering: 100%|██████████| 4/4 [00:47<00:00, 11.91s/it]
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.724
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:51,434 - fixation_detector - INFO - Total fixation-related points: 10479
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Total non-fixation points: 1544
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Found 47 fixation chunks after global clustering
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:51,439 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/47 [00:00<?, ?it/s]Refining fixations:  11%|█         | 1/9 [00:10<01:22, 10.32s/it]Refining fixations:  14%|█▍        | 1/7 [00:12<01:16, 12.77s/it]2025-01-08 07:16:54,043 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.668
+KMeans Clustering: 100%|██████████| 4/4 [00:50<00:00, 12.32s/it]KMeans Clustering: 100%|██████████| 4/4 [00:50<00:00, 12.58s/it]
+2025-01-08 07:16:54,057 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.737
+2025-01-08 07:16:54,068 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:16:54,071 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:16:54,078 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:16:54,081 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:16:54,085 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:54,088 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:16:54,098 - fixation_detector - INFO - Total fixation-related points: 10373
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Total non-fixation points: 1458
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Found 47 fixation chunks after global clustering
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:16:54,105 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/47 [00:00<?, ?it/s]Refining fixations:  15%|█▍        | 4/27 [00:19<01:53,  4.92s/it]2025-01-08 07:16:54,766 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:16:54,776 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  14%|█▍        | 3/21 [00:24<02:23,  7.96s/it]Refining fixations:   2%|▏         | 1/47 [00:04<03:42,  4.84s/it]2025-01-08 07:16:59,073 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.673
+KMeans Clustering:  50%|█████     | 2/4 [00:24<00:24, 12.26s/it]2025-01-08 07:16:59,092 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:17:00,943 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:00,955 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:   4%|▍         | 2/47 [00:09<03:35,  4.79s/it]Refining fixations:   5%|▌         | 1/19 [00:16<04:55, 16.40s/it]Refining fixations:   2%|▏         | 1/47 [00:11<09:03, 11.81s/it]Refining fixations:   6%|▋         | 3/47 [00:14<03:33,  4.85s/it]2025-01-08 07:17:06,748 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:06,761 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  29%|██▊       | 2/7 [00:27<01:06, 13.24s/it]Refining fixations:  19%|█▊        | 5/27 [00:32<02:41,  7.32s/it]2025-01-08 07:17:10,061 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:10,061 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  22%|██▏       | 2/9 [00:28<01:28, 12.63s/it]Refining fixations:   9%|▊         | 4/47 [00:19<03:26,  4.79s/it]2025-01-08 07:17:11,147 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.667
+KMeans Clustering:  75%|███████▌  | 3/4 [00:36<00:12, 12.22s/it]2025-01-08 07:17:11,221 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:17:12,274 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:12,281 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  19%|█▉        | 4/21 [00:41<03:03, 10.82s/it]Refining fixations:  11%|█         | 2/19 [00:28<04:17, 15.16s/it]Refining fixations:   4%|▍         | 2/47 [00:23<08:52, 11.83s/it]Refining fixations:  22%|██▏       | 6/27 [00:45<03:09,  9.01s/it]Refining fixations:  43%|████▎     | 3/7 [00:41<00:54, 13.65s/it]2025-01-08 07:17:22,424 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.579
+KMeans Clustering: 100%|██████████| 4/4 [00:48<00:00, 11.91s/it]KMeans Clustering: 100%|██████████| 4/4 [00:48<00:00, 12.03s/it]
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.747
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Total fixation-related points: 8838
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Total non-fixation points: 890
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:17:22,424 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:17:22,425 - fixation_detector - INFO - Found 27 fixation chunks after global clustering
+2025-01-08 07:17:22,425 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:17:22,425 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/27 [00:00<?, ?it/s]2025-01-08 07:17:22,591 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:22,604 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   6%|▋         | 3/47 [00:28<07:07,  9.72s/it]Refining fixations:  11%|█         | 5/47 [00:31<04:56,  7.06s/it]Refining fixations:  33%|███▎      | 3/9 [00:41<01:16, 12.77s/it]2025-01-08 07:17:25,494 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:25,503 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  24%|██▍       | 5/21 [00:55<03:04, 11.55s/it]Refining fixations:   4%|▎         | 1/27 [00:05<02:15,  5.19s/it]Refining fixations:   9%|▊         | 4/47 [00:33<05:59,  8.37s/it]Refining fixations:  16%|█▌        | 3/19 [00:42<03:56, 14.79s/it]2025-01-08 07:17:30,615 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:30,631 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  29%|██▊       | 6/21 [01:00<02:24,  9.62s/it]Refining fixations:   7%|▋         | 2/27 [00:10<02:10,  5.24s/it]Refining fixations:  21%|██        | 4/19 [00:47<02:59, 11.98s/it]Refining fixations:  26%|██▌       | 7/27 [00:59<03:30, 10.52s/it]Refining fixations:  33%|███▎      | 7/21 [01:05<01:56,  8.32s/it]Refining fixations:  13%|█▎        | 6/47 [00:44<06:04,  8.88s/it]2025-01-08 07:17:42,223 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:42,285 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  57%|█████▋    | 4/7 [01:02<00:47, 15.85s/it]Refining fixations:  30%|██▉       | 8/27 [01:10<03:26, 10.84s/it]2025-01-08 07:17:48,220 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:48,248 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  11%|█         | 3/27 [00:25<03:18,  8.26s/it]Refining fixations:  26%|██▋       | 5/19 [01:02<02:57, 12.70s/it]Refining fixations:  15%|█▍        | 7/47 [00:58<06:57, 10.43s/it]Refining fixations:  38%|███▊      | 8/21 [01:19<02:11, 10.08s/it]Refining fixations:  44%|████▍     | 4/9 [01:08<01:25, 17.14s/it]Refining fixations:  11%|█         | 5/47 [00:56<08:55, 12.74s/it]Refining fixations:  15%|█▍        | 4/27 [00:31<02:49,  7.36s/it]Refining fixations:  32%|███▏      | 6/19 [01:08<02:17, 10.61s/it]2025-01-08 07:17:54,809 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:55,340 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  17%|█▋        | 8/47 [01:04<05:47,  8.91s/it]Refining fixations:  13%|█▎        | 6/47 [01:01<07:09, 10.46s/it]2025-01-08 07:17:57,637 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:17:57,733 - fixation_detector - INFO - Split into 6 valid chunks
+Refining fixations:  71%|███████▏  | 5/7 [01:18<00:31, 15.74s/it]Refining fixations:  15%|█▍        | 7/47 [01:07<05:56,  8.91s/it]Refining fixations:  43%|████▎     | 9/21 [01:33<02:14, 11.22s/it]Refining fixations:  56%|█████▌    | 5/9 [01:22<01:04, 16.16s/it]Refining fixations:  33%|███▎      | 9/27 [01:29<03:56, 13.16s/it]Refining fixations:  37%|███▋      | 7/19 [01:22<02:20, 11.70s/it]2025-01-08 07:18:09,308 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:09,396 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  48%|████▊     | 10/21 [01:38<01:44,  9.48s/it]2025-01-08 07:18:09,925 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:09,971 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  19%|█▉        | 9/47 [01:18<06:42, 10.60s/it]2025-01-08 07:18:09,937 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:10,068 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  67%|██████▋   | 6/9 [01:28<00:39, 13.03s/it]2025-01-08 07:18:10,234 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:10,251 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  37%|███▋      | 10/27 [01:34<03:04, 10.88s/it]Refining fixations:  86%|████████▌ | 6/7 [01:32<00:15, 15.20s/it]Refining fixations:  42%|████▏     | 8/19 [01:27<01:47,  9.79s/it]Refining fixations:  52%|█████▏    | 11/21 [01:44<01:22,  8.26s/it]Refining fixations:  17%|█▋        | 8/47 [01:20<06:46, 10.41s/it]2025-01-08 07:18:15,580 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:15,607 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  21%|██▏       | 10/47 [01:24<05:37,  9.11s/it]Refining fixations: 100%|██████████| 7/7 [01:37<00:00, 12.34s/it]Refining fixations: 100%|██████████| 7/7 [01:37<00:00, 13.97s/it]
+2025-01-08 07:18:17,458 - fixation_detector - WARNING - Detected 2 invalid fixation intervals where stop index is before or equal to start index.
+2025-01-08 07:18:17,551 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:18:17,661 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:18:17,811 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:18:17,920 - saccade_detector - INFO - Resampling data
+2025-01-08 07:18:18,020 - saccade_detector - INFO - Resampling data
+2025-01-08 07:18:18,051 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:  47%|████▋     | 9/19 [01:32<01:23,  8.35s/it]2025-01-08 07:18:18,599 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:19,228 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:18:19,309 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/2174 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2174/2174 [00:00<00:00, 984603.92it/s]
+2025-01-08 07:18:19,456 - saccade_detector - INFO - Number of saccades detected: 7
+2025-01-08 07:18:19,486 - saccade_detector - INFO - Number of microsaccades detected: 8
+2025-01-08 07:18:19,663 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:18:19,800 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:18:19,869 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:18:19,904 - fixation_detector - INFO - Resampling data
+Refining fixations:  57%|█████▋    | 12/21 [01:49<01:05,  7.33s/it]2025-01-08 07:18:19,984 - fixation_detector - INFO - Resampling data
+2025-01-08 07:18:20,267 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:21,032 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:21,404 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:18:21,438 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:18:21,584 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:18:21,669 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 1637.28it/s]
+2025-01-08 07:18:21,721 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:18:21,770 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:18:21,893 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:18:22,141 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:22,170 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  19%|█▊        | 5/27 [00:59<05:02, 13.76s/it]Refining fixations:  41%|████      | 11/27 [01:47<03:04, 11.50s/it]Refining fixations:  62%|██████▏   | 13/21 [01:54<00:52,  6.53s/it]2025-01-08 07:18:26,718 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:26,857 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  78%|███████▊  | 7/9 [01:45<00:28, 14.25s/it]2025-01-08 07:18:27,480 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:27,530 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  22%|██▏       | 6/27 [01:05<03:56, 11.24s/it]Refining fixations:  19%|█▉        | 9/47 [01:35<07:21, 11.63s/it]Refining fixations:  67%|██████▋   | 14/21 [01:59<00:43,  6.14s/it]Refining fixations:  53%|█████▎    | 10/19 [01:45<01:27,  9.68s/it]2025-01-08 07:18:31,735 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:31,771 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  89%|████████▉ | 8/9 [01:50<00:11, 11.36s/it]Refining fixations:  23%|██▎       | 11/47 [01:43<07:15, 12.10s/it]Refining fixations:  71%|███████▏  | 15/21 [02:04<00:34,  5.77s/it]Refining fixations:  26%|██▌       | 7/27 [01:16<03:43, 11.15s/it]Refining fixations:  44%|████▍     | 12/27 [02:04<03:15, 13.05s/it]Refining fixations:  58%|█████▊    | 11/19 [01:55<01:19,  9.88s/it]Refining fixations:  21%|██▏       | 10/47 [01:47<07:19, 11.87s/it]Refining fixations: 100%|██████████| 9/9 [02:01<00:00, 11.29s/it]Refining fixations: 100%|██████████| 9/9 [02:01<00:00, 13.47s/it]
+2025-01-08 07:18:42,912 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:18:42,946 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:18:43,007 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:18:43,044 - saccade_detector - INFO - Resampling data
+2025-01-08 07:18:43,107 - saccade_detector - INFO - Resampling data
+2025-01-08 07:18:43,207 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:43,659 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:44,205 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:18:44,342 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/2540 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2540/2540 [00:00<00:00, 1071676.11it/s]
+2025-01-08 07:18:44,522 - saccade_detector - INFO - Number of saccades detected: 7
+2025-01-08 07:18:44,649 - saccade_detector - INFO - Number of microsaccades detected: 4
+2025-01-08 07:18:44,695 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:18:44,992 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:18:45,137 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:18:45,201 - fixation_detector - INFO - Resampling data
+2025-01-08 07:18:45,306 - fixation_detector - INFO - Resampling data
+2025-01-08 07:18:45,374 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:45,835 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:18:46,181 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:18:46,218 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+Refining fixations:  76%|███████▌  | 16/21 [02:15<00:37,  7.53s/it]2025-01-08 07:18:46,439 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:18:46,552 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 5911.63it/s]
+2025-01-08 07:18:46,689 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:18:47,146 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:18:47,230 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:18:49,833 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:50,080 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  26%|██▌       | 12/47 [01:58<07:38, 13.10s/it]Refining fixations:  30%|██▉       | 8/27 [01:28<03:40, 11.62s/it]Refining fixations:  23%|██▎       | 11/47 [02:00<07:10, 11.96s/it]2025-01-08 07:18:54,947 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:18:55,093 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  28%|██▊       | 13/47 [02:03<06:02, 10.66s/it]Refining fixations:  48%|████▊     | 13/27 [02:20<03:16, 14.00s/it]2025-01-08 07:18:56,122 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.746
+KMeans Clustering:  25%|██▌       | 1/4 [00:08<00:26,  8.97s/it]2025-01-08 07:18:56,198 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  81%|████████  | 17/21 [02:26<00:33,  8.32s/it]Refining fixations:  33%|███▎      | 9/27 [01:34<02:55,  9.75s/it]Refining fixations:  30%|██▉       | 14/47 [02:08<04:55,  8.95s/it]Refining fixations:  63%|██████▎   | 12/19 [02:15<01:29, 12.82s/it]2025-01-08 07:19:04,773 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:04,837 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  32%|███▏      | 15/47 [02:13<04:08,  7.76s/it]2025-01-08 07:19:07,805 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.676
+KMeans Clustering:  50%|█████     | 2/4 [00:21<00:19,  9.90s/it]2025-01-08 07:19:08,272 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:  26%|██▌       | 12/47 [02:17<08:00, 13.73s/it]Refining fixations:  37%|███▋      | 10/27 [01:51<03:22, 11.93s/it]Refining fixations:  52%|█████▏    | 14/27 [02:38<03:16, 15.11s/it]Refining fixations:  86%|████████▌ | 18/21 [02:46<00:36, 12.06s/it]2025-01-08 07:19:18,573 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:18,623 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  56%|█████▌    | 15/27 [02:43<02:24, 12.02s/it]2025-01-08 07:19:19,957 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.677
+KMeans Clustering:  75%|███████▌  | 3/4 [00:32<00:10, 10.45s/it]2025-01-08 07:19:19,999 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:  28%|██▊       | 13/47 [02:31<07:49, 13.82s/it]Refining fixations:  34%|███▍      | 16/47 [02:35<06:10, 11.94s/it]2025-01-08 07:19:27,330 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.744
+KMeans Clustering:  25%|██▌       | 1/4 [01:05<03:16, 65.49s/it]2025-01-08 07:19:27,383 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  41%|████      | 11/27 [02:05<03:19, 12.49s/it]Refining fixations:  68%|██████▊   | 13/19 [02:41<01:40, 16.77s/it]Refining fixations:  36%|███▌      | 17/47 [02:39<04:48,  9.62s/it]2025-01-08 07:19:31,602 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.527
+KMeans Clustering: 100%|██████████| 4/4 [00:44<00:00, 10.80s/it]KMeans Clustering: 100%|██████████| 4/4 [00:44<00:00, 11.10s/it]Refining fixations:  90%|█████████ | 19/21 [03:01<00:25, 12.72s/it]
+2025-01-08 07:19:31,619 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.746
+2025-01-08 07:19:31,871 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:19:31,984 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:19:32,046 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:19:32,059 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:19:32,139 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:19:32,282 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:19:32,398 - fixation_detector - INFO - Total fixation-related points: 8518
+2025-01-08 07:19:32,522 - fixation_detector - INFO - Total non-fixation points: 685
+2025-01-08 07:19:32,538 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:19:32,770 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:19:32,895 - fixation_detector - INFO - Found 21 fixation chunks after global clustering
+2025-01-08 07:19:32,965 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:19:33,025 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/21 [00:00<?, ?it/s]Refining fixations:  95%|█████████▌| 20/21 [03:05<00:10, 10.35s/it]2025-01-08 07:19:37,032 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:37,202 - fixation_detector - INFO - Split into 9 valid chunks
+Refining fixations:  59%|█████▉    | 16/27 [03:01<02:33, 14.00s/it]Refining fixations:  44%|████▍     | 12/27 [02:17<03:08, 12.55s/it]2025-01-08 07:19:41,236 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:41,250 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations: 100%|██████████| 21/21 [03:10<00:00,  8.70s/it]Refining fixations: 100%|██████████| 21/21 [03:10<00:00,  9.09s/it]
+2025-01-08 07:19:41,298 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:19:41,353 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:19:41,383 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:19:41,413 - saccade_detector - INFO - Resampling data
+2025-01-08 07:19:41,442 - saccade_detector - INFO - Resampling data
+2025-01-08 07:19:41,474 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:19:41,860 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:19:42,199 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:19:42,238 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/4895 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 4895/4895 [00:00<00:00, 894680.06it/s]2025-01-08 07:19:42,324 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:42,397 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  63%|██████▎   | 17/27 [03:06<01:53, 11.35s/it]
+2025-01-08 07:19:42,343 - saccade_detector - INFO - Number of saccades detected: 19
+2025-01-08 07:19:42,405 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:42,493 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  30%|██▉       | 14/47 [02:48<08:02, 14.61s/it]2025-01-08 07:19:42,461 - saccade_detector - INFO - Number of microsaccades detected: 24
+2025-01-08 07:19:42,625 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:19:42,656 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:19:42,699 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:19:42,734 - fixation_detector - INFO - Resampling data
+2025-01-08 07:19:42,799 - fixation_detector - INFO - Resampling data
+2025-01-08 07:19:42,881 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:19:43,843 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:19:44,347 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:19:44,529 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:19:44,779 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:19:44,834 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 11538.66it/s]
+2025-01-08 07:19:44,931 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:19:45,010 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:19:45,044 - fixation_detector - INFO - Clustering with 2 clusters...
+Refining fixations:  74%|███████▎  | 14/19 [03:00<01:27, 17.56s/it]2025-01-08 07:19:47,137 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.833
+KMeans Clustering:  25%|██▌       | 1/4 [00:02<00:06,  2.12s/it]2025-01-08 07:19:47,163 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:19:47,247 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:47,306 - fixation_detector - INFO - Split into 6 valid chunks
+Refining fixations:  67%|██████▋   | 18/27 [03:11<01:24,  9.41s/it]Refining fixations:  32%|███▏      | 15/47 [02:53<06:15, 11.73s/it]2025-01-08 07:19:49,366 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.795
+KMeans Clustering:  50%|█████     | 2/4 [00:04<00:04,  2.15s/it]2025-01-08 07:19:49,384 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:  38%|███▊      | 18/47 [02:59<06:09, 12.73s/it]2025-01-08 07:19:51,938 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.785
+KMeans Clustering:  75%|███████▌  | 3/4 [00:06<00:02,  2.28s/it]2025-01-08 07:19:51,983 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:19:52,171 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:19:52,194 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  70%|███████   | 19/27 [03:16<01:04,  8.06s/it]Refining fixations:  48%|████▊     | 13/27 [02:30<02:55, 12.57s/it]2025-01-08 07:19:54,315 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.713
+KMeans Clustering: 100%|██████████| 4/4 [00:09<00:00,  2.34s/it]KMeans Clustering: 100%|██████████| 4/4 [00:09<00:00,  2.35s/it]
+2025-01-08 07:19:54,449 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.833
+2025-01-08 07:19:54,624 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+Refining fixations:   5%|▍         | 1/21 [00:21<07:18, 21.91s/it]2025-01-08 07:19:54,776 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:19:55,090 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:19:55,448 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:19:55,531 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:19:55,598 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:19:55,629 - fixation_detector - INFO - Total fixation-related points: 336
+2025-01-08 07:19:55,713 - fixation_detector - INFO - Total non-fixation points: 29
+2025-01-08 07:19:55,852 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:19:55,934 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:19:56,040 - fixation_detector - INFO - Found 1 fixation chunks after global clustering
+2025-01-08 07:19:56,133 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:19:56,137 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/1 [00:00<?, ?it/s]Refining fixations:  79%|███████▉  | 15/19 [03:11<01:02, 15.62s/it]2025-01-08 07:19:59,704 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:00,015 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  10%|▉         | 2/21 [00:26<05:20, 16.86s/it]Refining fixations:  40%|████      | 19/47 [03:09<05:37, 12.04s/it]Refining fixations:  34%|███▍      | 16/47 [03:09<06:41, 12.96s/it]2025-01-08 07:20:04,665 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:04,677 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  14%|█▍        | 3/21 [00:31<03:58, 13.26s/it]2025-01-08 07:20:07,273 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:07,313 - fixation_detector - INFO - Split into 7 valid chunks
+Refining fixations:  74%|███████▍  | 20/27 [03:31<01:11, 10.19s/it]Refining fixations: 100%|██████████| 1/1 [00:11<00:00, 11.66s/it]Refining fixations: 100%|██████████| 1/1 [00:11<00:00, 11.66s/it]
+2025-01-08 07:20:07,993 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:20:08,147 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:20:08,360 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:20:08,424 - saccade_detector - INFO - Resampling data
+2025-01-08 07:20:08,373 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:08,536 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  36%|███▌      | 17/47 [03:14<05:21, 10.70s/it]2025-01-08 07:20:08,504 - saccade_detector - INFO - Resampling data
+2025-01-08 07:20:08,851 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:20:09,279 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:20:09,721 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:20:09,978 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/365 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 365/365 [00:00<00:00, 1221804.44it/s]
+2025-01-08 07:20:10,012 - saccade_detector - INFO - Number of saccades detected: 0
+2025-01-08 07:20:10,084 - saccade_detector - INFO - Number of microsaccades detected: 0
+2025-01-08 07:20:10,123 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:20:10,138 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:10,431 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  19%|█▉        | 4/21 [00:37<03:06, 10.99s/it]Refining fixations:  84%|████████▍ | 16/19 [03:24<00:44, 14.69s/it]2025-01-08 07:20:10,161 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:20:10,702 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:20:10,734 - fixation_detector - INFO - Resampling data
+2025-01-08 07:20:10,765 - fixation_detector - INFO - Resampling data
+2025-01-08 07:20:10,796 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:20:11,083 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:20:11,663 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:20:11,838 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:20:11,940 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:20:12,034 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 8928.80it/s]
+2025-01-08 07:20:12,125 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:20:12,157 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:20:12,207 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:20:12,349 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:12,472 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  78%|███████▊  | 21/27 [03:36<00:51,  8.67s/it]2025-01-08 07:20:13,964 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:14,002 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  38%|███▊      | 18/47 [03:19<04:23,  9.07s/it]2025-01-08 07:20:15,695 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:15,764 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  89%|████████▉ | 17/19 [03:29<00:23, 11.85s/it]2025-01-08 07:20:16,069 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.774
+KMeans Clustering:  25%|██▌       | 1/4 [00:03<00:11,  3.93s/it]2025-01-08 07:20:16,136 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:20:16,610 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:16,686 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  52%|█████▏    | 14/27 [02:54<03:27, 15.99s/it]2025-01-08 07:20:19,122 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:19,297 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  40%|████      | 19/47 [03:25<03:42,  7.93s/it]Refining fixations:  43%|████▎     | 20/47 [03:27<06:13, 13.84s/it]2025-01-08 07:20:22,405 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:22,601 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  56%|█████▌    | 15/27 [03:00<02:35, 12.97s/it]2025-01-08 07:20:22,844 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.689
+KMeans Clustering:  50%|█████     | 2/4 [00:10<00:09,  4.78s/it]2025-01-08 07:20:22,888 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:20:24,270 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:24,309 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  43%|████▎     | 20/47 [03:30<03:10,  7.06s/it]Refining fixations:  45%|████▍     | 21/47 [03:33<04:56, 11.41s/it]Refining fixations:  81%|████████▏ | 22/27 [03:50<00:50, 10.01s/it]2025-01-08 07:20:25,615 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:25,694 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  24%|██▍       | 5/21 [00:52<03:15, 12.24s/it]2025-01-08 07:20:28,509 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.685
+KMeans Clustering:  75%|███████▌  | 3/4 [00:16<00:05,  5.04s/it]2025-01-08 07:20:28,552 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:  45%|████▍     | 21/47 [03:35<02:49,  6.51s/it]2025-01-08 07:20:30,635 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:30,720 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  29%|██▊       | 6/21 [00:57<02:31, 10.09s/it]2025-01-08 07:20:33,177 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.675
+KMeans Clustering:  50%|█████     | 2/4 [02:11<02:11, 65.61s/it]2025-01-08 07:20:33,264 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:20:33,660 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.576
+KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.08s/it]KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.38s/it]
+2025-01-08 07:20:33,715 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.774
+2025-01-08 07:20:33,783 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:20:33,892 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:20:33,991 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:20:34,053 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:20:34,083 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:20:34,131 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:20:34,239 - fixation_detector - INFO - Total fixation-related points: 2620
+2025-01-08 07:20:34,275 - fixation_detector - INFO - Total non-fixation points: 268
+2025-01-08 07:20:34,306 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:20:34,362 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:20:34,421 - fixation_detector - INFO - Found 7 fixation chunks after global clustering
+2025-01-08 07:20:34,432 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:20:34,435 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/7 [00:00<?, ?it/s]Refining fixations:  85%|████████▌ | 23/27 [04:03<00:43, 10.98s/it]Refining fixations:  14%|█▍        | 1/7 [00:04<00:29,  4.86s/it]Refining fixations:  47%|████▋     | 22/47 [03:51<05:35, 13.40s/it]2025-01-08 07:20:43,821 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:43,897 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  33%|███▎      | 7/21 [01:10<02:34, 11.00s/it]Refining fixations:  47%|████▋     | 22/47 [03:55<04:22, 10.49s/it]Refining fixations:  29%|██▊       | 2/7 [00:17<00:35,  7.10s/it]Refining fixations:  38%|███▊      | 8/21 [01:21<02:21, 10.91s/it]Refining fixations:  89%|████████▉ | 24/27 [04:19<00:37, 12.47s/it]2025-01-08 07:20:55,891 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:55,912 - fixation_detector - INFO - Split into 3 valid chunks
+Refining fixations:  95%|█████████▍| 18/19 [04:09<00:20, 20.33s/it]2025-01-08 07:20:56,383 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:20:56,743 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  59%|█████▉    | 16/27 [03:34<03:32, 19.33s/it]Refining fixations:  49%|████▉     | 23/47 [04:10<06:00, 15.03s/it]Refining fixations:  49%|████▉     | 23/47 [04:08<04:31, 11.29s/it]Refining fixations:  43%|████▎     | 3/7 [00:30<00:35,  8.90s/it]Refining fixations: 100%|██████████| 19/19 [04:20<00:00, 17.45s/it]Refining fixations: 100%|██████████| 19/19 [04:20<00:00, 13.71s/it]
+2025-01-08 07:21:06,678 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:21:06,732 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:07,290 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  51%|█████     | 24/47 [04:15<04:38, 12.10s/it]2025-01-08 07:21:07,136 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:07,287 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:21:07,528 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:21:07,493 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  51%|█████     | 24/47 [04:13<03:38,  9.51s/it]2025-01-08 07:21:07,830 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:08,044 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:08,048 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:  93%|█████████▎| 25/27 [04:32<00:25, 12.81s/it]2025-01-08 07:21:08,556 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:  63%|██████▎   | 17/27 [03:46<02:51, 17.14s/it]Refining fixations:  57%|█████▋    | 4/7 [00:34<00:22,  7.56s/it]2025-01-08 07:21:09,048 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:21:09,480 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/10124 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 10124/10124 [00:00<00:00, 389741.66it/s]
+2025-01-08 07:21:09,613 - saccade_detector - INFO - Number of saccades detected: 29
+2025-01-08 07:21:09,958 - saccade_detector - INFO - Number of microsaccades detected: 50
+2025-01-08 07:21:10,282 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:21:10,616 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:21:10,910 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:21:11,050 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:21:11,081 - fixation_detector - INFO - Initializing fixation parameters
+Refining fixations:  43%|████▎     | 9/21 [01:38<02:31, 12.60s/it]2025-01-08 07:21:11,113 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:21:11,286 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:21:11,569 - fixation_detector - INFO - Resampling data
+2025-01-08 07:21:11,650 - fixation_detector - INFO - Resampling data
+2025-01-08 07:21:11,831 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:12,075 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:12,183 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:12,219 - fixation_detector - INFO - Split into 5 valid chunks
+Refining fixations:  53%|█████▎    | 25/47 [04:20<03:38,  9.95s/it]2025-01-08 07:21:12,608 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:21:12,837 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:21:12,844 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:21:12,964 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 9039.45it/s]
+2025-01-08 07:21:12,999 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:21:13,048 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:21:13,082 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:21:13,231 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:13,262 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  96%|█████████▋| 26/27 [04:37<00:10, 10.42s/it]2025-01-08 07:21:18,249 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.702
+KMeans Clustering:  25%|██▌       | 1/4 [00:05<00:15,  5.20s/it]2025-01-08 07:21:18,280 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  71%|███████▏  | 5/7 [00:46<00:17,  8.76s/it]2025-01-08 07:21:21,726 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:21,924 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.623
+KMeans Clustering:  50%|█████     | 2/4 [00:09<00:09,  4.80s/it]2025-01-08 07:21:22,160 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:21:21,973 - fixation_detector - INFO - Split into 3 valid chunks
+Refining fixations:  53%|█████▎    | 25/47 [04:28<04:01, 10.99s/it]Refining fixations:  48%|████▊     | 10/21 [01:50<02:17, 12.52s/it]2025-01-08 07:21:25,098 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:25,202 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations: 100%|██████████| 27/27 [04:49<00:00, 10.90s/it]Refining fixations: 100%|██████████| 27/27 [04:49<00:00, 10.73s/it]Refining fixations:  55%|█████▌    | 26/47 [04:33<03:49, 10.91s/it]
+2025-01-08 07:21:25,296 - fixation_detector - WARNING - Detected 1 invalid fixation intervals where stop index is before or equal to start index.
+2025-01-08 07:21:25,432 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:21:25,558 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:21:25,879 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:21:26,074 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:26,207 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:26,305 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:26,820 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:  67%|██████▋   | 18/27 [04:04<02:37, 17.45s/it]2025-01-08 07:21:27,165 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:21:27,230 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/6863 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 6863/6863 [00:00<00:00, 1028972.60it/s]
+2025-01-08 07:21:27,367 - saccade_detector - INFO - Number of saccades detected: 20
+2025-01-08 07:21:27,444 - saccade_detector - INFO - Number of microsaccades detected: 35
+2025-01-08 07:21:27,412 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.611
+KMeans Clustering:  75%|███████▌  | 3/4 [00:14<00:04,  4.99s/it]2025-01-08 07:21:27,574 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:21:27,673 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:21:27,577 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:21:27,955 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:21:28,099 - fixation_detector - INFO - Resampling data
+2025-01-08 07:21:28,152 - fixation_detector - INFO - Resampling data
+2025-01-08 07:21:28,189 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:28,511 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:29,086 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:21:29,206 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:21:29,394 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:21:29,569 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 4100.00it/s]
+2025-01-08 07:21:29,671 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:21:29,845 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:21:29,940 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:21:33,800 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.621
+KMeans Clustering: 100%|██████████| 4/4 [00:20<00:00,  5.37s/it]KMeans Clustering: 100%|██████████| 4/4 [00:20<00:00,  5.19s/it]
+2025-01-08 07:21:33,858 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.702
+Refining fixations:  86%|████████▌ | 6/7 [00:59<00:10, 10.09s/it]2025-01-08 07:21:33,891 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:21:34,135 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:21:34,248 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:21:34,381 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:21:34,446 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:21:34,538 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:21:34,550 - fixation_detector - INFO - Total fixation-related points: 2646
+2025-01-08 07:21:34,827 - fixation_detector - INFO - Total non-fixation points: 368
+2025-01-08 07:21:34,924 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:21:34,989 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:21:35,291 - fixation_detector - INFO - Found 6 fixation chunks after global clustering
+2025-01-08 07:21:35,445 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:21:35,540 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/6 [00:00<?, ?it/s]2025-01-08 07:21:36,243 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:36,328 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  52%|█████▏    | 11/21 [02:03<02:06, 12.63s/it]2025-01-08 07:21:36,386 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.663
+KMeans Clustering:  75%|███████▌  | 3/4 [03:14<01:04, 64.90s/it]2025-01-08 07:21:36,517 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:  57%|█████▋    | 27/47 [04:47<03:54, 11.74s/it]2025-01-08 07:21:45,479 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.728
+KMeans Clustering:  25%|██▌       | 1/4 [00:15<00:46, 15.58s/it]2025-01-08 07:21:45,516 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:21:46,139 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:46,325 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  70%|███████   | 19/27 [04:24<02:24, 18.07s/it]Refining fixations:  60%|█████▉    | 28/47 [05:00<03:47, 11.96s/it]2025-01-08 07:21:51,580 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:51,669 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  74%|███████▍  | 20/27 [04:29<01:39, 14.21s/it]Refining fixations:  17%|█▋        | 1/6 [00:17<01:27, 17.51s/it]2025-01-08 07:21:53,296 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:53,520 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  57%|█████▋    | 12/21 [02:20<02:05, 14.00s/it]2025-01-08 07:21:54,504 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:54,550 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  55%|█████▌    | 26/47 [05:00<06:04, 17.38s/it]Refining fixations:  62%|██████▏   | 29/47 [05:05<02:58,  9.90s/it]Refining fixations: 100%|██████████| 7/7 [01:24<00:00, 14.59s/it]Refining fixations: 100%|██████████| 7/7 [01:24<00:00, 12.08s/it]
+2025-01-08 07:21:59,069 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:21:59,140 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:21:59,172 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:21:59,223 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:59,335 - saccade_detector - INFO - Resampling data
+2025-01-08 07:21:59,390 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:21:59,383 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:21:59,552 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  57%|█████▋    | 27/47 [05:05<04:33, 13.65s/it]2025-01-08 07:21:59,863 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:22:00,308 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:22:00,391 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/2888 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2888/2888 [00:00<00:00, 1229761.42it/s]
+2025-01-08 07:22:00,476 - saccade_detector - INFO - Number of saccades detected: 6
+2025-01-08 07:22:00,501 - saccade_detector - INFO - Number of microsaccades detected: 12
+2025-01-08 07:22:00,631 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:22:00,713 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:22:00,766 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:22:00,858 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:22:01,208 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:22:01,272 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:22:01,334 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:22:01,404 - fixation_detector - INFO - Resampling data
+2025-01-08 07:22:01,440 - fixation_detector - INFO - Resampling data
+2025-01-08 07:22:01,554 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:22:02,053 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:22:02,570 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:22:02,624 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:22:02,688 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:22:02,762 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 6063.32it/s]2025-01-08 07:22:02,751 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.670
+KMeans Clustering:  50%|█████     | 2/4 [00:32<00:32, 16.11s/it]2025-01-08 07:22:02,861 - fixation_detector - INFO - Clustering with 4 clusters...
+
+2025-01-08 07:22:02,827 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:22:02,975 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:22:03,006 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:22:04,331 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:04,567 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  60%|█████▉    | 28/47 [05:10<03:30, 11.08s/it]2025-01-08 07:22:04,773 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:04,849 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  78%|███████▊  | 21/27 [04:42<01:23, 13.90s/it]Refining fixations:  64%|██████▍   | 30/47 [05:17<03:01, 10.67s/it]2025-01-08 07:22:09,586 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:09,637 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  62%|██████▏   | 29/47 [05:15<02:46,  9.27s/it]2025-01-08 07:22:10,206 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:10,260 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  81%|████████▏ | 22/27 [04:47<00:56, 11.34s/it]2025-01-08 07:22:12,098 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.785
+KMeans Clustering:  25%|██▌       | 1/4 [00:09<00:27,  9.13s/it]2025-01-08 07:22:12,138 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  66%|██████▌   | 31/47 [05:22<02:21,  8.82s/it]2025-01-08 07:22:15,308 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:15,326 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  62%|██████▏   | 13/21 [02:42<02:10, 16.32s/it]Refining fixations:  33%|███▎      | 2/6 [00:40<01:16, 19.13s/it]2025-01-08 07:22:19,547 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:19,596 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  67%|██████▋   | 14/21 [02:46<01:29, 12.73s/it]2025-01-08 07:22:19,713 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.699
+KMeans Clustering:  50%|█████     | 2/4 [00:16<00:17,  8.67s/it]2025-01-08 07:22:19,735 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:22:21,592 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:21,658 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  85%|████████▌ | 23/27 [04:59<00:45, 11.36s/it]2025-01-08 07:22:21,664 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.647
+KMeans Clustering:  75%|███████▌  | 3/4 [00:51<00:16, 16.93s/it]2025-01-08 07:22:21,725 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:22:22,936 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:22,976 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  64%|██████▍   | 30/47 [05:28<02:58, 10.51s/it]Refining fixations:  68%|██████▊   | 32/47 [05:34<02:29,  9.95s/it]2025-01-08 07:22:27,696 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:27,765 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  66%|██████▌   | 31/47 [05:33<02:21,  8.84s/it]2025-01-08 07:22:28,443 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.675
+KMeans Clustering:  75%|███████▌  | 3/4 [00:25<00:08,  8.69s/it]2025-01-08 07:22:28,460 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:22:29,488 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:29,540 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  50%|█████     | 3/6 [00:53<00:52, 17.37s/it]Refining fixations:  68%|██████▊   | 32/47 [05:38<01:53,  7.54s/it]2025-01-08 07:22:35,102 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.585
+KMeans Clustering: 100%|██████████| 4/4 [00:32<00:00,  8.10s/it]KMeans Clustering: 100%|██████████| 4/4 [00:32<00:00,  8.05s/it]
+2025-01-08 07:22:35,196 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.785
+2025-01-08 07:22:35,363 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:22:35,422 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:22:35,999 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:22:36,087 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:22:36,237 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:36,447 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:36,608 - fixation_detector - INFO - Total fixation-related points: 8464
+2025-01-08 07:22:36,882 - fixation_detector - INFO - Total non-fixation points: 340
+2025-01-08 07:22:36,988 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:22:37,069 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:22:37,260 - fixation_detector - INFO - Found 11 fixation chunks after global clustering
+2025-01-08 07:22:37,410 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:22:37,674 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/11 [00:00<?, ?it/s]2025-01-08 07:22:38,245 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.524
+KMeans Clustering: 100%|██████████| 4/4 [01:08<00:00, 16.92s/it]KMeans Clustering: 100%|██████████| 4/4 [01:08<00:00, 17.17s/it]
+2025-01-08 07:22:38,609 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.728
+2025-01-08 07:22:38,944 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:22:39,022 - fixation_detector - INFO - Determining fixation-related clusters
+Refining fixations:  89%|████████▉ | 24/27 [05:17<00:39, 13.28s/it]2025-01-08 07:22:39,408 - fixation_detector - INFO - Primary fixation cluster: 1
+2025-01-08 07:22:39,426 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:40,420 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  71%|███████▏  | 15/21 [03:07<01:31, 15.19s/it]2025-01-08 07:22:40,088 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:22:40,111 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:40,873 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:41,053 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.556
+KMeans Clustering: 100%|██████████| 4/4 [04:19<00:00, 64.97s/it]KMeans Clustering: 100%|██████████| 4/4 [04:19<00:00, 64.94s/it]
+2025-01-08 07:22:41,658 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.744
+2025-01-08 07:22:41,195 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  70%|███████   | 33/47 [05:50<02:44, 11.72s/it]2025-01-08 07:22:41,509 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:42,412 - fixation_detector - INFO - Total fixation-related points: 16191
+2025-01-08 07:22:41,954 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:22:42,585 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:22:42,553 - fixation_detector - INFO - Total non-fixation points: 1286
+2025-01-08 07:22:43,056 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:22:42,978 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:22:43,371 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:22:43,154 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:22:43,760 - fixation_detector - INFO - Found 39 fixation chunks after global clustering
+2025-01-08 07:22:43,588 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:43,849 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:22:43,820 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:22:44,520 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/39 [00:00<?, ?it/s]2025-01-08 07:22:44,356 - fixation_detector - INFO - Total fixation-related points: 35212
+2025-01-08 07:22:44,524 - fixation_detector - INFO - Total non-fixation points: 3949
+2025-01-08 07:22:44,607 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:22:44,607 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:22:44,607 - fixation_detector - INFO - Found 119 fixation chunks after global clustering
+2025-01-08 07:22:44,608 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:22:44,608 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/119 [00:00<?, ?it/s]2025-01-08 07:22:46,631 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:46,663 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  72%|███████▏  | 34/47 [05:55<02:04,  9.60s/it]Refining fixations:   3%|▎         | 1/39 [00:05<03:23,  5.34s/it]Refining fixations:  93%|█████████▎| 25/27 [05:30<00:26, 13.27s/it]2025-01-08 07:22:53,418 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:53,486 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  67%|██████▋   | 4/6 [01:17<00:38, 19.34s/it]Refining fixations:  70%|███████   | 33/47 [06:02<02:54, 12.48s/it]2025-01-08 07:22:58,331 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:22:58,693 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  96%|█████████▋| 26/27 [05:36<00:11, 11.12s/it]Refining fixations:   1%|          | 1/119 [00:14<28:50, 14.66s/it]Refining fixations:  83%|████████▎ | 5/6 [01:23<00:15, 15.34s/it]2025-01-08 07:23:02,318 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:02,356 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  72%|███████▏  | 34/47 [06:08<02:16, 10.48s/it]2025-01-08 07:23:04,355 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:04,376 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations: 100%|██████████| 27/27 [05:42<00:00,  9.47s/it]Refining fixations: 100%|██████████| 27/27 [05:42<00:00, 12.67s/it]
+2025-01-08 07:23:04,427 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:23:04,462 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:23:04,483 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:23:04,483 - saccade_detector - INFO - Resampling data
+2025-01-08 07:23:04,484 - saccade_detector - INFO - Resampling data
+2025-01-08 07:23:04,484 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:05,111 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:05,494 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:23:05,524 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/9728 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 9728/9728 [00:00<00:00, 289918.00it/s]
+2025-01-08 07:23:05,593 - saccade_detector - INFO - Number of saccades detected: 24
+2025-01-08 07:23:05,618 - saccade_detector - INFO - Number of microsaccades detected: 48
+2025-01-08 07:23:05,636 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:23:05,674 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:23:05,774 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:23:05,802 - fixation_detector - INFO - Resampling data
+2025-01-08 07:23:05,833 - fixation_detector - INFO - Resampling data
+2025-01-08 07:23:05,855 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:06,373 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:06,766 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:23:06,806 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:23:06,834 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:23:06,894 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 8351.03it/s]
+2025-01-08 07:23:06,973 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:23:07,050 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:23:07,152 - fixation_detector - INFO - Clustering with 2 clusters...
+Refining fixations:   9%|▉         | 1/11 [00:32<05:23, 32.38s/it]2025-01-08 07:23:11,821 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:11,859 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   5%|▌         | 2/39 [00:27<06:23, 10.35s/it]Refining fixations:   2%|▏         | 2/119 [00:28<27:53, 14.30s/it]Refining fixations: 100%|██████████| 6/6 [01:38<00:00, 15.11s/it]Refining fixations: 100%|██████████| 6/6 [01:38<00:00, 16.37s/it]
+2025-01-08 07:23:14,086 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:23:14,277 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:23:14,700 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:23:14,755 - saccade_detector - INFO - Resampling data
+2025-01-08 07:23:14,820 - saccade_detector - INFO - Resampling data
+2025-01-08 07:23:14,882 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:14,864 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.450
+KMeans Clustering:  25%|██▌       | 1/4 [00:07<00:23,  7.90s/it]2025-01-08 07:23:15,055 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:23:15,341 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:15,750 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:23:15,753 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:16,047 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/3014 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 3014/3014 [00:00<00:00, 762600.73it/s]2025-01-08 07:23:16,167 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  74%|███████▍  | 35/47 [06:22<02:18, 11.56s/it]
+2025-01-08 07:23:16,399 - saccade_detector - INFO - Number of saccades detected: 6
+2025-01-08 07:23:16,469 - saccade_detector - INFO - Number of microsaccades detected: 13
+2025-01-08 07:23:16,721 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:23:16,866 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:23:16,726 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:17,186 - fixation_detector - INFO - Split into 4 valid chunks
+Refining fixations:  74%|███████▍  | 35/47 [06:25<03:10, 15.89s/it]2025-01-08 07:23:16,990 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:23:17,339 - fixation_detector - INFO - Resampling data
+2025-01-08 07:23:17,397 - fixation_detector - INFO - Resampling data
+2025-01-08 07:23:17,531 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:17,986 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:23:18,667 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:23:18,691 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:23:18,861 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:23:18,900 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 8004.40it/s]
+2025-01-08 07:23:18,932 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:23:19,082 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:23:19,244 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:23:22,203 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.439
+KMeans Clustering:  50%|█████     | 2/4 [00:15<00:15,  7.70s/it]2025-01-08 07:23:22,273 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:23:22,319 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:22,370 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  77%|███████▋  | 36/47 [06:30<02:19, 12.66s/it]2025-01-08 07:23:24,678 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.739
+KMeans Clustering:  25%|██▌       | 1/4 [00:05<00:16,  5.47s/it]2025-01-08 07:23:24,711 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:23:25,328 - fixation_detector - INFO - Splitting fixations at non-fixation points
+Refining fixations:   8%|▊         | 3/39 [00:40<06:47, 11.31s/it]2025-01-08 07:23:25,420 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  18%|█▊        | 2/11 [00:47<04:05, 27.26s/it]Refining fixations:  76%|███████▌  | 16/21 [03:54<02:03, 24.63s/it]Refining fixations:  10%|█         | 4/39 [00:46<05:34,  9.56s/it]2025-01-08 07:23:30,866 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:30,938 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  27%|██▋       | 3/11 [00:53<02:46, 20.75s/it]2025-01-08 07:23:31,003 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.463
+KMeans Clustering:  75%|███████▌  | 3/4 [00:24<00:08,  8.10s/it]Refining fixations:  77%|███████▋  | 36/47 [06:37<02:19, 12.66s/it]2025-01-08 07:23:31,302 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:23:31,125 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.647
+KMeans Clustering:  50%|█████     | 2/4 [00:12<00:11,  5.93s/it]2025-01-08 07:23:31,709 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:   3%|▎         | 3/119 [00:48<31:19, 16.21s/it]Refining fixations:  79%|███████▊  | 37/47 [06:43<01:46, 10.67s/it]2025-01-08 07:23:37,905 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:38,038 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  79%|███████▊  | 37/47 [06:46<02:15, 13.60s/it]Refining fixations:  81%|████████  | 17/21 [04:06<01:23, 20.88s/it]2025-01-08 07:23:39,407 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.627
+KMeans Clustering:  75%|███████▌  | 3/4 [00:20<00:06,  6.49s/it]2025-01-08 07:23:39,503 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:23:40,059 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.355
+KMeans Clustering: 100%|██████████| 4/4 [00:33<00:00,  8.35s/it]KMeans Clustering: 100%|██████████| 4/4 [00:33<00:00,  8.28s/it]
+2025-01-08 07:23:40,268 - fixation_detector - INFO - Optimal number of clusters: 4, Best silhouette score: 0.463
+2025-01-08 07:23:40,332 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:23:40,517 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:23:40,663 - fixation_detector - INFO - Primary fixation cluster: 2
+2025-01-08 07:23:40,943 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:23:41,096 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:23:41,141 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:23:41,307 - fixation_detector - INFO - Total fixation-related points: 361
+2025-01-08 07:23:41,450 - fixation_detector - INFO - Total non-fixation points: 3334
+2025-01-08 07:23:41,524 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:23:41,649 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:23:41,807 - fixation_detector - INFO - Found 58 fixation chunks after global clustering
+2025-01-08 07:23:41,885 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:23:42,067 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/58 [00:00<?, ?it/s]Refining fixations:  81%|████████  | 38/47 [06:48<01:19,  8.86s/it]2025-01-08 07:23:44,633 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:44,728 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  86%|████████▌ | 18/21 [04:11<00:48, 16.26s/it]Refining fixations:   3%|▎         | 4/119 [01:02<29:24, 15.34s/it]Refining fixations:   2%|▏         | 1/58 [00:05<04:54,  5.17s/it]Refining fixations:  83%|████████▎ | 39/47 [06:53<01:02,  7.84s/it]2025-01-08 07:23:48,811 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.636
+KMeans Clustering: 100%|██████████| 4/4 [00:29<00:00,  7.36s/it]KMeans Clustering: 100%|██████████| 4/4 [00:29<00:00,  7.41s/it]
+2025-01-08 07:23:48,885 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.739
+2025-01-08 07:23:49,031 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:23:49,157 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:23:49,327 - fixation_detector - INFO - Primary fixation cluster: 1
+2025-01-08 07:23:49,434 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:23:49,515 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:23:49,578 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:23:49,661 - fixation_detector - INFO - Total fixation-related points: 4533
+2025-01-08 07:23:49,738 - fixation_detector - INFO - Total non-fixation points: 503
+2025-01-08 07:23:49,787 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:23:49,897 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:23:49,961 - fixation_detector - INFO - Found 12 fixation chunks after global clustering
+2025-01-08 07:23:50,388 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:23:50,111 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:50,516 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  90%|█████████ | 19/21 [04:17<00:26, 13.09s/it]2025-01-08 07:23:50,432 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/12 [00:00<?, ?it/s]Refining fixations:   3%|▎         | 2/58 [00:10<04:52,  5.22s/it]2025-01-08 07:23:54,493 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:54,636 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  81%|████████  | 38/47 [07:03<02:10, 14.51s/it]2025-01-08 07:23:55,358 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:55,579 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  13%|█▎        | 5/39 [01:11<08:00, 14.14s/it]2025-01-08 07:23:55,751 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:23:55,951 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  95%|█████████▌| 20/21 [04:23<00:11, 11.07s/it]Refining fixations:   5%|▌         | 3/58 [00:16<04:54,  5.36s/it]Refining fixations:   4%|▍         | 5/119 [01:14<27:29, 14.47s/it]2025-01-08 07:24:00,249 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:00,437 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  83%|████████▎ | 39/47 [07:09<01:34, 11.87s/it]Refining fixations:  85%|████████▌ | 40/47 [07:07<01:07,  9.67s/it]2025-01-08 07:24:02,572 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:02,686 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations: 100%|██████████| 21/21 [04:29<00:00,  9.57s/it]Refining fixations: 100%|██████████| 21/21 [04:29<00:00, 12.85s/it]
+2025-01-08 07:24:02,998 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:24:03,398 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:24:03,461 - saccade_detector - INFO - Preprocessing x and y data
+Refining fixations:   8%|▊         | 1/12 [00:13<02:24, 13.17s/it]2025-01-08 07:24:03,645 - saccade_detector - INFO - Resampling data
+2025-01-08 07:24:03,960 - saccade_detector - INFO - Resampling data
+Refining fixations:   7%|▋         | 4/58 [00:22<04:57,  5.51s/it]2025-01-08 07:24:04,156 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:24:05,038 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:   5%|▌         | 6/119 [01:20<22:33, 11.97s/it]2025-01-08 07:24:05,669 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:24:05,864 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/9203 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 9203/9203 [00:00<00:00, 653277.03it/s]
+2025-01-08 07:24:06,175 - saccade_detector - INFO - Number of saccades detected: 12
+2025-01-08 07:24:06,214 - saccade_detector - INFO - Number of microsaccades detected: 57
+2025-01-08 07:24:06,331 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:24:06,288 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:06,801 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  85%|████████▌ | 40/47 [07:15<01:11, 10.22s/it]2025-01-08 07:24:06,610 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:24:07,284 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:24:07,341 - fixation_detector - INFO - Resampling data
+2025-01-08 07:24:07,387 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:07,518 - fixation_detector - INFO - Resampling data
+2025-01-08 07:24:07,825 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:24:07,761 - fixation_detector - INFO - Split into 2 valid chunks
+Refining fixations:  87%|████████▋ | 41/47 [07:14<00:52,  8.70s/it]2025-01-08 07:24:07,955 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:08,467 - fixation_detector - INFO - Split into 4 valid chunks
+Refining fixations:  36%|███▋      | 4/11 [01:30<03:00, 25.79s/it]2025-01-08 07:24:08,506 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:24:08,925 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:24:09,029 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:24:09,333 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:10,580 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   9%|▊         | 5/58 [00:29<05:18,  6.00s/it]2025-01-08 07:24:09,417 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:24:10,469 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:11,540 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:12,083 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  87%|████████▋ | 41/47 [07:21<00:54,  9.04s/it]2025-01-08 07:24:11,617 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 3750.77it/s]
+2025-01-08 07:24:13,606 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:24:11,821 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:   6%|▌         | 7/119 [01:29<20:29, 10.97s/it]2025-01-08 07:24:13,639 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:24:14,163 - fixation_detector - INFO - Clustering with 2 clusters...
+2025-01-08 07:24:13,646 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:14,320 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  45%|████▌     | 5/11 [01:36<01:58, 19.76s/it]2025-01-08 07:24:16,369 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:16,483 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  10%|█         | 6/58 [00:34<04:59,  5.76s/it]Refining fixations:  12%|█▏        | 7/58 [00:40<04:56,  5.81s/it]Refining fixations:  89%|████████▉ | 42/47 [07:29<00:53, 10.62s/it]Refining fixations:  17%|█▋        | 2/12 [00:33<02:31, 15.20s/it]Refining fixations:  14%|█▍        | 8/58 [00:45<04:40,  5.61s/it]2025-01-08 07:24:27,612 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:27,745 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   7%|▋         | 8/119 [01:43<21:56, 11.86s/it]2025-01-08 07:24:33,080 - fixation_detector - INFO - Splitting fixations at non-fixation points
+Refining fixations:  16%|█▌        | 9/58 [00:50<04:33,  5.58s/it]2025-01-08 07:24:33,091 - fixation_detector - INFO - Split into 46 valid chunks
+Refining fixations:  15%|█▌        | 6/39 [01:49<11:41, 21.25s/it]2025-01-08 07:24:33,139 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:33,610 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:   8%|▊         | 9/119 [01:49<18:28, 10.07s/it]2025-01-08 07:24:33,953 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.707
+KMeans Clustering:  25%|██▌       | 1/4 [00:20<01:00, 20.17s/it]2025-01-08 07:24:34,140 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:34,329 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:24:34,539 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  89%|████████▉ | 42/47 [07:43<01:04, 12.93s/it]Refining fixations:  91%|█████████▏| 43/47 [07:42<00:45, 11.34s/it]Refining fixations:  17%|█▋        | 10/58 [00:55<04:13,  5.28s/it]Refining fixations:  25%|██▌       | 3/12 [00:47<02:13, 14.85s/it]Refining fixations:  94%|█████████▎| 44/47 [07:47<00:28,  9.65s/it]Refining fixations:  55%|█████▍    | 6/11 [02:05<01:52, 22.49s/it]2025-01-08 07:24:42,901 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:43,194 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:43,298 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  19%|█▉        | 11/58 [01:01<04:15,  5.43s/it]2025-01-08 07:24:43,360 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  33%|███▎      | 4/12 [00:52<01:36, 12.10s/it]2025-01-08 07:24:46,880 - fixation_detector - INFO - Splitting fixations at non-fixation points
+Refining fixations:  64%|██████▎   | 7/11 [02:10<01:08, 17.14s/it]2025-01-08 07:24:47,346 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:   8%|▊         | 10/119 [02:03<20:29, 11.28s/it]2025-01-08 07:24:47,361 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:47,903 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  18%|█▊        | 7/39 [02:03<10:14, 19.19s/it]2025-01-08 07:24:48,067 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:48,230 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  21%|██        | 12/58 [01:06<04:02,  5.28s/it]2025-01-08 07:24:48,919 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:49,025 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  91%|█████████▏| 43/47 [07:57<00:53, 13.28s/it]2025-01-08 07:24:52,671 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:24:52,766 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  21%|██        | 8/39 [02:08<07:42, 14.92s/it]Refining fixations:   9%|▉         | 11/119 [02:08<17:03,  9.48s/it]Refining fixations:  96%|█████████▌| 45/47 [07:59<00:20, 10.12s/it]Refining fixations:  22%|██▏       | 13/58 [01:11<03:54,  5.22s/it]2025-01-08 07:24:54,907 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.665
+KMeans Clustering:  50%|█████     | 2/4 [00:40<00:40, 20.29s/it]2025-01-08 07:24:54,924 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:  23%|██▎       | 9/39 [02:13<05:59, 11.98s/it]Refining fixations:  24%|██▍       | 14/58 [01:16<03:53,  5.31s/it]2025-01-08 07:25:04,041 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:04,125 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  26%|██▌       | 15/58 [01:22<03:46,  5.27s/it]2025-01-08 07:25:05,869 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:05,885 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  94%|█████████▎| 44/47 [08:14<00:42, 14.27s/it]Refining fixations:  98%|█████████▊| 46/47 [08:13<00:11, 11.54s/it]Refining fixations:  28%|██▊       | 16/58 [01:27<03:39,  5.22s/it]2025-01-08 07:25:11,066 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:11,094 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  96%|█████████▌| 45/47 [08:19<00:23, 11.56s/it]Refining fixations:  10%|█         | 12/119 [02:27<21:49, 12.24s/it]2025-01-08 07:25:13,190 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:13,232 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations: 100%|██████████| 47/47 [08:19<00:00,  9.69s/it]Refining fixations: 100%|██████████| 47/47 [08:19<00:00, 10.62s/it]
+2025-01-08 07:25:13,456 - fixation_detector - WARNING - Detected 1 invalid fixation intervals where stop index is before or equal to start index.
+2025-01-08 07:25:13,475 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:13,480 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:25:13,493 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:13,499 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:13,510 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:13,523 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:13,916 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:13,939 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  73%|███████▎  | 8/11 [02:36<00:59, 19.82s/it]2025-01-08 07:25:14,006 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:14,098 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:14,113 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  26%|██▌       | 10/39 [02:29<06:23, 13.21s/it]Refining fixations:  29%|██▉       | 17/58 [01:32<03:32,  5.18s/it]2025-01-08 07:25:14,398 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:25:14,416 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/11831 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 11831/11831 [00:00<00:00, 931236.71it/s]
+2025-01-08 07:25:14,466 - saccade_detector - INFO - Number of saccades detected: 38
+2025-01-08 07:25:14,505 - saccade_detector - INFO - Number of microsaccades detected: 61
+2025-01-08 07:25:14,511 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:14,515 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:25:14,518 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:14,518 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:14,518 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:14,519 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:14,866 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:15,281 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:25:15,294 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:25:15,374 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:25:15,414 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 6376.74it/s]
+2025-01-08 07:25:15,467 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:25:15,516 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:25:15,581 - fixation_detector - INFO - Clustering with 2 clusters...
+Refining fixations:  11%|█         | 13/119 [02:32<17:57, 10.17s/it]Refining fixations:  82%|████████▏ | 9/11 [02:41<00:30, 15.41s/it]Refining fixations:  31%|███       | 18/58 [01:37<03:22,  5.07s/it]2025-01-08 07:25:19,285 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.664
+KMeans Clustering:  75%|███████▌  | 3/4 [01:05<00:21, 21.53s/it]2025-01-08 07:25:19,330 - fixation_detector - INFO - Clustering with 5 clusters...
+2025-01-08 07:25:20,191 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:20,203 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  42%|████▏     | 5/12 [01:29<02:16, 19.46s/it]2025-01-08 07:25:23,894 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:23,899 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  91%|█████████ | 10/11 [02:46<00:12, 12.24s/it]Refining fixations:  33%|███▎      | 19/58 [01:42<03:19,  5.10s/it]2025-01-08 07:25:24,563 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.691
+KMeans Clustering:  25%|██▌       | 1/4 [00:09<00:27,  9.02s/it]2025-01-08 07:25:24,604 - fixation_detector - INFO - Clustering with 3 clusters...
+2025-01-08 07:25:25,139 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:25,150 - fixation_detector - INFO - Split into 6 valid chunks
+Refining fixations:  98%|█████████▊| 46/47 [08:33<00:12, 12.30s/it]2025-01-08 07:25:25,785 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:25,804 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  50%|█████     | 6/12 [01:35<01:31, 15.30s/it]Refining fixations: 100%|██████████| 11/11 [02:51<00:00, 10.16s/it]Refining fixations: 100%|██████████| 11/11 [02:51<00:00, 15.58s/it]
+2025-01-08 07:25:29,204 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:29,217 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:25:29,227 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:29,253 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:29,269 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:29,276 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:29,782 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:  34%|███▍      | 20/58 [01:47<03:20,  5.27s/it]2025-01-08 07:25:30,157 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:25:30,159 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/8804 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 8804/8804 [00:00<00:00, 134807.67it/s]
+2025-01-08 07:25:30,226 - saccade_detector - INFO - Number of saccades detected: 14
+2025-01-08 07:25:30,250 - saccade_detector - INFO - Number of microsaccades detected: 51
+2025-01-08 07:25:30,250 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:30,250 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:25:30,250 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:30,251 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:25:30,251 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:30,251 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:25:30,251 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:30,251 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:25:30,251 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:30,251 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:25:30,251 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:30,251 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:25:30,252 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:30,252 - fixation_detector - WARNING - Data too short for fixation detection processing
+2025-01-08 07:25:30,252 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:30,252 - saccade_detector - WARNING - Data too short for saccade detection processing
+2025-01-08 07:25:30,276 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:30,276 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:25:30,276 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:30,276 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:30,277 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:30,277 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:30,770 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:30,817 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:30,832 - fixation_detector - INFO - Split into 10 valid chunks
+Refining fixations:  28%|██▊       | 11/39 [02:46<06:39, 14.27s/it]2025-01-08 07:25:31,061 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:25:31,063 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:25:31,065 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:25:31,065 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 11351.30it/s]
+2025-01-08 07:25:31,066 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:25:31,067 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:25:31,067 - fixation_detector - INFO - Clustering with 2 clusters...
+Refining fixations:  36%|███▌      | 21/58 [01:52<03:11,  5.18s/it]2025-01-08 07:25:35,775 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.645
+KMeans Clustering:  50%|█████     | 2/4 [00:20<00:19,  9.68s/it]2025-01-08 07:25:35,803 - fixation_detector - INFO - Clustering with 4 clusters...
+2025-01-08 07:25:35,804 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:35,850 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  31%|███       | 12/39 [02:51<05:10, 11.49s/it]2025-01-08 07:25:37,266 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.358
+KMeans Clustering:  25%|██▌       | 1/4 [00:06<00:18,  6.21s/it]2025-01-08 07:25:37,277 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:  58%|█████▊    | 7/12 [01:47<01:11, 14.38s/it]Refining fixations:  38%|███▊      | 22/58 [01:57<03:05,  5.16s/it]2025-01-08 07:25:40,255 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.496
+KMeans Clustering: 100%|██████████| 4/4 [01:26<00:00, 21.35s/it]KMeans Clustering: 100%|██████████| 4/4 [01:26<00:00, 21.53s/it]
+2025-01-08 07:25:40,269 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.707
+2025-01-08 07:25:40,275 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:25:40,280 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:25:40,292 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:25:40,308 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:25:40,315 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:25:40,474 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:25:40,478 - fixation_detector - INFO - Total fixation-related points: 17315
+2025-01-08 07:25:40,481 - fixation_detector - INFO - Total non-fixation points: 1950
+2025-01-08 07:25:40,487 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:25:40,527 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:25:40,555 - fixation_detector - INFO - Found 53 fixation chunks after global clustering
+2025-01-08 07:25:40,614 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:25:40,652 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/53 [00:00<?, ?it/s]2025-01-08 07:25:41,395 - fixation_detector - INFO - Number of clusters: 3, Silhouette score: 0.380
+KMeans Clustering:  50%|█████     | 2/4 [00:10<00:11,  5.58s/it]2025-01-08 07:25:41,402 - fixation_detector - INFO - Clustering with 4 clusters...
+Refining fixations:  40%|███▉      | 23/58 [02:03<02:59,  5.14s/it]2025-01-08 07:25:46,322 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.415
+KMeans Clustering:  75%|███████▌  | 3/4 [00:15<00:05,  5.39s/it]2025-01-08 07:25:46,322 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:  12%|█▏        | 14/119 [03:02<28:12, 16.12s/it]2025-01-08 07:25:48,500 - fixation_detector - INFO - Number of clusters: 4, Silhouette score: 0.637
+KMeans Clustering:  75%|███████▌  | 3/4 [00:32<00:10, 10.59s/it]2025-01-08 07:25:48,539 - fixation_detector - INFO - Clustering with 5 clusters...
+Refining fixations:  41%|████▏     | 24/58 [02:08<02:55,  5.16s/it]Refining fixations:  33%|███▎      | 13/39 [03:05<05:23, 12.44s/it]2025-01-08 07:25:51,788 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:51,845 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  13%|█▎        | 15/119 [03:07<21:59, 12.69s/it]Refining fixations: 100%|██████████| 47/47 [09:00<00:00, 16.69s/it]Refining fixations: 100%|██████████| 47/47 [09:00<00:00, 11.50s/it]
+2025-01-08 07:25:52,082 - fixation_detector - WARNING - Detected 2 invalid fixation intervals where stop index is before or equal to start index.
+2025-01-08 07:25:52,102 - saccade_detector - INFO - Initializing saccade parameters
+2025-01-08 07:25:52,102 - saccade_detector - INFO - Preprocessing positions data for saccade detection
+2025-01-08 07:25:52,103 - saccade_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:52,103 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:52,103 - saccade_detector - INFO - Resampling data
+2025-01-08 07:25:52,103 - saccade_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.337
+KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.52s/it]KMeans Clustering: 100%|██████████| 4/4 [00:21<00:00,  5.27s/it]
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Optimal number of clusters: 4, Best silhouette score: 0.415
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Primary fixation cluster: 2
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Additional fixation clusters: [0]
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Total fixation-related points: 405
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Total non-fixation points: 308
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:25:52,155 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:25:52,156 - fixation_detector - INFO - Found 11 fixation chunks after global clustering
+2025-01-08 07:25:52,156 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:25:52,156 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/11 [00:00<?, ?it/s]2025-01-08 07:25:52,336 - saccade_detector - INFO - Applying low-pass filter
+Refining fixations:   2%|▏         | 1/53 [00:12<10:25, 12.03s/it]2025-01-08 07:25:52,790 - saccade_detector - INFO - Using Hubel et al. (2000) method for saccade detection
+2025-01-08 07:25:52,809 - saccade_detector - INFO - Converting pixel coordinates to degrees of visual angle
+Processing velocity data:   0%|          | 0/12023 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 12023/12023 [00:00<00:00, 166664.85it/s]
+2025-01-08 07:25:52,899 - saccade_detector - INFO - Number of saccades detected: 32
+2025-01-08 07:25:53,121 - saccade_detector - INFO - Number of microsaccades detected: 47
+2025-01-08 07:25:53,185 - fixation_detector - INFO - Initializing fixation parameters
+2025-01-08 07:25:53,203 - fixation_detector - INFO - Preprocessing positions data for fixation detection
+2025-01-08 07:25:53,207 - fixation_detector - INFO - Preprocessing x and y data
+2025-01-08 07:25:53,210 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:53,214 - fixation_detector - INFO - Resampling data
+2025-01-08 07:25:53,220 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:53,692 - fixation_detector - INFO - Applying low-pass filter
+2025-01-08 07:25:54,263 - fixation_detector - INFO - Extracting motion parameters for k-means clustering
+2025-01-08 07:25:54,279 - fixation_detector - INFO - Extracting velocity, acceleration, angle, distance, and rotation parameters
+2025-01-08 07:25:54,404 - fixation_detector - INFO - Normalizing parameters for k-means clustering
+2025-01-08 07:25:54,493 - fixation_detector - INFO - Normalizing motion parameters
+Normalizing parameters:   0%|          | 0/4 [00:00<?, ?it/s]Normalizing parameters: 100%|██████████| 4/4 [00:00<00:00, 5470.24it/s]
+2025-01-08 07:25:54,537 - fixation_detector - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-08 07:25:54,537 - fixation_detector - INFO - Performing KMeans clustering globally
+KMeans Clustering:   0%|          | 0/4 [00:00<?, ?it/s]2025-01-08 07:25:54,537 - fixation_detector - INFO - Clustering with 2 clusters...
+Refining fixations:  43%|████▎     | 25/58 [02:13<02:52,  5.24s/it]Refining fixations:  36%|███▌      | 14/39 [03:11<04:21, 10.47s/it]2025-01-08 07:25:57,744 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:25:57,756 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:   9%|▉         | 1/11 [00:05<00:55,  5.58s/it]Refining fixations:   4%|▍         | 2/53 [00:17<08:28,  9.97s/it]Refining fixations:  67%|██████▋   | 8/12 [02:09<01:07, 16.84s/it]2025-01-08 07:26:01,081 - fixation_detector - INFO - Number of clusters: 5, Silhouette score: 0.644
+KMeans Clustering: 100%|██████████| 4/4 [00:45<00:00, 11.19s/it]KMeans Clustering: 100%|██████████| 4/4 [00:45<00:00, 11.39s/it]
+2025-01-08 07:26:01,136 - fixation_detector - INFO - Optimal number of clusters: 2, Best silhouette score: 0.691
+2025-01-08 07:26:01,148 - fixation_detector - INFO - Determining fixation-related clusters based on velocity metrics
+2025-01-08 07:26:01,153 - fixation_detector - INFO - Determining fixation-related clusters
+2025-01-08 07:26:01,160 - fixation_detector - INFO - Primary fixation cluster: 0
+2025-01-08 07:26:01,164 - fixation_detector - INFO - Additional fixation clusters: []
+2025-01-08 07:26:01,169 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:26:01,176 - fixation_detector - INFO - Classifying clusters into fixation and non-fixation
+2025-01-08 07:26:01,182 - fixation_detector - INFO - Total fixation-related points: 6901
+2025-01-08 07:26:01,187 - fixation_detector - INFO - Total non-fixation points: 1276
+2025-01-08 07:26:01,192 - fixation_detector - INFO - Calculating fixation start and stop indices
+2025-01-08 07:26:01,196 - fixation_detector - INFO - Finding start and stop indices for fixations
+2025-01-08 07:26:01,201 - fixation_detector - INFO - Found 39 fixation chunks after global clustering
+2025-01-08 07:26:01,201 - fixation_detector - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-08 07:26:01,209 - fixation_detector - INFO - Refining fixation start-stop indices with local reclustering
+Refining fixations:   0%|          | 0/39 [00:00<?, ?it/s]Refining fixations:  38%|███▊      | 15/39 [03:16<03:31,  8.82s/it]Refining fixations:  45%|████▍     | 26/58 [02:19<02:51,  5.36s/it]Refining fixations:  18%|█▊        | 2/11 [00:10<00:47,  5.31s/it]2025-01-08 07:26:05,649 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:26:05,661 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  75%|███████▌  | 9/12 [02:14<00:39, 13.30s/it]Refining fixations:   3%|▎         | 1/39 [00:05<03:19,  5.25s/it]Refining fixations:  47%|████▋     | 27/58 [02:24<02:44,  5.29s/it]Refining fixations:  27%|██▋       | 3/11 [00:15<00:41,  5.25s/it]2025-01-08 07:26:07,877 - fixation_detector - INFO - Number of clusters: 2, Silhouette score: 0.744
+KMeans Clustering:  25%|██▌       | 1/4 [00:13<00:40, 13.36s/it]2025-01-08 07:26:07,896 - fixation_detector - INFO - Clustering with 3 clusters...
+Refining fixations:   6%|▌         | 3/53 [00:32<09:31, 11.44s/it]Refining fixations:   5%|▌         | 2/39 [00:11<03:24,  5.54s/it]2025-01-08 07:26:12,836 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:26:12,843 - fixation_detector - INFO - Split into 1 valid chunks
+Refining fixations:  48%|████▊     | 28/58 [02:30<02:47,  5.57s/it]2025-01-08 07:26:14,062 - fixation_detector - INFO - Splitting fixations at non-fixation points
+2025-01-08 07:26:14,062 - fixation_detector - INFO - Split into 0 valid chunks
+Refining fixations:  36%|███▋      | 4/11 [00:21<00:39,  5.63s/it]

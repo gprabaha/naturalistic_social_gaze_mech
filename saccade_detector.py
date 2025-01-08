@@ -1,36 +1,46 @@
 
 import numpy as np
+import logging
+from tqdm import tqdm
 from scipy import signal
 from scipy.interpolate import interp1d
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
-from tqdm import tqdm
 
 import defaults
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("saccade_detection.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 def detect_saccades_and_microsaccades_in_position_array(positions, session_name, samprate=1/1000):
     sacc_params = _get_saccade_parameters(session_name, samprate)
     if positions.shape[0] > int(30 / (sacc_params['samprate'] * 1000)):
-        print("\nPreprocessing positions data for saccade detection")
+        logger.info("Preprocessing positions data for saccade detection")
         x, y = _preprocess_data(positions, sacc_params)
         # Detect saccades and microsaccades
         saccades_start_stop_inds, microsaccades_start_stop_inds = _detect_saccades_hubel_2000(x, y, sacc_params)
         # Ensure arrays always have shape (N, 2)
         saccades_start_stop_inds = np.reshape(saccades_start_stop_inds, (-1, 2)) if saccades_start_stop_inds.size > 0 else np.empty((0, 2), dtype=int)
         microsaccades_start_stop_inds = np.reshape(microsaccades_start_stop_inds, (-1, 2)) if microsaccades_start_stop_inds.size > 0 else np.empty((0, 2), dtype=int)
-        # Print counts of detected events
-        print(f"Number of saccades detected: {saccades_start_stop_inds.shape[0]}")
-        print(f"Number of microsaccades detected: {microsaccades_start_stop_inds.shape[0]}")
+        logger.info("Number of saccades detected: %d", saccades_start_stop_inds.shape[0])
+        logger.info("Number of microsaccades detected: %d", microsaccades_start_stop_inds.shape[0])
         return saccades_start_stop_inds, microsaccades_start_stop_inds
     else:
-        print("\n!! Data too short for saccade detection processing !!\n")
+        logger.warning("Data too short for saccade detection processing")
         return np.empty((0, 2), dtype=int), np.empty((0, 2), dtype=int)
 
 
-
-
 def _get_saccade_parameters(session_name=None, samprate=1/1000, num_cpus=1):
+    logger.info("Initializing saccade parameters")
     fltord = 60
     lowpasfrq = 30
     nyqfrq = 1000 / 2  # Nyquist frequency
@@ -39,7 +49,7 @@ def _get_saccade_parameters(session_name=None, samprate=1/1000, num_cpus=1):
                          [1, 1, 0, 0])
     buffer = int(100 / (samprate * 1000))
     monitor_info = defaults.fetch_monitor_info()
-    saccade_params = {
+    return {
         'session_name': session_name,
         'samprate': samprate,
         'num_cpus': num_cpus,
@@ -50,12 +60,10 @@ def _get_saccade_parameters(session_name=None, samprate=1/1000, num_cpus=1):
         'buffer': buffer,
         'monitor_info': monitor_info
     }
-    return saccade_params
-
 
 
 def _preprocess_data(positions, sacc_params):
-    print("Preprocessing x and y data")
+    logger.info("Preprocessing x and y data")
     x = np.pad(positions[:, 0], (sacc_params['buffer'], sacc_params['buffer']), 'reflect')
     y = np.pad(positions[:, 1], (sacc_params['buffer'], sacc_params['buffer']), 'reflect')
     x = __resample_data(x, sacc_params)
@@ -66,45 +74,36 @@ def _preprocess_data(positions, sacc_params):
     y = y[sacc_params['buffer']:-sacc_params['buffer']]
     return x, y
 
+
 def __resample_data(data, sacc_params):
+    logger.info("Resampling data")
     t_old = np.linspace(0, len(data) - 1, len(data))
     resample_factor = sacc_params['samprate'] * 1000
     if resample_factor > 1:
-        print(f"Resample factor is too large: {resample_factor}")
+        logger.error("Resample factor is too large: %f", resample_factor)
         raise ValueError("Resample factor is too large, leading to excessive memory usage.")
     t_new = np.linspace(0, len(data) - 1, int(len(data) * resample_factor))
     f = interp1d(t_old, data, kind='linear')
     return f(t_new)
 
+
 def __apply_filter(data, sacc_params):
+    logger.info("Applying low-pass filter")
     return signal.filtfilt(sacc_params['flt'], 1, data)
 
 
-
 def _detect_saccades_hubel_2000(x, y, sacc_params):
-    """Detects saccades and microsaccades using the method inspired by Martinez-Conde, Macknik, and Hubel (2000).
-    The algorithm applies a velocity threshold and a direction change criterion to determine eye movement events. 
-    This method is informed by the importance of identifying fine-grained eye movements such as microsaccades, 
-    which play a crucial role in visual perception and attention, as highlighted in the 2013 Nature Reviews Neuroscience article.
-    Args:
-        data (tuple): Tuple containing x and y coordinates of eye position in pixels.
-    Returns:
-        dict: Indices and time points of saccades and microsaccades with start and end indices.
-    """
-    print("Using Hubel et al. (2000) method for saccade detection")
-    # Convert x, y from pixels to degrees
+    logger.info("Using Hubel et al. (2000) method for saccade detection")
     x_deg, y_deg = __pixels_to_degrees(x, y, sacc_params)
     dx = np.diff(x_deg)
     dy = np.diff(y_deg)
-    velocity = np.sqrt(dx**2 + dy**2) / sacc_params['samprate']  # Convert to degrees per second
+    velocity = np.sqrt(dx**2 + dy**2) / sacc_params['samprate']
     smoothed_velocity = uniform_filter1d(velocity, size=31)
     theta = np.arctan2(dy, dx)
     eye_stopped = np.zeros(len(smoothed_velocity), dtype=bool)
-    # Initialize saccades and microsaccades as empty lists
-    saccades = []
-    microsaccades = []
+    saccades, microsaccades = [], []
     for i in tqdm(range(1, len(smoothed_velocity)), desc="Processing velocity data"):
-        if smoothed_velocity[i] < 3:  # 3° per second threshold
+        if smoothed_velocity[i] < 3:  # Threshold
             eye_stopped[i] = True
         elif np.abs(np.degrees(theta[i] - theta[i-1])) > 15:
             eye_stopped[i] = True
@@ -120,38 +119,23 @@ def _detect_saccades_hubel_2000(x, y, sacc_params):
                 current_start = None
         elif not eye_stopped[i] and eye_stopped[i-1]:
             current_start = i
-    # Convert the lists of saccades and microsaccades to NumPy arrays
     return np.array(saccades), np.array(microsaccades)
 
 
 def __pixels_to_degrees(x, y, sacc_params):
-    """Converts pixel coordinates to degrees of visual angle, accounting for monitor size and viewing distance.
-    Args:
-        x (np.ndarray): Array of x-coordinates in pixels.
-        y (np.ndarray): Array of y-coordinates in pixels.
-    Returns:
-        tuple: Two numpy arrays representing x and y coordinates in degrees of visual angle.
-    """
-    # Monitor specifications
-    monitor_diagonal_inches = sacc_params['monitor_info']['diagonal']  # inches
-    monitor_distance_cm = sacc_params['monitor_info']['distance']  # cm
-    vertical_res = sacc_params['monitor_info']['vertical_resolution']  # pixels
-    horizontal_res = sacc_params['monitor_info']['horizontal_resolution']  # pixels
-    # Calculate aspect ratio
-    aspect_ratio = horizontal_res / vertical_res
-    # Calculate width and height of the monitor in inches
-    monitor_height_inches = monitor_diagonal_inches / np.sqrt(1 + aspect_ratio**2)
+    logger.info("Converting pixel coordinates to degrees of visual angle")
+    monitor_info = sacc_params['monitor_info']
+    aspect_ratio = monitor_info['horizontal_resolution'] / monitor_info['vertical_resolution']
+    monitor_height_inches = monitor_info['diagonal'] / np.sqrt(1 + aspect_ratio**2)
     monitor_width_inches = monitor_height_inches * aspect_ratio
-    # Convert dimensions to cm
     monitor_height_cm = monitor_height_inches * 2.54
     monitor_width_cm = monitor_width_inches * 2.54
-    # Calculate the size of one pixel in cm
-    pixel_size_cm_x = monitor_width_cm / horizontal_res
-    pixel_size_cm_y = monitor_height_cm / vertical_res
-    # Convert pixel distances to degrees using the visual angle formula
-    x_deg = np.degrees(np.arctan2(x * pixel_size_cm_x, monitor_distance_cm))
-    y_deg = np.degrees(np.arctan2(y * pixel_size_cm_y, monitor_distance_cm))
+    pixel_size_cm_x = monitor_width_cm / monitor_info['horizontal_resolution']
+    pixel_size_cm_y = monitor_height_cm / monitor_info['vertical_resolution']
+    x_deg = np.degrees(np.arctan2(x * pixel_size_cm_x, monitor_info['distance']))
+    y_deg = np.degrees(np.arctan2(y * pixel_size_cm_y, monitor_info['distance']))
     return x_deg, y_deg
+
 
 
 def _detect_saccades_mayo_2023(x, y, sacc_params):

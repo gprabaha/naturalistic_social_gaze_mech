@@ -10,7 +10,7 @@ import detect_eye_mvm_behav_from_gaze_data
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("task_execution.log"),
         logging.StreamHandler()
