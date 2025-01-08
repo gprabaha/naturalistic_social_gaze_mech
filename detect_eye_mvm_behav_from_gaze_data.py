@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 from scipy.interpolate import interp1d
 from numpy.lib.stride_tricks import sliding_window_view
+from multiprocessing import Pool, cpu_count
 
 import curate_data
 import load_data
@@ -43,7 +44,7 @@ def main():
     # Print results
     print("Detection completed for both agents.")
     eye_mvm_behav_df_file_path = os.path.join(params['processed_data_dir'], 'eye_mvm_behav_df.pkl')
-    eye_mvm_behav_df.to_pickle(fixation_file_path)
+    eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
     print(f"Fix and saccade saved to combined df in {eye_mvm_behav_df_file_path}.")
 
 
@@ -154,15 +155,14 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = \
                 _detect_fixations_saccades_and_microsaccades_in_run(positions, session)
-            pdb.set_trace()
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
                 'run_number': run,
                 'agent': agent,
-                'fixation_start_stop': fix_indices,
-                'saccade_start_stop': sacc_indices,
-                'microsaccade_start_stop': microsacc_inds
+                'fixation_start_stop': fixation_start_stop_inds,
+                'saccade_start_stop': saccades_start_stop_inds,
+                'microsaccade_start_stop': microsaccades_start_stop_inds
             })
     return pd.DataFrame(eye_mvm_behav_rows)
 
@@ -170,22 +170,42 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
 
 def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name):
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
-    all_fix_start_stops = np.empty((0, 2), dtype=int) 
-    all_sacc_start_stops = np.empty((0, 2), dtype=int) 
-    all_microsacc_start_stops = np.empty((0, 2), dtype=int) 
-    for position_chunk, start_ind in zip(non_nan_chunks, chunk_start_indices):
-        # Fixation detection
-        fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
-        fixation_start_stop_indices += start_ind
-        all_fix_start_stops = np.concatenate((all_fix_start_stops, fixation_start_stop_indices), axis=0)
-        # Saccade and microsaccade detection
-        saccades_start_stop_inds, microsaccades_start_stop_inds = \
-            saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk, session_name)
-        saccades_start_stop_inds += start_ind
-        all_sacc_start_stops = np.concatenate((all_sacc_start_stops, saccades_start_stop_inds), axis=0)
-        microsaccades_start_stop_inds += start_ind
-        all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, microsaccades_start_stop_inds), axis=0)
+    # Detect number of CPUs
+    num_cpus = cpu_count()
+    print(f"Detected {num_cpus} CPUs for parallel processing.")
+    # Prepare input arguments for parallel processing
+    args = [(chunk, start_ind, session_name) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
+    # Parallel processing
+    with Pool(processes=num_cpus) as pool:
+        results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
+    # Combine results in the original order
+    all_fix_start_stops = np.empty((0, 2), dtype=int)
+    all_sacc_start_stops = np.empty((0, 2), dtype=int)
+    all_microsacc_start_stops = np.empty((0, 2), dtype=int)
+    for fix_stops, sacc_stops, micro_stops in results:
+        all_fix_start_stops = np.concatenate((all_fix_start_stops, fix_stops), axis=0)
+        all_sacc_start_stops = np.concatenate((all_sacc_start_stops, sacc_stops), axis=0)
+        all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, micro_stops), axis=0)
+    # Verification: Ensure ascending order
+    assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
+    assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
+    assert np.all(np.diff(all_microsacc_start_stops[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
     return all_fix_start_stops, all_sacc_start_stops, all_microsacc_start_stops
+
+def __detect_fix_sacc_micro_in_chunk(args):
+    """Detect fixations, saccades, and microsaccades in a single chunk."""
+    position_chunk, start_ind, session_name = args
+    # Fixation detection
+    fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
+    fixation_start_stop_indices += start_ind
+    # Saccade and microsaccade detection
+    saccades_start_stop_inds, microsaccades_start_stop_inds = \
+        saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk, session_name)
+    saccades_start_stop_inds += start_ind
+    microsaccades_start_stop_inds += start_ind
+    return (fixation_start_stop_indices, saccades_start_stop_inds, microsaccades_start_stop_inds)
+
+
 
 
 
