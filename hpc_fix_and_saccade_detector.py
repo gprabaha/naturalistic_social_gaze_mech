@@ -1,6 +1,5 @@
 import os
 import subprocess
-import logging
 import time
 
 import pdb
@@ -9,7 +8,6 @@ class HPCFixAndSaccadeDetector:
     def __init__(self, params):
         self.params = params
         self.job_script_out_dir = './job_scripts/'
-        self.logger = logging.getLogger(__name__)
         self.python_script_path = 'run_single_fix_and_saccade_detection_task.py'  # Path to the new Python script
 
 
@@ -30,7 +28,7 @@ class HPCFixAndSaccadeDetector:
                     f"python {self.python_script_path} {task_key} {params_file_path}"
                 )
                 file.write(command + "\n")
-        self.logger.info(f"Generated job file at {job_file_path}")
+        print(f"Generated job file at {job_file_path}")
         return job_file_path
 
 
@@ -45,15 +43,15 @@ class HPCFixAndSaccadeDetector:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task 4 --mem-per-cpu 8192 -t 00:10:00 --mail-type FAIL',
+                f'--cpus-per-task 4 --mem-per-cpu 8192 -t 00:30:00 --mail-type FAIL',
                 shell=True, check=True, executable='/bin/bash'
             )
-            self.logger.info("Successfully generated the dSQ job script.")
+            print("Successfully generated the dSQ job script.")
             # Check that the job script exists before submitting
             if not os.path.isfile(job_script_path):
-                self.logger.error(f"No job script found at {job_script_path}.")
+                print(f"No job script found at {job_script_path}.")
                 return
-            self.logger.info(f"Using dSQ job script: {job_script_path}")
+            print(f"Using dSQ job script: {job_script_path}")
             # Submit the job array with descriptive output and error filenames using array index %a
             result = subprocess.run(
                 f'sbatch --job-name=dsq_fix_saccade '
@@ -62,13 +60,13 @@ class HPCFixAndSaccadeDetector:
                 f'{job_script_path}',
                 shell=True, check=True, capture_output=True, text=True, executable='/bin/bash'
             )
-            self.logger.info(f"Successfully submitted jobs using sbatch for script {job_script_path}")
+            print(f"Successfully submitted jobs using sbatch for script {job_script_path}")
             # Capture and log the job array ID from the submission output
             job_id = result.stdout.strip().split()[-1]
-            self.logger.info(f"Submitted job array with ID: {job_id}")
+            print(f"Submitted job array with ID: {job_id}")
             self.track_job_progress(job_id)
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error during job submission process: {e}")
+            print(f"Error during job submission process: {e}")
             raise
 
 
@@ -77,7 +75,7 @@ class HPCFixAndSaccadeDetector:
         Tracks the progress of the submitted job array by periodically checking its status.
         Logs the current status and reports when the job array is completed.
         """
-        self.logger.info(f"Tracking progress of job array with ID: {job_id}")
+        print(f"Tracking progress of job array with ID: {job_id}")
         start_time = time.time()
         check_interval = 30  # Check the job status every 30 seconds
         print_every_n_mins = 1
@@ -89,18 +87,18 @@ class HPCFixAndSaccadeDetector:
                 shell=True, capture_output=True, text=True, executable='/bin/bash'
             )
             if result.returncode != 0:
-                self.logger.error(f"Error checking job status for job ID {job_id}: {result.stderr.strip()}")
+                print(f"Error checking job status for job ID {job_id}: {result.stderr.strip()}")
                 break
             job_statuses = result.stdout.strip().split()
             if not job_statuses:
-                self.logger.info(f"Job array {job_id} has completed.")
+                print(f"Job array {job_id} has completed.")
                 break
             running_jobs = [status for status in ('PENDING', 'RUNNING', 'CONFIGURING') if status in job_statuses]
             current_time = time.time()
             if not running_jobs:
-                self.logger.info(f"Job array {job_id} has completed.")
+                print(f"Job array {job_id} has completed.")
                 break
             elif current_time - last_print_time >= print_interval:
-                self.logger.info(f"Job array {job_id} is still running. Checking again in {print_every_n_mins} mins...")
+                print(f"Job array {job_id} is still running. Checking again in {print_every_n_mins} mins...")
                 last_print_time = current_time
             time.sleep(check_interval)

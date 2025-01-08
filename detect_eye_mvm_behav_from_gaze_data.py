@@ -53,7 +53,9 @@ def _initialize_params():
     params = {
         'recompute_sparse_nan_removed_gaze_data': False,
         'try_using_single_run': True,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'recompute_fix_and_saccades': True,
+        'is_grace': False,
         'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
     }
     params = curate_data.add_root_data_to_params(params)
@@ -117,10 +119,11 @@ def _save_params(params):
 
 def _process_fixations_and_saccades(df_keys_for_tasks, params):
     eye_mvm_behav_rows = []
+    params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     if params.get('recompute_fix_and_saccades_through_hpc_jobs', False):
         if params.get('recompute_fix_and_saccades', False):
             detector = hpc_fix_and_saccade_detector.HPCFixAndSaccadeDetector(params)
-            job_file_path = detector.generate_job_file(df_keys_for_tasks, params)
+            job_file_path = detector.generate_job_file(df_keys_for_tasks, params_file_path)
             detector.submit_job_array(job_file_path)
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         for task in df_keys_for_tasks:
@@ -176,7 +179,8 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
     # Prepare input arguments for parallel processing
     args = [(chunk, start_ind, session_name) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
     # Parallel processing
-    with Pool(processes=num_cpus) as pool:
+    parallel_threads = min(8, num_cpus)
+    with Pool(processes=parallel_threads) as pool:
         results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
     # Combine results in the original order
     all_fix_start_stops = np.empty((0, 2), dtype=int)
@@ -195,6 +199,7 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
 def __detect_fix_sacc_micro_in_chunk(args):
     """Detect fixations, saccades, and microsaccades in a single chunk."""
     position_chunk, start_ind, session_name = args
+    print(f"Detecting fix and sacc in chunk starting at ind {start_ind}")
     # Fixation detection
     fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
     fixation_start_stop_indices += start_ind
