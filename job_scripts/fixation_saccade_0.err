@@ -1,4 +1,79 @@
 
 CondaError: Run 'conda init' before 'conda deactivate'
 
-2025-01-08 06:23:37,817 - ERROR - Incorrect number of arguments. Usage: python script.py <task_key> <params_file_path>
+Processing velocity data:   0%|          | 0/35 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 35/35 [00:00<00:00, 280689.56it/s]Processing velocity data:   0%|          | 0/221 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 221/221 [00:00<00:00, 475842.50it/s]Processing velocity data:   0%|          | 0/59 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 59/59 [00:00<00:00, 361261.22it/s]
+Processing velocity data:   0%|          | 0/173 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 173/173 [00:00<00:00, 580956.44it/s]Processing velocity data:   0%|          | 0/383 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 383/383 [00:00<00:00, 911701.72it/s]Processing velocity data:   0%|          | 0/1067 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1067/1067 [00:00<00:00, 1183321.62it/s]Processing velocity data:   0%|          | 0/629 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 629/629 [00:00<00:00, 853791.98it/s]
+Processing velocity data:   0%|          | 0/878 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 878/878 [00:00<00:00, 1195649.00it/s]
+Processing velocity data:   0%|          | 0/53 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 53/53 [00:00<00:00, 380647.45it/s]
+Processing velocity data:   0%|          | 0/203 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 203/203 [00:00<00:00, 1499020.62it/s]
+Processing velocity data:   0%|          | 0/1001 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1001/1001 [00:00<00:00, 927844.93it/s]Processing velocity data:   0%|          | 0/3836 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 3836/3836 [00:00<00:00, 1020509.33it/s]
+Processing velocity data:   0%|          | 0/2798 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2798/2798 [00:00<00:00, 855743.23it/s]
+Processing velocity data:   0%|          | 0/248 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 248/248 [00:00<00:00, 832149.91it/s]
+Processing velocity data:   0%|          | 0/308 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 308/308 [00:00<00:00, 922088.25it/s]
+Processing velocity data:   0%|          | 0/242 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 242/242 [00:00<00:00, 594971.61it/s]
+Processing velocity data:   0%|          | 0/1754 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1754/1754 [00:00<00:00, 959667.26it/s]
+Processing velocity data:   0%|          | 0/578 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 578/578 [00:00<00:00, 1366577.06it/s]
+Processing velocity data:   0%|          | 0/209 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 209/209 [00:00<00:00, 557994.61it/s]
+Processing velocity data:   0%|          | 0/1346 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1346/1346 [00:00<00:00, 1330238.73it/s]
+Processing velocity data:   0%|          | 0/242 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 242/242 [00:00<00:00, 1136642.29it/s]
+Processing velocity data:   0%|          | 0/2576 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2576/2576 [00:00<00:00, 1040096.95it/s]
+Processing velocity data:   0%|          | 0/7332 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 7332/7332 [00:00<00:00, 121820.12it/s]
+Processing velocity data:   0%|          | 0/7811 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 7811/7811 [00:00<00:00, 219191.71it/s]
+Processing velocity data:   0%|          | 0/2315 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2315/2315 [00:00<00:00, 1169716.15it/s]
+Processing velocity data:   0%|          | 0/857 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 857/857 [00:00<00:00, 928816.16it/s]
+Processing velocity data:   0%|          | 0/326 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 326/326 [00:00<00:00, 588610.89it/s]
+Processing velocity data:   0%|          | 0/281 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 281/281 [00:00<00:00, 549463.60it/s]
+Processing velocity data:   0%|          | 0/10685 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 10685/10685 [00:00<00:00, 399210.22it/s]
+Processing velocity data:   0%|          | 0/3299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 3299/3299 [00:00<00:00, 129781.17it/s]
+Processing velocity data:   0%|          | 0/1718 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1718/1718 [00:00<00:00, 985747.51it/s]
+Processing velocity data:   0%|          | 0/4703 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 4703/4703 [00:00<00:00, 189961.69it/s]
+Processing velocity data:   0%|          | 0/1883 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1883/1883 [00:00<00:00, 1390715.70it/s]
+Processing velocity data:   0%|          | 0/569 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 569/569 [00:00<00:00, 1104377.13it/s]
+Processing velocity data:   0%|          | 0/1418 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1418/1418 [00:00<00:00, 757742.78it/s]
+Processing velocity data:   0%|          | 0/5600 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 5600/5600 [00:00<00:00, 107165.97it/s]
+Processing velocity data:   0%|          | 0/5318 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 5318/5318 [00:00<00:00, 86861.38it/s]
+Processing velocity data:   0%|          | 0/281 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 281/281 [00:00<00:00, 873036.61it/s]
+Processing velocity data:   0%|          | 0/1106 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1106/1106 [00:00<00:00, 1276878.67it/s]
+Processing velocity data:   0%|          | 0/863 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 863/863 [00:00<00:00, 842178.77it/s]
+Processing velocity data:   0%|          | 0/269 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 269/269 [00:00<00:00, 547702.80it/s]
+Processing velocity data:   0%|          | 0/152 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 152/152 [00:00<00:00, 958698.06it/s]Processing velocity data:   0%|          | 0/12221 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 12221/12221 [00:00<00:00, 166592.75it/s]
+Processing velocity data:   0%|          | 0/623 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 623/623 [00:00<00:00, 840209.45it/s]
+Processing velocity data:   0%|          | 0/698 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 698/698 [00:00<00:00, 934149.39it/s]
+Processing velocity data:   0%|          | 0/2339 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2339/2339 [00:00<00:00, 984789.91it/s]
+Processing velocity data:   0%|          | 0/536 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 536/536 [00:00<00:00, 1661601.58it/s]
+Processing velocity data:   0%|          | 0/260 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 260/260 [00:00<00:00, 695927.91it/s]
+Processing velocity data:   0%|          | 0/353 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 353/353 [00:00<00:00, 544134.26it/s]
+Processing velocity data:   0%|          | 0/2297 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2297/2297 [00:00<00:00, 1030408.16it/s]
+Processing velocity data:   0%|          | 0/308 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 308/308 [00:00<00:00, 566847.58it/s]
+Processing velocity data:   0%|          | 0/299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 299/299 [00:00<00:00, 1110803.27it/s]
+Processing velocity data:   0%|          | 0/59 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 59/59 [00:00<00:00, 418013.41it/s]
+Processing velocity data:   0%|          | 0/674 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 674/674 [00:00<00:00, 1318545.19it/s]
+Processing velocity data:   0%|          | 0/764 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 764/764 [00:00<00:00, 1599824.39it/s]
+Processing velocity data:   0%|          | 0/2468 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2468/2468 [00:00<00:00, 848626.19it/s]
+Processing velocity data:   0%|          | 0/899 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 899/899 [00:00<00:00, 1812826.58it/s]
+Processing velocity data:   0%|          | 0/2522 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2522/2522 [00:00<00:00, 125713.48it/s]
+Processing velocity data:   0%|          | 0/257 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 257/257 [00:00<00:00, 699958.52it/s]
+Processing velocity data:   0%|          | 0/8234 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 8234/8234 [00:00<00:00, 107645.48it/s]
+Processing velocity data:   0%|          | 0/2210 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2210/2210 [00:00<00:00, 1007106.89it/s]
+Processing velocity data:   0%|          | 0/1646 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1646/1646 [00:00<00:00, 785686.17it/s]
+Processing velocity data:   0%|          | 0/1502 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1502/1502 [00:00<00:00, 815408.31it/s]
+Processing velocity data:   0%|          | 0/311 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 311/311 [00:00<00:00, 1163629.39it/s]
+Processing velocity data:   0%|          | 0/684 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 684/684 [00:00<00:00, 654851.39it/s]
+Processing velocity data:   0%|          | 0/527 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 527/527 [00:00<00:00, 1282877.66it/s]
+Processing velocity data:   0%|          | 0/362 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 362/362 [00:00<00:00, 989790.12it/s]
+Processing velocity data:   0%|          | 0/1778 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1778/1778 [00:00<00:00, 1148894.24it/s]
+Processing velocity data:   0%|          | 0/1493 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1493/1493 [00:00<00:00, 1284005.71it/s]
+Processing velocity data:   0%|          | 0/4022 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 4022/4022 [00:00<00:00, 156907.98it/s]
+Processing velocity data:   0%|          | 0/239 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 239/239 [00:00<00:00, 1044206.93it/s]
+Processing velocity data:   0%|          | 0/455 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 455/455 [00:00<00:00, 812434.36it/s]
+Processing velocity data:   0%|          | 0/10952 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 10952/10952 [00:00<00:00, 222401.98it/s]
+Processing velocity data:   0%|          | 0/425 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 425/425 [00:00<00:00, 1228517.71it/s]
+Processing velocity data:   0%|          | 0/32 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 32/32 [00:00<00:00, 361772.85it/s]
+Processing velocity data:   0%|          | 0/1391 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1391/1391 [00:00<00:00, 2066693.89it/s]
+Processing velocity data:   0%|          | 0/2057 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 2057/2057 [00:00<00:00, 1051387.20it/s]
+Processing velocity data:   0%|          | 0/1262 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 1262/1262 [00:00<00:00, 811344.52it/s]
+Processing velocity data:   0%|          | 0/413 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 413/413 [00:00<00:00, 630137.34it/s]
+Processing velocity data:   0%|          | 0/530 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 530/530 [00:00<00:00, 1400744.25it/s]
+Processing velocity data:   0%|          | 0/893 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 893/893 [00:00<00:00, 840743.76it/s]
+Processing velocity data:   0%|          | 0/15299 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 15299/15299 [00:00<00:00, 604982.29it/s]
+Processing velocity data:   0%|          | 0/13604 [00:00<?, ?it/s]Processing velocity data: 100%|██████████| 13604/13604 [00:00<00:00, 1245265.52it/s]
