@@ -14,11 +14,19 @@ def detect_saccades_and_microsaccades_in_position_array(positions, session_name,
     if positions.shape[0] > int(30 / (sacc_params['samprate'] * 1000)):
         print("\nPreprocessing positions data for saccade detection")
         x, y = _preprocess_data(positions, sacc_params)
+        # Detect saccades and microsaccades
         saccades_start_stop_inds, microsaccades_start_stop_inds = _detect_saccades_hubel_2000(x, y, sacc_params)
+        # Ensure arrays always have shape (N, 2)
+        saccades_start_stop_inds = np.reshape(saccades_start_stop_inds, (-1, 2)) if saccades_start_stop_inds.size > 0 else np.empty((0, 2), dtype=int)
+        microsaccades_start_stop_inds = np.reshape(microsaccades_start_stop_inds, (-1, 2)) if microsaccades_start_stop_inds.size > 0 else np.empty((0, 2), dtype=int)
+        # Print counts of detected events
+        print(f"Number of saccades detected: {saccades_start_stop_inds.shape[0]}")
+        print(f"Number of microsaccades detected: {microsaccades_start_stop_inds.shape[0]}")
         return saccades_start_stop_inds, microsaccades_start_stop_inds
     else:
         print("\n!! Data too short for saccade detection processing !!\n")
-        return np.empty((0, 2), dtype=int), np.empty((0, 2), dtype=int) 
+        return np.empty((0, 2), dtype=int), np.empty((0, 2), dtype=int)
+
 
 
 

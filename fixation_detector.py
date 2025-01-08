@@ -29,7 +29,8 @@ def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
         print("Refining fixation start-stop indices using local reclustering")
         refined_fixation_start_stop_indices = _refine_fixation_start_stop_with_reclustering(
             fixation_start_stop_indices, normalized_data_params, padding=50, fix_params=fix_params)
-        return refined_fixation_start_stop_indices if refined_fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
+        return np.reshape(refined_fixation_start_stop_indices, (-1, 2)) \
+            if refined_fixation_start_stop_indices.size > 0 else np.empty((0, 2), dtype=int)
     else:
         print("\n!! Data too short for fixation detection processing !!\n")
         return np.empty((0, 2), dtype=int) 
