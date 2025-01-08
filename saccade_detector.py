@@ -88,7 +88,7 @@ def _detect_saccades_hubel_2000(x, y, sacc_params):
     x_deg, y_deg = __pixels_to_degrees(x, y, sacc_params)
     dx = np.diff(x_deg)
     dy = np.diff(y_deg)
-    velocity = np.sqrt(dx**2 + dy**2) / self.samprate  # Convert to degrees per second
+    velocity = np.sqrt(dx**2 + dy**2) / sacc_params['samprate']  # Convert to degrees per second
     smoothed_velocity = uniform_filter1d(velocity, size=31)
     theta = np.arctan2(dy, dx)
     eye_stopped = np.zeros(len(smoothed_velocity), dtype=bool)
