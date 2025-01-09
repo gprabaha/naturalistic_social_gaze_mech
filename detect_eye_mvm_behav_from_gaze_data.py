@@ -345,18 +345,19 @@ def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df
             saccade_from.append(__determine_roi_of_location(start_position, roi_rects))
             saccade_to.append(__determine_roi_of_location(end_position, roi_rects))
         # Update the DataFrame with new columns
-        eye_mvm_behav_df.loc[behav_group.index, 'fixation_location'] = [fixation_labels]
-        eye_mvm_behav_df.loc[behav_group.index, 'saccade_from'] = [saccade_from]
-        eye_mvm_behav_df.loc[behav_group.index, 'saccade_to'] = [saccade_to]
+        eye_mvm_behav_df.at[behav_group.index[0], 'fixation_location'] = fixation_labels
+        eye_mvm_behav_df.at[behav_group.index[0], 'saccade_from'] = saccade_from
+        eye_mvm_behav_df.at[behav_group.index[0], 'saccade_to'] = saccade_to
     return eye_mvm_behav_df
 
 def __determine_roi_of_location(position, roi_rects):
     """Determine if a position is within any ROI."""
+    matching_rois = []
     for roi_name, rect in roi_rects.items():
         x_min, y_min, x_max, y_max = rect
         if x_min <= position[0] <= x_max and y_min <= position[1] <= y_max:
-            return roi_name
-    return 'out_of_roi'
+            matching_rois.append(roi_name)
+    return matching_rois if matching_rois else ['out_of_roi']
 
 
 
