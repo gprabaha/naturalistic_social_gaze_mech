@@ -48,7 +48,7 @@ def main():
             lambda pos: _interpolate_nans_in_positions_with_sliding_window(pos)
         )
         sparse_nan_removed_sync_gaze_df.to_pickle(sparse_nan_removed_sync_gaze_data_df_filepath)
-        logger.info("Saved sparse_nan_removed_sync_gaze_df to %s", sparse_nan_removed_sync_gaze_data_df_filepath)
+        logger.info(f"Saved sparse_nan_removed_sync_gaze_df to {sparse_nan_removed_sync_gaze_data_df_filepath}")
     else:
         logger.info("Loading sparse_nan_removed_sync_gaze_df")
         sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
@@ -70,7 +70,11 @@ def main():
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-    
+
+    logger.info(f"Annotating fix and saccade locations in eye mvm behav df.")
+    eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
+    eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
+    logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     pdb.set_trace()
     return 0
 
@@ -287,6 +291,72 @@ def __extract_non_nan_chunks(positions):
         start_indices.append(start)
     logger.debug("Extracted %d non-NaN chunks", len(non_nan_chunks))
     return non_nan_chunks, start_indices
+
+
+
+def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df):
+    """
+    Annotate fixations and saccades with ROI labels for all session-interaction-run-agent combinations.
+    Parameters:
+    - eye_mvm_behav_df (DataFrame): DataFrame containing fixation and saccade information.
+    - sparse_nan_removed_sync_gaze_df (DataFrame): DataFrame containing positions and ROI rects.
+    Returns:
+    - DataFrame: Updated eye_mvm_behav_df with additional columns `fixation_location`, `saccade_from`, and `saccade_to`.
+    """
+    # Create new columns to store results
+    eye_mvm_behav_df['fixation_location'] = None
+    eye_mvm_behav_df['saccade_from'] = None
+    eye_mvm_behav_df['saccade_to'] = None
+    # Group by session-interaction-run-agent combinations
+    grouped = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number', 'agent'])
+    for (session_name, interaction_type, run_number, agent), behav_group in grouped:
+        # Ensure each behav_group has only one row
+        if len(behav_group) != 1:
+            raise ValueError(f"Expected only one row per group, but found {len(behav_group)} for group: {(session_name, interaction_type, run_number, agent)}")
+        # Filter the gaze dataframe for the current group
+        gaze_df = sparse_nan_removed_sync_gaze_df[
+            (sparse_nan_removed_sync_gaze_df['session_name'] == session_name) &
+            (sparse_nan_removed_sync_gaze_df['interaction_type'] == interaction_type) &
+            (sparse_nan_removed_sync_gaze_df['run_number'] == run_number) &
+            (sparse_nan_removed_sync_gaze_df['agent'] == agent)
+        ]
+        if gaze_df.empty:
+            continue
+        # Extract positions and ROI rects
+        positions = gaze_df.iloc[0]['positions']
+        roi_rects = gaze_df.iloc[0]['roi_rects']
+        # Process the single row in behav_group
+        row = behav_group.iloc[0]
+        # Process fixations
+        fixations = row['fixation_start_stop']
+        fixation_labels = []
+        for fixation in fixations:
+            start_idx, stop_idx = fixation
+            mean_position = positions[start_idx:stop_idx + 1].mean(axis=0)
+            fixation_labels.append(__determine_roi_of_location(mean_position, roi_rects))
+        # Process saccades
+        saccades = row['saccade_start_stop']
+        saccade_from = []
+        saccade_to = []
+        for saccade in saccades:
+            start_idx, stop_idx = saccade
+            start_position = positions[start_idx]
+            end_position = positions[stop_idx]
+            saccade_from.append(__determine_roi_of_location(start_position, roi_rects))
+            saccade_to.append(__determine_roi_of_location(end_position, roi_rects))
+        # Update the DataFrame with new columns
+        eye_mvm_behav_df.loc[behav_group.index, 'fixation_location'] = [fixation_labels]
+        eye_mvm_behav_df.loc[behav_group.index, 'saccade_from'] = [saccade_from]
+        eye_mvm_behav_df.loc[behav_group.index, 'saccade_to'] = [saccade_to]
+    return eye_mvm_behav_df
+
+def __determine_roi_of_location(position, roi_rects):
+    """Determine if a position is within any ROI."""
+    for roi_name, rect in roi_rects.items():
+        x_min, y_min, x_max, y_max = rect
+        if x_min <= position[0] <= x_max and y_min <= position[1] <= y_max:
+            return roi_name
+    return 'out_of_roi'
 
 
 
