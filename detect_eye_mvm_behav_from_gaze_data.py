@@ -38,6 +38,8 @@ def main():
         # Load synchronized gaze data
         synchronized_gaze_data_file_path = os.path.join(params['processed_data_dir'], 'synchronized_gaze_data_df.pkl')
         synchronized_gaze_data_df = load_data.get_data_df(synchronized_gaze_data_file_path)
+        # Remove object ROIs from M2 agent's data
+        synchronized_gaze_data_df = _remove_object_rois_for_m2(synchronized_gaze_data_df)
         logger.info("Loaded synchronized gaze data from %s", synchronized_gaze_data_file_path)
         # Sparse NaN removal from each run's positions
         sparse_nan_removed_sync_gaze_df = synchronized_gaze_data_df.copy()
@@ -50,25 +52,36 @@ def main():
     else:
         logger.info("Loading sparse_nan_removed_sync_gaze_df")
         sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
-    # Separate sessions and runs to process separately
-    df_keys_for_tasks = _prepare_tasks(sparse_nan_removed_sync_gaze_df, params)
-    # Save params to a file
-    _save_params(params)
-    # Process fixation and saccade detection
-    eye_mvm_behav_df = _process_fixations_and_saccades(df_keys_for_tasks, params)
-    # Log results
-    logger.info("Detection completed for both agents.")
+
+    
     eye_mvm_behav_df_file_path = os.path.join(params['processed_data_dir'], 'eye_mvm_behav_df.pkl')
-    eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
-    logger.info("Fix and saccade saved to combined df in %s", eye_mvm_behav_df_file_path)
+    if params.get('remake_eye_mvm_df_from_gaze_data', False):
+        logger.info("Remaking eye_mvm_df from gaze data.")
+        # Separate sessions and runs to process separately
+        df_keys_for_tasks = _prepare_tasks(sparse_nan_removed_sync_gaze_df, params)
+        # Save params to a file
+        _save_params(params)
+        # Process fixation and saccade detection
+        eye_mvm_behav_df = _process_fixations_and_saccades(df_keys_for_tasks, params)
+        # Log results
+        logger.info("Detection completed for both agents.")
+        eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
+        logger.info("Fix and saccade saved to combined df in %s", eye_mvm_behav_df_file_path)
+    else:
+        logger.info("Loading eye_mvm_behav_df")
+        eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
+    
+    pdb.set_trace()
+    return 0
 
 
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'try_using_single_run': False,
         'recompute_sparse_nan_removed_gaze_data': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'remake_eye_mvm_df_from_gaze_data': False,
+        'try_using_single_run': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
         'recompute_fix_and_saccades': True,
         'is_grace': False,
         'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
@@ -80,6 +93,31 @@ def _initialize_params():
     params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(params)
     logger.info("Parameters initialized successfully")
     return params
+
+
+
+def _remove_object_rois_for_m2(dataframe):
+    """
+    Modify the 'roi_rects' column in a dataframe based on the 'agent' column.
+    - Retains all ROI rectangles for rows where the 'agent' is 'm1'.
+    - Removes 'object' ROIs from the 'roi_rects' dictionary for rows where the 'agent' is 'm2'.
+    Parameters:
+        dataframe (pd.DataFrame): A dataframe containing a 'roi_rects' column with ROI data
+                                  and an 'agent' column indicating the agent ('m1' or 'm2').
+    Returns:
+        pd.DataFrame: The modified dataframe with updated 'roi_rects' values.
+    """
+    # Apply changes to the 'roi_rects' column based on the 'agent' value
+    dataframe['roi_rects'] = dataframe.apply(
+        lambda row: {
+            roi_name: roi_coords 
+            for roi_name, roi_coords in row['roi_rects'].items()
+            if row['agent'] == 'm1' or 'object' not in roi_name  # Retain only relevant ROIs
+        },
+        axis=1
+    )
+    return dataframe
+
 
 
 def _interpolate_nans_in_positions_with_sliding_window(positions, window_size=10, max_nans=3):
@@ -160,6 +198,10 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
                     sacc_indices, microsacc_inds = pickle.load(f)
+            # Verification: Ensure ascending order
+            assert np.all(np.diff(fix_indices[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
+            assert np.all(np.diff(sacc_indices[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
+            assert np.all(np.diff(microsacc_inds[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -174,6 +216,10 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = \
                 _detect_fixations_saccades_and_microsaccades_in_run(positions, session)
+            # Verification: Ensure ascending order
+            assert np.all(np.diff(fix_indices[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
+            assert np.all(np.diff(sacc_indices[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
+            assert np.all(np.diff(microsacc_inds[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -203,6 +249,10 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fix_stops), axis=0)
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, sacc_stops), axis=0)
         all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, micro_stops), axis=0)
+    # Verification: Ensure ascending order
+    assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
+    assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
+    assert np.all(np.diff(all_microsacc_start_stops[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
     return all_fix_start_stops, all_sacc_start_stops, all_microsacc_start_stops
 
