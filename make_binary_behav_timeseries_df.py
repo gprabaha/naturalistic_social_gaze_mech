@@ -67,20 +67,19 @@ def _create_binary_behavior_timeseries_df(position_df, behavior_df):
     - binary_df (pd.DataFrame): Dataframe containing binary timeseries for behaviors.
     """
     binary_rows = []
-    for _, pos_row in position_df.iterrows():
-        session_name = pos_row['session_name']
-        interaction_type = pos_row['interaction_type']
-        run_number = pos_row['run_number']
-        agent = pos_row['agent']
-        # Match corresponding behavioral data
-        behav_row = behavior_df[(behavior_df['session_name'] == session_name) &
-                                (behavior_df['interaction_type'] == interaction_type) &
-                                (behavior_df['run_number'] == run_number) &
-                                (behavior_df['agent'] == agent)]
+    logger.info(f"Starting processing of {len(position_df)} position rows.")
+    for session_name, session_group in position_df.groupby(['session_name', 'interaction_type', 'run_number', 'agent']):
+        logger.info(f"Processing session group: {session_name}")
+        pos_group = session_group.iloc[0]
+        behav_row = behavior_df[(behavior_df['session_name'] == pos_group['session_name']) &
+                                (behavior_df['interaction_type'] == pos_group['interaction_type']) &
+                                (behavior_df['run_number'] == pos_group['run_number']) &
+                                (behavior_df['agent'] == pos_group['agent'])]
         if behav_row.empty:
+            logger.warning(f"No behavioral data found for session: {session_name}")
             continue
         behav_row = behav_row.iloc[0]
-        position_length = len(pos_row['positions'])
+        position_length = len(pos_group['positions'])
         # Generate binary vectors for fixations
         fixation_start_stop = behav_row['fixation_start_stop']
         fixation_locations = __merge_objects_in_location_array(behav_row['fixation_location'])
@@ -91,10 +90,10 @@ def _create_binary_behavior_timeseries_df(position_df, behavior_df):
                 if location in loc:
                     binary_vector[start:stop + 1] = 1
             binary_rows.append({
-                'session_name': session_name,
-                'interaction_type': interaction_type,
-                'run_number': run_number,
-                'agent': agent,
+                'session_name': pos_group['session_name'],
+                'interaction_type': pos_group['interaction_type'],
+                'run_number': pos_group['run_number'],
+                'agent': pos_group['agent'],
                 'behavior_type': 'fixation',
                 'location': location,
                 'binary_vector': binary_vector
@@ -111,10 +110,10 @@ def _create_binary_behavior_timeseries_df(position_df, behavior_df):
                 if location in from_loc:
                     binary_vector[start:stop + 1] = 1
             binary_rows.append({
-                'session_name': session_name,
-                'interaction_type': interaction_type,
-                'run_number': run_number,
-                'agent': agent,
+                'session_name': pos_group['session_name'],
+                'interaction_type': pos_group['interaction_type'],
+                'run_number': pos_group['run_number'],
+                'agent': pos_group['agent'],
                 'behavior_type': 'saccade_from',
                 'location': location,
                 'binary_vector': binary_vector
@@ -125,21 +124,39 @@ def _create_binary_behavior_timeseries_df(position_df, behavior_df):
                 if location in to_loc:
                     binary_vector[start:stop + 1] = 1
             binary_rows.append({
-                'session_name': session_name,
-                'interaction_type': interaction_type,
-                'run_number': run_number,
-                'agent': agent,
+                'session_name': pos_group['session_name'],
+                'interaction_type': pos_group['interaction_type'],
+                'run_number': pos_group['run_number'],
+                'agent': pos_group['agent'],
                 'behavior_type': 'saccade_to',
                 'location': location,
                 'binary_vector': binary_vector
             })
+    logger.info("Finished processing all sessions.")
     # Create a DataFrame from the binary rows
     binary_df = pd.DataFrame(binary_rows)
+    logger.info(f"Generated binary behavior dataframe with {len(binary_df)} rows.")
     return binary_df
 
 # Define helper function to handle "object" location merging
-def __merge_objects_in_location_array(location):
-    return ['object' if 'object' in loc else loc for loc in location]
+def __merge_objects_in_location_array(location_array):
+    """
+    Merges all 'left_nonsocial_object' and 'right_nonsocial_object' into 'object'.
+    
+    Parameters:
+    - location_array (list): A list of location strings or lists of location strings.
+    
+    Returns:
+    - merged_location_array (list): A list with nonsocial objects merged into 'object'.
+    """
+    merged_location_array = []
+    for loc in location_array:
+        if isinstance(loc, list):  # If loc is a list, process each element
+            merged_location_array.append(['object' if 'object' in subloc else subloc for subloc in loc])
+        else:  # If loc is a single string
+            merged_location_array.append('object' if 'object' in loc else loc)
+    return merged_location_array
+
 
 
 if __name__ == "__main__":
