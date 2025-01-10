@@ -203,6 +203,7 @@ def _find_fixation_start_stop_indices(fixation_labels):
     logger.info("Found %d fixation chunks after global clustering", len(fixation_chunks))
     return fixation_chunks
 
+
 def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, normalized_data_params, padding=50, fix_params=None):
     """
     Refines fixation start-stop indices by performing local reclustering within each fixation window.

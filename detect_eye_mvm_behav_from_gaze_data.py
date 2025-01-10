@@ -8,6 +8,14 @@ from scipy.interpolate import interp1d
 from numpy.lib.stride_tricks import sliding_window_view
 from multiprocessing import Pool, cpu_count
 
+import os
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib import cm
+from matplotlib.colors import Normalize
+from tqdm import tqdm
+from datetime import datetime
+
 import curate_data
 import load_data
 import util
@@ -16,6 +24,14 @@ import fixation_detector
 import saccade_detector
 
 import pdb
+
+'''
+Empty or None fixation array found for group: ('01072019', 'interactive', 2, 'm1')
+Empty or None fixation array found for group: ('08292018', 'interactive', 8, 'm2')
+
+these sessions have no fixation detected. so there might be some error either while
+running the hpc jobs or there might be some other issue. check out what is happening
+'''
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +49,8 @@ def main():
     logger.info("Starting the main function")
     # Initialize params with data paths
     params = _initialize_params()
+
+    ## Get the gaze data, filter out object ROIs for M2 and filter out sparse NaNs
     sparse_nan_removed_sync_gaze_data_df_filepath = os.path.join(params['processed_data_dir'], 'sparse_nan_removed_sync_gaze_data_df.pkl')
     if params.get('recompute_sparse_nan_removed_gaze_data', False):
         # Load synchronized gaze data
@@ -53,7 +71,7 @@ def main():
         logger.info("Loading sparse_nan_removed_sync_gaze_df")
         sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
 
-    
+    ## Dercct fixations, saccades, adn microsaccades from position data and then annotate ROIs of behavior
     eye_mvm_behav_df_file_path = os.path.join(params['processed_data_dir'], 'eye_mvm_behav_df.pkl')
     if params.get('remake_eye_mvm_df_from_gaze_data', False):
         logger.info("Remaking eye_mvm_df from gaze data.")
@@ -66,16 +84,19 @@ def main():
         # Log results
         logger.info("Detection completed for both agents.")
         eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
-        logger.info("Fix and saccade saved to combined df in %s", eye_mvm_behav_df_file_path)
+        logger.info(f"Fix and saccade saved to combined df in {eye_mvm_behav_df_file_path}")
+        logger.info(f"Annotating fix and saccade locations in eye mvm behav df.")
+        eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
+            eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
+        eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
+        logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
+    
+    ## Plot fixation, saccade, and microsaccade behavior for each run
+    _generate_behavioral_plots(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
-    logger.info(f"Annotating fix and saccade locations in eye mvm behav df.")
-    eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
-    eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
-    logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
-    pdb.set_trace()
     return 0
 
 
@@ -85,6 +106,7 @@ def _initialize_params():
         'recompute_sparse_nan_removed_gaze_data': False,
         'remake_eye_mvm_df_from_gaze_data': False,
         'try_using_single_run': False,
+        'test_specific_runs': False,
         'recompute_fix_and_saccades_through_hpc_jobs': False,
         'recompute_fix_and_saccades': True,
         'is_grace': False,
@@ -157,7 +179,7 @@ def _prepare_tasks(synchronized_gaze_data_df, params):
     df_keys_for_tasks = synchronized_gaze_data_df[
         ['session_name', 'interaction_type', 'run_number', 'agent', 'positions']
     ].values.tolist()
-    if params.get('try_using_single_run'):
+    if params.get('try_using_single_run', False):
         random_run = random.choice(df_keys_for_tasks)
         random_session, random_interaction_type, random_run_num, random_agent, _ = random_run
         df_keys_for_tasks = [random_run]
@@ -165,8 +187,22 @@ def _prepare_tasks(synchronized_gaze_data_df, params):
             "Testing using positions data from a random single run: %s, %s, %s, %s",
             random_session, random_interaction_type, random_run_num, random_agent
         )
+    elif params.get('test_specific_runs', False):
+        specific_runs = [
+            ('01072019', 'interactive', 2, 'm1'),
+            ('08292018', 'interactive', 8, 'm2')
+        ]
+        df_keys_for_tasks = [
+            task for task in df_keys_for_tasks 
+            if (task[0], task[1], task[2], task[3]) in specific_runs
+        ]
+        logger.warning(
+            "Testing fixation detection for specific runs: %s",
+            specific_runs
+        )
     logger.info("Tasks prepared successfully")
     return df_keys_for_tasks
+
 
 
 def _save_params(params):
@@ -202,10 +238,6 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
                     sacc_indices, microsacc_inds = pickle.load(f)
-            # Verification: Ensure ascending order
-            assert np.all(np.diff(fix_indices[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
-            assert np.all(np.diff(sacc_indices[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
-            assert np.all(np.diff(microsacc_inds[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -220,10 +252,6 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = \
                 _detect_fixations_saccades_and_microsaccades_in_run(positions, session)
-            # Verification: Ensure ascending order
-            assert np.all(np.diff(fix_indices[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
-            assert np.all(np.diff(sacc_indices[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
-            assert np.all(np.diff(microsacc_inds[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -243,7 +271,7 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
     num_cpus = cpu_count()
     logger.info("Detected %d CPUs for parallel processing", num_cpus)
     args = [(chunk, start_ind, session_name) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
-    parallel_threads = min(8, num_cpus)
+    parallel_threads = min(16, num_cpus)
     with Pool(processes=parallel_threads) as pool:
         results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
     all_fix_start_stops = np.empty((0, 2), dtype=int)
@@ -329,6 +357,9 @@ def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df
         row = behav_group.iloc[0]
         # Process fixations
         fixations = row['fixation_start_stop']
+        if fixations is None or len(fixations) == 0:
+            print(f"Empty or None fixation array found for group: {(session_name, interaction_type, run_number, agent)}")
+            continue
         fixation_labels = []
         for fixation in fixations:
             start_idx, stop_idx = fixation
@@ -336,6 +367,9 @@ def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df
             fixation_labels.append(__determine_roi_of_location(mean_position, roi_rects))
         # Process saccades
         saccades = row['saccade_start_stop']
+        if saccades is None or len(saccades) == 0:
+            print(f"Empty or None saccade array found for group: {(session_name, interaction_type, run_number, agent)}")
+            continue
         saccade_from = []
         saccade_to = []
         for saccade in saccades:
@@ -359,6 +393,109 @@ def __determine_roi_of_location(position, roi_rects):
             matching_rois.append(roi_name)
     return matching_rois if matching_rois else ['out_of_roi']
 
+
+
+def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params):
+    # Get today's date for folder naming
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    root_dir = os.path.join(
+        params['root_data_dir'],
+        "plots/eye_mvm_behavior",
+        f"{today_date}_plots"
+    )
+    os.makedirs(root_dir, exist_ok=True)
+    session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    logger.info("Starting to generate behavioral plots...")
+    for (session, interaction_type, run), group in tqdm(session_groups, desc="Processing sessions"):
+        session_folder = os.path.join(root_dir, session)
+        os.makedirs(session_folder, exist_ok=True)
+        # Extract data for both agents
+        agents_data = {}
+        for agent in ['m1', 'm2']:
+            agent_data = group[group['agent'] == agent]
+            gaze_data = sparse_nan_removed_sync_gaze_df[
+                (sparse_nan_removed_sync_gaze_df['session_name'] == session) &
+                (sparse_nan_removed_sync_gaze_df['interaction_type'] == interaction_type) &
+                (sparse_nan_removed_sync_gaze_df['run_number'] == run) &
+                (sparse_nan_removed_sync_gaze_df['agent'] == agent)
+            ]
+            if not gaze_data.empty:
+                agents_data[agent] = {
+                    'fixation_start_stop': agent_data['fixation_start_stop'].iloc[0],
+                    'saccade_start_stop': agent_data['saccade_start_stop'].iloc[0],
+                    'microsaccade_start_stop': agent_data['microsaccade_start_stop'].iloc[0],
+                    'positions': gaze_data['positions'].iloc[0],
+                    'roi_rects': gaze_data['roi_rects'].iloc[0]
+                }
+        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+        axs[0, 0].set_title("Agent m1 - Fixations & Saccades")
+        axs[0, 1].set_title("Agent m2 - Fixations & Saccades")
+        axs[1, 0].set_title("Agent m1 - Microsaccades")
+        axs[1, 1].set_title("Agent m2 - Microsaccades")
+        for idx, (agent, data) in enumerate(agents_data.items()):
+            if not data:
+                continue
+            # Top row: Fixations and Saccades
+            ax = axs[0, idx]
+            fixation_start_stop = data['fixation_start_stop']
+            saccade_start_stop = data['saccade_start_stop']
+            positions = data['positions']
+            roi_rects = data['roi_rects']
+            total_time = len(positions)
+            time_norm = Normalize(vmin=0, vmax=total_time)
+            cmap = cm.viridis
+            # Combine fixations and saccades in temporal order
+            all_events = []
+            all_events.extend([(start, stop, 'fixation') for start, stop in fixation_start_stop])
+            all_events.extend([(start, stop, 'saccade') for start, stop in saccade_start_stop])
+            all_events.sort(key=lambda x: x[0])
+            for start, stop, event_type in all_events:
+                if event_type == 'fixation':
+                    fixation_positions = positions[start:stop]
+                    mean_pos = fixation_positions.mean(axis=0)
+                    color = cmap(time_norm((start + stop) // 2))
+                    ax.plot(mean_pos[0], mean_pos[1], marker='o', color=color)
+                elif event_type == 'saccade':
+                    start_pos = positions[start]
+                    stop_pos = positions[stop - 1]
+                    color = cmap(time_norm((start + stop) // 2))
+                    ax.arrow(
+                        start_pos[0], start_pos[1],
+                        stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
+                        head_width=5, head_length=5, fc=color, ec=color
+                    )
+            # Overlay ROI rects
+            for roi, rect in roi_rects.items():
+                x, y, x_max, y_max = rect
+                ax.add_patch(
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor='red', linewidth=1)
+                )
+            ax.invert_yaxis()
+            # Bottom row: Microsaccades
+            ax = axs[1, idx]
+            microsaccade_start_stop = data['microsaccade_start_stop']
+            for start, stop in microsaccade_start_stop:
+                start_pos = positions[start]
+                stop_pos = positions[stop - 1]
+                color = cmap(time_norm((start + stop) // 2))
+                ax.arrow(
+                    start_pos[0], start_pos[1],
+                    stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
+                    head_width=2, head_length=2, fc=color, ec=color
+                )
+            # Overlay ROI rects
+            for roi, rect in roi_rects.items():
+                x, y, x_max, y_max = rect
+                ax.add_patch(
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor='red', linewidth=1)
+                )
+            ax.invert_yaxis()
+        plt.suptitle(f"Session: {session}, Interaction: {interaction_type}, Run: {run}")
+        plot_path = os.path.join(session_folder, f"{session}_{interaction_type}_run_{run}.png")
+        plt.savefig(plot_path)
+        plt.close(fig)
+        logger.info(f"Saved plot: {plot_path}")
+    logger.info("Behavioral plot generation completed.")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=fix_sacc_recompute
 #SBATCH --partition=psych_day
-#SBATCH --time=10:00:00                #6 hour time limit
+#SBATCH --time=16:00:00                #6 hour time limit
 #SBATCH --cpus-per-task=8            # CPUs
 #SBATCH --mem=50G                     # total memory
 #SBATCH --output=fix_sacc.out  # Output file
@@ -12,5 +12,5 @@ module load miniconda
 conda deactivate
 conda activate gaze_processing
 
-# Run your gcript
+# Run your script
 python detect_eye_mvm_behav_from_gaze_data.py
