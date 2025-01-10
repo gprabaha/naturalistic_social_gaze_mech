@@ -5,7 +5,6 @@ import pandas as pd
 import pickle
 import numpy as np
 from scipy.interpolate import interp1d
-from numpy.lib.stride_tricks import sliding_window_view
 from multiprocessing import Pool, cpu_count
 
 import os
@@ -25,13 +24,6 @@ import saccade_detector
 
 import pdb
 
-'''
-Empty or None fixation array found for group: ('01072019', 'interactive', 2, 'm1')
-Empty or None fixation array found for group: ('08292018', 'interactive', 8, 'm2')
-
-these sessions have no fixation detected. so there might be some error either while
-running the hpc jobs or there might be some other issue. check out what is happening
-'''
 
 # Configure logging
 logging.basicConfig(
@@ -71,7 +63,7 @@ def main():
         logger.info("Loading sparse_nan_removed_sync_gaze_df")
         sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
 
-    ## Dercct fixations, saccades, adn microsaccades from position data and then annotate ROIs of behavior
+    ## Detect fixations, saccades, and microsaccades from position data and then annotate ROIs of behavior
     eye_mvm_behav_df_file_path = os.path.join(params['processed_data_dir'], 'eye_mvm_behav_df.pkl')
     if params.get('remake_eye_mvm_df_from_gaze_data', False):
         logger.info("Remaking eye_mvm_df from gaze data.")
@@ -401,7 +393,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
     root_dir = os.path.join(
         params['root_data_dir'],
         "plots/eye_mvm_behavior",
-        f"{today_date}"
+        f"{today_date}_plots"
     )
     os.makedirs(root_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -432,7 +424,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
         axs[0, 1].set_title("Agent m2 - Fixations & Saccades")
         axs[1, 0].set_title("Agent m1 - Microsaccades")
         axs[1, 1].set_title("Agent m2 - Microsaccades")
-        roi_colors = cm.tab10(np.linspace(0, 1, 10))  # Use distinct colors for ROI rects
+        roi_color = 'red'  # Use red color for all ROI rects
         for idx, (agent, data) in enumerate(agents_data.items()):
             if not data:
                 continue
@@ -466,10 +458,10 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
                         head_width=5, head_length=5, fc=color, ec=color, zorder=2
                     )
             # Overlay ROI rects after plotting fixations and saccades
-            for idx_rect, (roi, rect) in enumerate(roi_rects.items()):
+            for roi_idx, (roi, rect) in enumerate(roi_rects.items()):
                 x, y, x_max, y_max = rect
                 ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_colors[idx_rect % len(roi_colors)], linewidth=1, zorder=3)
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_color, linewidth=1, zorder=3)
                 )
             ax.invert_yaxis()
             # Bottom row: Microsaccades
@@ -485,10 +477,10 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
                     head_width=2, head_length=2, fc=color, ec=color, zorder=2
                 )
             # Overlay ROI rects after plotting microsaccades
-            for idx_rect, (roi, rect) in enumerate(roi_rects.items()):
+            for idx, (roi, rect) in enumerate(roi_rects.items()):
                 x, y, x_max, y_max = rect
                 ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_colors[idx_rect % len(roi_colors)], linewidth=1, zorder=3)
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_color, linewidth=1, zorder=3)
                 )
             ax.invert_yaxis()
         plt.suptitle(f"Session: {session}, Interaction: {interaction_type}, Run: {run}")
