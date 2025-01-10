@@ -393,7 +393,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
     root_dir = os.path.join(
         params['root_data_dir'],
         "plots/eye_mvm_behavior",
-        f"{today_date}_plots"
+        f"{today_date}"
     )
     os.makedirs(root_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number'])
