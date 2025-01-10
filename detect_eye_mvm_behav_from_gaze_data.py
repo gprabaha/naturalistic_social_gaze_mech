@@ -95,7 +95,7 @@ def main():
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     
     ## Plot fixation, saccade, and microsaccade behavior for each run
-    _generate_behavioral_plots(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
+    _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
     return 0
 
@@ -401,7 +401,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
     root_dir = os.path.join(
         params['root_data_dir'],
         "plots/eye_mvm_behavior",
-        f"{today_date}_plots"
+        f"{today_date}"
     )
     os.makedirs(root_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number'])
@@ -432,6 +432,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
         axs[0, 1].set_title("Agent m2 - Fixations & Saccades")
         axs[1, 0].set_title("Agent m1 - Microsaccades")
         axs[1, 1].set_title("Agent m2 - Microsaccades")
+        roi_colors = cm.tab10(np.linspace(0, 1, 10))  # Use distinct colors for ROI rects
         for idx, (agent, data) in enumerate(agents_data.items()):
             if not data:
                 continue
@@ -454,7 +455,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
                     fixation_positions = positions[start:stop]
                     mean_pos = fixation_positions.mean(axis=0)
                     color = cmap(time_norm((start + stop) // 2))
-                    ax.plot(mean_pos[0], mean_pos[1], marker='o', color=color)
+                    ax.plot(mean_pos[0], mean_pos[1], marker='o', color=color, zorder=2)
                 elif event_type == 'saccade':
                     start_pos = positions[start]
                     stop_pos = positions[stop - 1]
@@ -462,13 +463,13 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
                     ax.arrow(
                         start_pos[0], start_pos[1],
                         stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
-                        head_width=5, head_length=5, fc=color, ec=color
+                        head_width=5, head_length=5, fc=color, ec=color, zorder=2
                     )
-            # Overlay ROI rects
-            for roi, rect in roi_rects.items():
+            # Overlay ROI rects after plotting fixations and saccades
+            for idx_rect, (roi, rect) in enumerate(roi_rects.items()):
                 x, y, x_max, y_max = rect
                 ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor='red', linewidth=1)
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_colors[idx_rect % len(roi_colors)], linewidth=1, zorder=3)
                 )
             ax.invert_yaxis()
             # Bottom row: Microsaccades
@@ -481,13 +482,13 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
                 ax.arrow(
                     start_pos[0], start_pos[1],
                     stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
-                    head_width=2, head_length=2, fc=color, ec=color
+                    head_width=2, head_length=2, fc=color, ec=color, zorder=2
                 )
-            # Overlay ROI rects
-            for roi, rect in roi_rects.items():
+            # Overlay ROI rects after plotting microsaccades
+            for idx_rect, (roi, rect) in enumerate(roi_rects.items()):
                 x, y, x_max, y_max = rect
                 ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor='red', linewidth=1)
+                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_colors[idx_rect % len(roi_colors)], linewidth=1, zorder=3)
                 )
             ax.invert_yaxis()
         plt.suptitle(f"Session: {session}, Interaction: {interaction_type}, Run: {run}")
@@ -496,6 +497,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
         plt.close(fig)
         logger.info(f"Saved plot: {plot_path}")
     logger.info("Behavioral plot generation completed.")
+
 
 
 if __name__ == "__main__":
