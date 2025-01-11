@@ -10,10 +10,15 @@ import load_data
 import curate_data
 import pdb
 
+
+'''
+all plots are appearing empty. need to check the filtration method
+'''
+
 # Configure logging to output to both file and console
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    handlers=logging.StreamHandler())
+                    handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
 def main():
@@ -97,7 +102,7 @@ def _plot_mean_saccade_spiking_response(
         session_dir = os.path.join(root_dir, session_name)
         os.makedirs(session_dir, exist_ok=True)
         for _, unit in tqdm(
-            session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Units in {session_name}"
+            session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"
         ):
             __plot_unit_spiking_activity(
                 unit, session_behav_df, session_gaze_df, bin_size, time_window, session_dir, roi_labels
@@ -190,30 +195,39 @@ def ____compute_mean_activity(
         timeline (np.ndarray): Timeline corresponding to the mean activity.
     """
     direction_column = f"saccade_{direction}"
-    relevant_saccades = agent_behav_df[
-        agent_behav_df[direction_column].apply(
-            lambda labels: roi in labels or (roi == "object" and any(l in labels for l in ["left_nonsocial_object", "right_nonsocial_object"]))
-        )
-    ]
-    if relevant_saccades.empty:
-        return None, None
     mean_activity = []
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
-    for _, saccade in relevant_saccades.iterrows():
-        saccade_start = saccade["saccade_start_stop"][0]
-        run_number = saccade["run_number"]
-        run_gaze_data = agent_gaze_df[
-            agent_gaze_df["run_number"] == run_number
+    # Iterate over each run
+    for _, run_row in agent_behav_df.iterrows():
+        saccades = run_row[direction_column]
+        run_number = run_row["run_number"]
+        # Filter saccades of interest based on ROI
+        relevant_saccades = [
+            saccade for saccade, labels in enumerate(saccades)
+            if roi in labels or (roi == "object" and any(l in labels for l in ["left_nonsocial_object", "right_nonsocial_object"]))
         ]
+        if not relevant_saccades:
+            continue
+        # Get corresponding neural timeline for the run
+        run_gaze_data = agent_gaze_df[agent_gaze_df["run_number"] == run_number]
         if run_gaze_data.empty:
             continue
-        saccade_time = run_gaze_data["neural_timeline"].iloc[saccade_start]
-        spike_counts, _ = np.histogram(
-            spike_times, bins=np.arange(
-                saccade_time - time_window, saccade_time + time_window + bin_size, bin_size
+        neural_timeline = run_gaze_data.iloc[0]["neural_timeline"]
+        # Compute spiking activity for each relevant saccade
+        for saccade_idx in relevant_saccades:
+            saccade_start = run_row["saccade_start_stop"][saccade_idx][0]
+            if saccade_start >= len(neural_timeline):
+                continue
+            saccade_time = neural_timeline[saccade_start]
+            bins = np.linspace(
+                saccade_time - time_window,
+                saccade_time + time_window,
+                int(2 * time_window / bin_size) + 1
             )
-        )
-        mean_activity.append(spike_counts)
+            spike_counts, _ = np.histogram(spike_times, bins=bins)
+            mean_activity.append(spike_counts)
+    print([len(activity) for activity in mean_activity])
+    pdb.set_trace()
     if mean_activity:
         mean_activity = np.mean(mean_activity, axis=0)
         return mean_activity, timeline
