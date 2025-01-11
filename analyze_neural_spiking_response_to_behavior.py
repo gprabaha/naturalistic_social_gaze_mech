@@ -223,7 +223,7 @@ def ____compute_mean_activity(
                 saccade_time - time_window,
                 saccade_time + time_window,
                 int(2 * time_window / bin_size) + 1
-            )
+            ).flatten()
             spike_counts, _ = np.histogram(spike_times, bins=bins)
             mean_activity.append(spike_counts)
     print([len(activity) for activity in mean_activity])
