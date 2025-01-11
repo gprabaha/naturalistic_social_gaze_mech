@@ -226,9 +226,7 @@ def ____compute_mean_activity(
             ).flatten()
             spike_counts, _ = np.histogram(spike_times, bins=bins)
             mean_activity.append(spike_counts)
-    print([len(activity) for activity in mean_activity])
-    pdb.set_trace()
-    if mean_activity:
+    if len(mean_activity) > 0:
         mean_activity = np.mean(mean_activity, axis=0)
         return mean_activity, timeline
     return None, None
