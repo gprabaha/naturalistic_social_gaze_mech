@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=plot_psth_sacc
 #SBATCH --partition=psych_day
-#SBATCH --time=01:00:00                #6 hour time limit
+#SBATCH --time=03:00:00                #6 hour time limit
 #SBATCH --cpus-per-task=8            # CPUs
 #SBATCH --mem=50G                     # total memory
 #SBATCH --output=sacc_psth_plot.out  # Output file

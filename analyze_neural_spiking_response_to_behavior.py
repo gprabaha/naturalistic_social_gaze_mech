@@ -57,8 +57,8 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'neural_data_bin_size': 0.01, # 10 ms in seconds
-        'is_grace': False,
-        'smooth_spike_counts': True
+        'smooth_spike_counts': True,
+        'is_grace': False
         }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -88,14 +88,14 @@ def _plot_mean_activity_response(
     logger.info("Generating mean activity response plots")
     today_date = datetime.now().strftime("%Y-%m-%d")
     root_dir = os.path.join(
-        params['root_data_dir'], "plots", "mean_activity_response", today_date
+        params['root_data_dir'], "plots", "mean_behavioral_spiking_response", today_date
     )
     os.makedirs(root_dir, exist_ok=True)
     bin_size = params.get("neural_data_bin_size", 0.01)
     time_window = 1
     roi_labels = ["face", "mouth", "eyes_nf", "object", "out_of_roi"]
     for session_name, session_behav_df in tqdm(
-        eye_mvm_behav_df.groupby("session_name"), desc="Sessions"
+        eye_mvm_behav_df.groupby("session_name"), desc="Plotting for session"
     ):
         session_spike_df = spike_times_df[
             spike_times_df["session_name"] == session_name
