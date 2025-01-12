@@ -95,7 +95,7 @@ def _plot_mean_behavioral_spiking_response(
     os.makedirs(root_dir, exist_ok=True)
     bin_size = params.get("neural_data_bin_size", 0.01)
     time_window = 1
-    roi_labels = ["face", "mouth", "eyes_nf", "object", "out_of_roi"]
+    roi_labels = ["face", "mouth", "eyes_nf", "out_of_roi", "object"]
     session_tasks = []
     for session_name, session_behav_df in eye_mvm_behav_df.groupby("session_name"):
         session_spike_df = spike_times_df[
@@ -110,6 +110,7 @@ def _plot_mean_behavioral_spiking_response(
     logger.info(f"Running parallel processing with {params['num_cpus']} CPUs")
     with Pool(processes=params['num_cpus']) as pool:
         list(tqdm(pool.imap(__make_plots_for_session, session_tasks), total=len(session_tasks), desc="Plotting for sessions"))
+    logger.info(f"Finished generating all plots")
 
 def __make_plots_for_session(task):
     """
@@ -156,7 +157,7 @@ def __plot_unit_activity(
     plt.suptitle(f"Mean Activity for UUID: {unit_uuid}, Region: {unit_region}")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plot_path = os.path.join(session_dir, f"region_{unit_region}_unit_{unit_uuid}.png")
-    plt.savefig(plot_path, dpi=300)
+    plt.savefig(plot_path, dpi=100)
     plt.close(fig)
 
 def ___plot_mean_activity_for_event_and_agent(
