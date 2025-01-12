@@ -6,6 +6,7 @@ from itertools import chain
 import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 
 import load_data
 import curate_data
@@ -42,7 +43,7 @@ def main():
     )
     logger.info("Loading spike times data")
     spike_times_df = load_data.get_data_df(spike_times_file_path)
-    _plot_mean_activity_response(
+    _plot_mean_behavioral_spiking_response(
         eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params
     )
 
@@ -58,8 +59,9 @@ def _initialize_params():
     params = {
         'neural_data_bin_size': 0.01, # 10 ms in seconds
         'smooth_spike_counts': True,
-        'is_grace': False
-        }
+        'is_grace': False,
+        'num_cpus': min(8, cpu_count())
+    }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
     params = curate_data.add_raw_data_dir_to_params(params)
@@ -70,7 +72,7 @@ def _initialize_params():
 
 
 
-def _plot_mean_activity_response(
+def _plot_mean_behavioral_spiking_response(
     eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params
 ):
     """
@@ -94,9 +96,8 @@ def _plot_mean_activity_response(
     bin_size = params.get("neural_data_bin_size", 0.01)
     time_window = 1
     roi_labels = ["face", "mouth", "eyes_nf", "object", "out_of_roi"]
-    for session_name, session_behav_df in tqdm(
-        eye_mvm_behav_df.groupby("session_name"), desc="Plotting for session"
-    ):
+    session_tasks = []
+    for session_name, session_behav_df in eye_mvm_behav_df.groupby("session_name"):
         session_spike_df = spike_times_df[
             spike_times_df["session_name"] == session_name
         ]
@@ -105,12 +106,24 @@ def _plot_mean_activity_response(
         ]
         session_dir = os.path.join(root_dir, session_name)
         os.makedirs(session_dir, exist_ok=True)
-        for _, unit in tqdm(
-            session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"
-        ):
-            __plot_unit_activity(
-                unit, session_behav_df, session_gaze_df, bin_size, time_window, session_dir, roi_labels, params
-            )
+        session_tasks.append((session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, bin_size, time_window, roi_labels, params))
+    logger.info(f"Running parallel processing with {params['num_cpus']} CPUs")
+    with Pool(processes=params['num_cpus']) as pool:
+        list(tqdm(pool.imap(__make_plots_for_session, session_tasks), total=len(session_tasks), desc="Plotting for sessions"))
+
+def __make_plots_for_session(task):
+    """
+    Process a single session to generate plots for all units.
+    Parameters:
+        task (tuple): Contains session-specific data and parameters.
+    Returns:
+        None
+    """
+    session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, bin_size, time_window, roi_labels, params = task
+    for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
+        __plot_unit_activity(
+            unit, session_behav_df, session_gaze_df, bin_size, time_window, session_dir, roi_labels, params
+        )
 
 def __plot_unit_activity(
     unit, session_behav_df, session_gaze_df, bin_size, time_window, session_dir, roi_labels, params
