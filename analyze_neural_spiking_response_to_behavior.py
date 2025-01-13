@@ -8,6 +8,8 @@ from datetime import datetime
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 
+from collections import defaultdict
+
 import load_data
 import curate_data
 import pdb
@@ -41,11 +43,65 @@ def main():
     spike_times_file_path = os.path.join(
         params['processed_data_dir'], 'spike_times_df.pkl'
     )
+
+    path_to_ephys_sessions = os.path.join(params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
+    recording_sessions_and_monkeys = load_data.load_recording_days(path_to_ephys_sessions)
+    check_session_files(params, recording_sessions_and_monkeys)
+
+    pdb.set_trace()
+
     logger.info("Loading spike times data")
     spike_times_df = load_data.get_data_df(spike_times_file_path)
     _plot_mean_behavioral_spiking_response(
         eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params
     )
+
+
+
+def check_session_files(params, recording_sessions_and_monkeys):
+    """
+    Check which sessions are present in the raw files, count the number of files for each session,
+    and identify missing sessions.
+    Args:
+        params (dict): Dictionary containing the path to the root data directory under 'root_data_dir'.
+        recording_sessions_and_monkeys (pd.DataFrame): DataFrame with columns 'session_name', 'm1', 'm2'.
+    Returns:
+        dict: Summary including session counts, missing sessions, and additional stim folder check.
+    """
+    root_dir = os.path.join(params['root_data_dir'], 'social_gaze_raw_mat')
+    stim_dir = os.path.join(root_dir, 'stim')
+    session_files_count = defaultdict(int)
+    missing_sessions = []
+    # Gather all files in the root directory and stim subfolder
+    raw_files = os.listdir(root_dir) if os.path.exists(root_dir) else []
+    stim_files = os.listdir(stim_dir) if os.path.exists(stim_dir) else []
+    # Check each session
+    for _, row in recording_sessions_and_monkeys.iterrows():
+        session_name = row['session_name']
+
+        # Count matching files in root directory
+        session_files_count[session_name] = sum(
+            session_name in fname for fname in raw_files
+        )
+        if session_files_count[session_name] == 0:
+            # If no files in the main directory, check stim subfolder
+            stim_count = sum(
+                session_name in fname for fname in stim_files
+            )
+            if stim_count > 0:
+                session_files_count[session_name] = stim_count
+            else:
+                missing_sessions.append(session_name)
+    # Summary of results
+    summary = {
+        "session_files_count": dict(session_files_count),
+        "missing_sessions": missing_sessions,
+        "total_sessions": len(recording_sessions_and_monkeys),
+        "present_sessions": len([s for s, count in session_files_count.items() if count > 0]),
+    }
+    print(summary)
+    return summary
+
 
 
 
