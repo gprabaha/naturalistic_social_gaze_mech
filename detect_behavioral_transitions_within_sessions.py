@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import logging
 import matplotlib.pyplot as plt
+import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
 
@@ -70,6 +71,7 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
         transition_probs = __compute_fixation_transition_probabilities(agent_behav_df)
         print(f"Transition probabilities for {agent} in session {session_name}:")
         print(transition_probs)
+        __plot_transition_matrix(transition_probs, session_dir, agent)
         pdb.set_trace()
         transition_probs.to_csv(os.path.join(session_dir, f"transition_probabilities_{agent}.csv"))
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
@@ -81,7 +83,7 @@ def __compute_fixation_transition_probabilities(agent_behav_df):
     for _, run_df in tqdm(agent_behav_df.groupby("run_number"), desc="Processing runs"):
         fixation_sequences = run_df["fixation_location"].values[0]
         categorized_fixations = [
-            "eye" if {"face", "eyes_nf"}.issubset(set(fixes)) else
+            "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
             "non_eye_face" if "face" in set(fixes) else
             "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
             for fixes in fixation_sequences
@@ -90,13 +92,25 @@ def __compute_fixation_transition_probabilities(agent_behav_df):
     return pd.DataFrame(transitions, columns=["from", "to"]).value_counts(normalize=True).reset_index(name="probability")
 
 
+def __plot_transition_matrix(transition_df, session_dir, agent):
+    pivot_table = transition_df.pivot(index="from", columns="to", values="probability").fillna(0)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(pivot_table, annot=True, cmap="viridis", fmt=".2f", linewidths=0.5)
+    plt.title(f"Fixation Transition Probabilities ({agent})")
+    plt.xlabel("To Fixation")
+    plt.ylabel("From Fixation")
+    plt.tight_layout()
+    plt.savefig(os.path.join(session_dir, f"fixation_transition_matrix_{agent}.png"), dpi=100)
+    plt.close()
+
+
 def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params):
     unit_uuid = unit["unit_uuid"]
     spike_times = np.array(unit["spike_ts"])
-    rois = ["eye", "non_eye_face", "object", "out_of_roi"]
+    rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
     fig, axs = plt.subplots(4, 1, figsize=(12, 16), sharex=True, sharey=True)
     for idx, roi in enumerate(rois):
-        transitions = ["eye", "non_eye_face", "object", "out_of_roi"]
+        transitions = ["eyes", "non_eye_face", "object", "out_of_roi"]
         for trans in transitions:
             mean_activity, timeline = ____compute_mean_spiking_for_transition(roi, trans, session_behav_df, session_gaze_df, spike_times, params)
             if mean_activity is not None:
@@ -105,7 +119,7 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
         axs[idx].legend()
     plt.suptitle(f"Fixation Transition Spiking for UUID {unit_uuid}")
     plt.tight_layout()
-    plt.savefig(os.path.join(session_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=300)
+    plt.savefig(os.path.join(session_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
     plt.close(fig)
 
 
