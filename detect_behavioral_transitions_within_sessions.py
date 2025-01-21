@@ -70,12 +70,21 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
     for agent in ["m1", "m2"]:
         agent_behav_df = session_behav_df[session_behav_df["agent"] == agent]
         transition_probs = __compute_fixation_transition_probabilities(agent_behav_df)
-        print(f"Transition probabilities for {agent} in session {session_name}:")
-        print(transition_probs)
         __plot_transition_matrix(transition_probs, session_dir, agent)
         transition_probs.to_csv(os.path.join(session_dir, f"transition_probabilities_{agent}.csv"))
+    statistical_summary = []
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
-        __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params)
+        unit_uuid, brain_region, significant_results = __plot_fixation_transition_spiking(
+            unit, session_behav_df, session_gaze_df, session_dir, params
+        )
+        if significant_results:
+            statistical_summary.append((unit_uuid, brain_region, significant_results))
+    if statistical_summary:
+        logger.info(f"Summary of significant effects in session {session_name}:")
+        for unit_uuid, brain_region, sig_results in statistical_summary:
+            for roi, count in sig_results.items():
+                logger.info(f"Unit {unit_uuid} ({brain_region}): {roi} transition significant in {count} bins.")
+    return statistical_summary
 
 
 def __compute_fixation_transition_probabilities(agent_behav_df):
@@ -105,67 +114,77 @@ def __plot_transition_matrix(transition_df, session_dir, agent):
 
 
 def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params):
+    """Plots fixation transition spiking and runs statistical tests."""
     unit_uuid = unit["unit_uuid"]
+    brain_region = unit["brain_region"]
     spike_times = np.array(unit["spike_ts"])
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
     fig, axs = plt.subplots(4, 1, figsize=(12, 16), sharex=True, sharey=True)
+    statistical_results = {}
     for idx, roi in enumerate(rois):
         transitions = ["eyes", "non_eye_face", "object", "out_of_roi"]
+        spike_counts_per_transition = {trans: [] for trans in transitions}
+        timeline = None
         for trans in transitions:
-            mean_activity, timeline = ____compute_mean_spiking_for_transition(roi, trans, session_behav_df, session_gaze_df, spike_times, params)
-            if mean_activity is not None:
-                axs[idx].plot(timeline[:-1], mean_activity, label=f"{roi} → {trans}")
+            spike_counts, timeline = ____compute_spiking_per_trial(
+                roi, trans, session_behav_df, session_gaze_df, spike_times, params
+            )
+            if spike_counts:
+                spike_counts_per_transition[trans] = spike_counts
+        if timeline is not None:
+            significant_bins = ___perform_anova_and_mark_plot(spike_counts_per_transition, timeline, axs[idx])
+            if significant_bins > 0:
+                statistical_results[roi] = significant_bins
+        for trans in transitions:
+            if spike_counts_per_transition[trans]:
+                mean_spiking = np.mean(spike_counts_per_transition[trans], axis=0)
+                axs[idx].plot(timeline[:-1], mean_spiking, label=f"{roi} → {trans}")
         axs[idx].set_title(f"Fixation on {roi}")
         axs[idx].legend()
     plt.suptitle(f"Fixation Transition Spiking for UUID {unit_uuid}")
     plt.tight_layout()
     plt.savefig(os.path.join(session_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
     plt.close(fig)
+    return unit_uuid, brain_region, statistical_results
 
 
-def ____compute_mean_spiking_for_transition(roi, transition, session_behav_df, session_gaze_df, spike_times, params):
-    mean_activity = []
+def ___perform_anova_and_mark_plot(spike_counts_per_transition, timeline, ax):
+    """Performs ANOVA for each time bin across transition ROIs, applies FDR correction, and marks significant bins on the plot."""
+    num_bins = len(timeline) - 1
+    p_values = []
+    for bin_idx in range(num_bins):
+        data_per_transition = [np.array(spike_counts_per_transition[trans])[:, bin_idx] for trans in spike_counts_per_transition if spike_counts_per_transition[trans]]
+        if len(data_per_transition) > 1:
+            _, p_value = f_oneway(*data_per_transition)
+            p_values.append(p_value)
+        else:
+            p_values.append(1.0)
+    _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+    significant_bins = np.where(corrected_p_values < 0.05)[0]
+    for bin_idx in significant_bins:
+        ax.axvline(timeline[bin_idx], color='red', linestyle='--', alpha=0.5)
+    return len(significant_bins)
+
+
+def ____compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze_df, spike_times, params):
+    """Computes spike counts per trial for a given transition type."""
+    spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
     time_window = params['time_window_before_and_after_event_for_psth']
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
     for _, run_row in session_behav_df.iterrows():
         fixations = run_row["fixation_location"]
-        categorized_fixations = [
-            "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
-            "non_eye_face" if "face" in set(fixes) else
-            "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
-            for fixes in fixations
-        ]
         run_number = run_row["run_number"]
-        relevant_fixations = [
-            fixation_idx for fixation_idx, fix_label in enumerate(categorized_fixations[:-1])
-            if (fix_label == roi and categorized_fixations[fixation_idx + 1] == transition)
-        ]
-        if not relevant_fixations:
-            continue
         run_gaze_data = session_gaze_df[session_gaze_df["run_number"] == run_number]
         if run_gaze_data.empty:
             continue
         neural_timeline = run_gaze_data.iloc[0]["neural_timeline"]
-        for fixation_idx in relevant_fixations:
-            fixation_start = run_row["fixation_start_stop"][fixation_idx][0]
-            if fixation_start >= len(neural_timeline):
-                continue
-            fixation_time = neural_timeline[fixation_start]
-            bins = np.linspace(
-                fixation_time - time_window,
-                fixation_time + time_window,
-                int(2 * time_window / bin_size) + 1
-            ).ravel()
+        for fixation_start in run_row["fixation_start_stop"]:
+            fixation_time = neural_timeline[fixation_start[0]]
+            bins = np.linspace(fixation_time - time_window, fixation_time + time_window, int(2 * time_window / bin_size) + 1)
             spike_counts, _ = np.histogram(spike_times, bins=bins)
-            spike_counts = spike_counts / bin_size  # Convert to firing rate
-            if params["smooth_spike_counts"]:
-                spike_counts = np.convolve(spike_counts, np.ones(5)/5, mode='same')
-            mean_activity.append(spike_counts)
-    if len(mean_activity) > 0:
-        mean_activity = np.mean(mean_activity, axis=0)
-        return mean_activity, timeline
-    return None, None
+            spike_counts_per_trial.append(spike_counts / bin_size)
+    return spike_counts_per_trial, timeline
 
 
 if __name__ == "__main__":
