@@ -43,7 +43,8 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
-        'smooth_spike_counts': True
+        'smooth_spike_counts': True,
+        'time_window_before_and_after_event_for_psth': 0.5
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -66,13 +67,12 @@ def _compute_transition_probabilities_and_spiking(eye_mvm_behav_df, spike_times_
 
 def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params):
     logger.info(f"Processing session {session_name}")
-    for agent in tqdm(["m1", "m2"], desc=f"Processing agents in {session_name}"):
+    for agent in ["m1", "m2"]:
         agent_behav_df = session_behav_df[session_behav_df["agent"] == agent]
         transition_probs = __compute_fixation_transition_probabilities(agent_behav_df)
         print(f"Transition probabilities for {agent} in session {session_name}:")
         print(transition_probs)
         __plot_transition_matrix(transition_probs, session_dir, agent)
-        pdb.set_trace()
         transition_probs.to_csv(os.path.join(session_dir, f"transition_probabilities_{agent}.csv"))
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
         __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params)
@@ -80,7 +80,7 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
 
 def __compute_fixation_transition_probabilities(agent_behav_df):
     transitions = []
-    for _, run_df in tqdm(agent_behav_df.groupby("run_number"), desc="Processing runs"):
+    for _, run_df in agent_behav_df.groupby("run_number"):
         fixation_sequences = run_df["fixation_location"].values[0]
         categorized_fixations = [
             "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
@@ -95,7 +95,7 @@ def __compute_fixation_transition_probabilities(agent_behav_df):
 def __plot_transition_matrix(transition_df, session_dir, agent):
     pivot_table = transition_df.pivot(index="from", columns="to", values="probability").fillna(0)
     plt.figure(figsize=(8, 6))
-    sns.heatmap(pivot_table, annot=True, cmap="viridis", fmt=".2f", linewidths=0.5)
+    sns.heatmap(pivot_table, annot=True, cmap="viridis", fmt=".4f", linewidths=0.5)
     plt.title(f"Fixation Transition Probabilities ({agent})")
     plt.xlabel("To Fixation")
     plt.ylabel("From Fixation")
@@ -124,17 +124,22 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
 
 
 def ____compute_mean_spiking_for_transition(roi, transition, session_behav_df, session_gaze_df, spike_times, params):
-    direction_column = "fixation_location"
     mean_activity = []
     bin_size = params["neural_data_bin_size"]
-    time_window = 1
+    time_window = params['time_window_before_and_after_event_for_psth']
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
     for _, run_row in session_behav_df.iterrows():
-        fixations = run_row[direction_column]
+        fixations = run_row["fixation_location"]
+        categorized_fixations = [
+            "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
+            "non_eye_face" if "face" in set(fixes) else
+            "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
+            for fixes in fixations
+        ]
         run_number = run_row["run_number"]
         relevant_fixations = [
-            fixation_idx for fixation_idx, labels in enumerate(fixations[:-1])
-            if (roi in labels and transition in fixations[fixation_idx + 1])
+            fixation_idx for fixation_idx, fix_label in enumerate(categorized_fixations[:-1])
+            if (fix_label == roi and categorized_fixations[fixation_idx + 1] == transition)
         ]
         if not relevant_fixations:
             continue
@@ -151,7 +156,7 @@ def ____compute_mean_spiking_for_transition(roi, transition, session_behav_df, s
                 fixation_time - time_window,
                 fixation_time + time_window,
                 int(2 * time_window / bin_size) + 1
-            )
+            ).ravel()
             spike_counts, _ = np.histogram(spike_times, bins=bins)
             spike_counts = spike_counts / bin_size  # Convert to firing rate
             if params["smooth_spike_counts"]:
