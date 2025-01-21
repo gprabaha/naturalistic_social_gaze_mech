@@ -5,7 +5,6 @@ import logging
 import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
 
 import load_data
 import curate_data
@@ -41,8 +40,7 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
-        'smooth_spike_counts': True,
-        'num_cpus': min(8, cpu_count())
+        'smooth_spike_counts': True
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -55,37 +53,34 @@ def _compute_transition_probabilities_and_spiking(eye_mvm_behav_df, spike_times_
     today_date = datetime.now().strftime("%Y-%m-%d")
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    session_tasks = []
-    for session_name, session_behav_df in eye_mvm_behav_df.groupby("session_name"):
+    for session_name, session_behav_df in tqdm(eye_mvm_behav_df.groupby("session_name"), desc="Processing Sessions"):
         session_spike_df = spike_times_df[spike_times_df["session_name"] == session_name]
         session_gaze_df = sparse_nan_removed_sync_gaze_df[sparse_nan_removed_sync_gaze_df["session_name"] == session_name]
         session_dir = os.path.join(root_dir, session_name)
         os.makedirs(session_dir, exist_ok=True)
-        session_tasks.append((session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params))
-    logger.info(f"Running parallel processing with {params['num_cpus']} CPUs")
-    with Pool(processes=params['num_cpus']) as pool:
-        list(tqdm(pool.imap(__process_session, session_tasks), total=len(session_tasks), desc="Sessions"))
+        __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params)
 
 
-def __process_session(task):
-    session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params = task
+def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params):
     logger.info(f"Processing session {session_name}")
-    for agent in ["m1", "m2"]:
+    for agent in tqdm(["m1", "m2"], desc=f"Processing agents in {session_name}"):
         agent_behav_df = session_behav_df[session_behav_df["agent"] == agent]
         transition_probs = __compute_fixation_transition_probabilities(agent_behav_df)
+        print(f"Transition probabilities for {agent} in session {session_name}:")
+        print(transition_probs)
         transition_probs.to_csv(os.path.join(session_dir, f"transition_probabilities_{agent}.csv"))
-    for _, unit in session_spike_df.iterrows():
+    for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
         __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params)
 
 
 def __compute_fixation_transition_probabilities(agent_behav_df):
     transitions = []
-    for _, run_df in agent_behav_df.groupby("run_number"):
+    for _, run_df in tqdm(agent_behav_df.groupby("run_number"), desc="Processing runs"):
         fixation_sequences = run_df["fixation_location"].tolist()
         categorized_fixations = [
             "eye" if "eyes_nf" in fix and "face" in fix else
-            "non-eye-face" if "face" in fix else
-            "object" if "object" in fix else "out_of_roi" 
+            "non_eye_face" if "face" in fix else
+            "object" if "left_nonsocial_object" in fix or "right_nonsocial_object" in fix else "out_of_roi"
             for fix in fixation_sequences
         ]
         transitions.extend(zip(categorized_fixations[:-1], categorized_fixations[1:]))
@@ -95,10 +90,10 @@ def __compute_fixation_transition_probabilities(agent_behav_df):
 def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params):
     unit_uuid = unit["unit_uuid"]
     spike_times = np.array(unit["spike_ts"])
-    rois = ["eye", "non-eye-face", "object", "out_of_roi"]
+    rois = ["eye", "non_eye_face", "object", "out_of_roi"]
     fig, axs = plt.subplots(4, 1, figsize=(12, 16), sharex=True, sharey=True)
     for idx, roi in enumerate(rois):
-        transitions = ["eye", "non-eye-face", "object", "out_of_roi"]
+        transitions = ["eye", "non_eye_face", "object", "out_of_roi"]
         for trans in transitions:
             mean_activity, timeline = ____compute_mean_spiking_for_transition(roi, trans, session_behav_df, session_gaze_df, spike_times, params)
             if mean_activity is not None:
@@ -109,6 +104,46 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     plt.tight_layout()
     plt.savefig(os.path.join(session_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=300)
     plt.close(fig)
+
+
+def ____compute_mean_spiking_for_transition(roi, transition, session_behav_df, session_gaze_df, spike_times, params):
+    direction_column = "fixation_location"
+    mean_activity = []
+    bin_size = params["neural_data_bin_size"]
+    time_window = 1
+    timeline = np.arange(-time_window, time_window + bin_size, bin_size)
+    for _, run_row in session_behav_df.iterrows():
+        fixations = run_row[direction_column]
+        run_number = run_row["run_number"]
+        relevant_fixations = [
+            fixation_idx for fixation_idx, labels in enumerate(fixations[:-1])
+            if (roi in labels and transition in fixations[fixation_idx + 1])
+        ]
+        if not relevant_fixations:
+            continue
+        run_gaze_data = session_gaze_df[session_gaze_df["run_number"] == run_number]
+        if run_gaze_data.empty:
+            continue
+        neural_timeline = run_gaze_data.iloc[0]["neural_timeline"]
+        for fixation_idx in relevant_fixations:
+            fixation_start = run_row["fixation_start_stop"][fixation_idx][0]
+            if fixation_start >= len(neural_timeline):
+                continue
+            fixation_time = neural_timeline[fixation_start]
+            bins = np.linspace(
+                fixation_time - time_window,
+                fixation_time + time_window,
+                int(2 * time_window / bin_size) + 1
+            )
+            spike_counts, _ = np.histogram(spike_times, bins=bins)
+            spike_counts = spike_counts / bin_size  # Convert to firing rate
+            if params["smooth_spike_counts"]:
+                spike_counts = np.convolve(spike_counts, np.ones(5)/5, mode='same')
+            mean_activity.append(spike_counts)
+    if len(mean_activity) > 0:
+        mean_activity = np.mean(mean_activity, axis=0)
+        return mean_activity, timeline
+    return None, None
 
 
 if __name__ == "__main__":
