@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
 
+import pdb
+
 import load_data
 import curate_data
 
@@ -68,6 +70,7 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
         transition_probs = __compute_fixation_transition_probabilities(agent_behav_df)
         print(f"Transition probabilities for {agent} in session {session_name}:")
         print(transition_probs)
+        pdb.set_trace()
         transition_probs.to_csv(os.path.join(session_dir, f"transition_probabilities_{agent}.csv"))
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
         __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params)
@@ -76,12 +79,12 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
 def __compute_fixation_transition_probabilities(agent_behav_df):
     transitions = []
     for _, run_df in tqdm(agent_behav_df.groupby("run_number"), desc="Processing runs"):
-        fixation_sequences = run_df["fixation_location"].tolist()
+        fixation_sequences = run_df["fixation_location"].values[0]
         categorized_fixations = [
-            "eye" if "eyes_nf" in fix and "face" in fix else
-            "non_eye_face" if "face" in fix else
-            "object" if "left_nonsocial_object" in fix or "right_nonsocial_object" in fix else "out_of_roi"
-            for fix in fixation_sequences
+            "eye" if {"face", "eyes_nf"}.issubset(set(fixes)) else
+            "non_eye_face" if "face" in set(fixes) else
+            "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
+            for fixes in fixation_sequences
         ]
         transitions.extend(zip(categorized_fixations[:-1], categorized_fixations[1:]))
     return pd.DataFrame(transitions, columns=["from", "to"]).value_counts(normalize=True).reset_index(name="probability")
