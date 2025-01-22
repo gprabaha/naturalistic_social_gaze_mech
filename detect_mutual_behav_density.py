@@ -37,8 +37,6 @@ def main():
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
     _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-    pdb.set_trace()
-    return 0
 
 def _initialize_params():
     logger.info("Initializing parameters")
@@ -95,8 +93,7 @@ def _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync
             ]
             if gaze_data.empty:
                 continue
-            neural_timeline = np.array(gaze_data['neural_timeline'].iloc[0]).flatten()
-            timeline_len = len(neural_timeline)
+            timeline_len = len(gaze_data['positions'].iloc[0])  # Number of samples in the run
             # Initialize fixation density arrays
             m1_face_density = np.zeros(timeline_len)
             m2_face_density = np.zeros(timeline_len)
@@ -113,10 +110,11 @@ def _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync
             rolling_m2_face_density = np.convolve(m2_face_density, np.ones(window_size), mode='same') / window_size
             # Compute a combined score where both agents have high face-fixation density
             combined_density = rolling_m1_face_density * rolling_m2_face_density
+            time_axis = np.arange(timeline_len) / (1000 * 60)  # Convert samples to minutes
             # Plot results
-            ax.plot(neural_timeline, rolling_m1_face_density, label="M1 Face Fixation Density", color="blue", alpha=0.7)
-            ax.plot(neural_timeline, rolling_m2_face_density, label="M2 Face Fixation Density", color="green", alpha=0.7)
-            ax.plot(neural_timeline, combined_density, label="Mutual Face Fixation Score", color="red", linewidth=2)
+            ax.plot(time_axis, rolling_m1_face_density, label="M1 Face Fixation Density", color="blue", alpha=0.7)
+            ax.plot(time_axis, rolling_m2_face_density, label="M2 Face Fixation Density", color="green", alpha=0.7)
+            ax.plot(time_axis, combined_density, label="Mutual Face Fixation Score", color="red", linewidth=2)
             ax.set_title(f"Session: {session_name}, Run: {run_number} - Face Fixation Density (Window={window_size})")
             ax.set_xlabel("Time (s)")
             ax.set_ylabel("Density")
