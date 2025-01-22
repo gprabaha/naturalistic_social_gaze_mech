@@ -7,8 +7,9 @@ import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d
+from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Manager
 
 import pdb
 
@@ -39,8 +40,8 @@ def main():
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
-    # _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-    plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
+    plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
+    # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
 
 def _initialize_params():
     logger.info("Initializing parameters")
@@ -55,10 +56,11 @@ def _initialize_params():
     return params
 
 
-
-def _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params):
+def plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params):
     """
-    Computes and plots the density of mutual face fixations across time for each session and run.
+    Computes and plots the density of mutual face fixations across time for each session in parallel,
+    while tracking progress using tqdm.
+
     Parameters:
     - eye_mvm_behav_df: DataFrame containing fixation data.
     - sparse_nan_removed_sync_gaze_df: DataFrame containing synchronized gaze data.
@@ -67,73 +69,117 @@ def _plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync
     today_date = datetime.today().strftime('%Y-%m-%d')
     root_dir = os.path.join(params['root_data_dir'], "plots", "mutual_face_fix_density", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    session_groups = eye_mvm_behav_df.groupby(['session_name'])
-    for session_name, session_df in tqdm(session_groups, desc="Processing sessions"):
-        runs = session_df['run_number'].unique()
-        num_runs = len(runs)
-        fig, axes = plt.subplots(num_runs, 1, figsize=(12, 4 * num_runs), sharex=True)
-        if num_runs == 1:
-            axes = [axes]  # Ensure axes is iterable when there's only one run.
-        for ax, run_number in zip(axes, runs):
-            run_df = session_df[session_df['run_number'] == run_number]
-            m1_data = run_df[run_df['agent'] == 'm1']
-            m2_data = run_df[run_df['agent'] == 'm2']
-            if m1_data.empty or m2_data.empty:
-                continue  # Skip if either agent is missing
-            # Extract fixation data (keeping them as lists)
-            m1_fix_intervals = m1_data['fixation_start_stop'].iloc[0]
-            m1_fix_locations = m1_data['fixation_location'].iloc[0]
-            m2_fix_intervals = m2_data['fixation_start_stop'].iloc[0]
-            m2_fix_locations = m2_data['fixation_location'].iloc[0]
-            # Compute average fixation duration
-            avg_fix_duration_m1 = np.mean([stop - start for start, stop in m1_fix_intervals])
-            avg_fix_duration_m2 = np.mean([stop - start for start, stop in m2_fix_intervals])
-            avg_fix_duration = int(np.mean([avg_fix_duration_m1, avg_fix_duration_m2]))  # Average across both agents
-            window_size = max(5 * avg_fix_duration, 1)  # Ensure window size is at least 1
-            sigma = 3 * window_size  # Dynamic sigma for smoothing
-            # Extract number of samples from gaze data
-            gaze_data = sparse_nan_removed_sync_gaze_df[
-                (sparse_nan_removed_sync_gaze_df['session_name'] == session_name) & 
-                (sparse_nan_removed_sync_gaze_df['run_number'] == run_number)
-            ]
-            if gaze_data.empty:
-                continue
-            timeline_len = len(gaze_data['positions'].iloc[0])  # Number of samples in the run
-            # Initialize fixation density arrays
-            m1_face_density = np.zeros(timeline_len)
-            m2_face_density = np.zeros(timeline_len)
-            # Compute face fixation density for m1
-            for (start, stop), location in zip(m1_fix_intervals, m1_fix_locations):
-                if 'face' in location:
-                    m1_face_density[start:stop + 1] += 1  # Mark face fixation
 
-            # Compute face fixation density for m2
-            for (start, stop), location in zip(m2_fix_intervals, m2_fix_locations):
-                if 'face' in location:
-                    m2_face_density[start:stop + 1] += 1  # Mark face fixation
-            # Convert absolute counts to relative densities using dynamic window size
-            rolling_m1_face_density = np.convolve(m1_face_density, np.ones(window_size), mode='same') / window_size
-            rolling_m2_face_density = np.convolve(m2_face_density, np.ones(window_size), mode='same') / window_size
-            # Apply Gaussian smoothing to approximate interactiveness
-            smoothed_m1 = gaussian_filter1d(rolling_m1_face_density, sigma=sigma)
-            smoothed_m2 = gaussian_filter1d(rolling_m2_face_density, sigma=sigma)
-            # Compute mutual density using a time-proximity weighting instead of direct multiplication
-            mutual_density = np.sqrt(smoothed_m1 * smoothed_m2)  # Geometric mean to balance both densities
-            # Create relative time axis in minutes
-            time_axis = np.arange(timeline_len) / (1000 * 60)  # Convert samples to minutes
-            # Plot results
-            ax.plot(time_axis, rolling_m1_face_density, label="M1 Face Fixation Density", color="blue", alpha=0.7)
-            ax.plot(time_axis, rolling_m2_face_density, label="M2 Face Fixation Density", color="green", alpha=0.7)
-            ax.plot(time_axis, mutual_density, label="Mutual Face Fixation Density (Interactive Periods)", color="red", linewidth=2)
-            ax.set_title(f"Session: {session_name}, Run: {run_number} - Face Fixation Density (Window={window_size}, Sigma={sigma:.2f})")
-            ax.set_xlabel("Time (minutes)")
-            ax.set_ylabel("Density")
-            ax.legend()
-        plt.tight_layout()
-        save_path = os.path.join(root_dir, f"{session_name}_face_fixation_density.png")
-        plt.savefig(save_path, dpi=100)  # Set DPI to 100
-        plt.close()
+    session_names = eye_mvm_behav_df['session_name'].unique()
+    num_processes = min(8, cpu_count())  # Limit parallel processes
+
+    # Use Manager to create a shared counter for tqdm
+    with Manager() as manager:
+        progress = manager.Value('i', 0)  # Shared counter
+        total_sessions = len(session_names)
+
+        with tqdm(total=total_sessions, desc="Processing Sessions", position=0) as pbar:
+            with Pool(num_processes) as pool:
+                pool.starmap(
+                    _process_session_face_fixation_density, 
+                    [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress, total_sessions, pbar) 
+                     for session_name in session_names]
+                )
+
     print(f"Plots saved in {root_dir}")
+
+
+def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress, total_sessions, pbar):
+    """
+    Processes and plots the mutual face fixation density for a given session, updating tqdm progress.
+    """
+    session_df = eye_mvm_behav_df[eye_mvm_behav_df['session_name'] == session_name]
+    runs = session_df['run_number'].unique()
+    num_runs = len(runs)
+
+    fig, axes = plt.subplots(num_runs, 1, figsize=(12, 4 * num_runs), sharex=True)
+    if num_runs == 1:
+        axes = [axes]  # Ensure axes is iterable when there's only one run.
+
+    for ax, run_number in zip(axes, runs):
+        run_df = session_df[session_df['run_number'] == run_number]
+        m1_data = run_df[run_df['agent'] == 'm1']
+        m2_data = run_df[run_df['agent'] == 'm2']
+
+        if m1_data.empty or m2_data.empty:
+            continue  # Skip if either agent is missing
+
+        # Extract fixation data
+        m1_fix_intervals = m1_data['fixation_start_stop'].iloc[0]
+        m1_fix_locations = m1_data['fixation_location'].iloc[0]
+        m2_fix_intervals = m2_data['fixation_start_stop'].iloc[0]
+        m2_fix_locations = m2_data['fixation_location'].iloc[0]
+
+        # Compute average fixation duration
+        avg_fix_duration_m1 = np.mean([stop - start for start, stop in m1_fix_intervals])
+        avg_fix_duration_m2 = np.mean([stop - start for start, stop in m2_fix_intervals])
+        avg_fix_duration = int(np.mean([avg_fix_duration_m1, avg_fix_duration_m2]))  # Average across both agents
+        window_size = max(5 * avg_fix_duration, 1)  # Ensure window size is at least 1
+        sigma = 3 * window_size  # Dynamic sigma for smoothing
+
+        # Extract number of samples from gaze data
+        gaze_data = sparse_nan_removed_sync_gaze_df[
+            (sparse_nan_removed_sync_gaze_df['session_name'] == session_name) & 
+            (sparse_nan_removed_sync_gaze_df['run_number'] == run_number)
+        ]
+        if gaze_data.empty:
+            continue
+
+        timeline_len = len(gaze_data['positions'].iloc[0])  # Number of samples in the run
+
+        # Initialize fixation density arrays
+        m1_face_density = np.zeros(timeline_len)
+        m2_face_density = np.zeros(timeline_len)
+
+        # Compute face fixation density for M1
+        for (start, stop), location in zip(m1_fix_intervals, m1_fix_locations):
+            if 'face' in location:
+                m1_face_density[start:stop + 1] += 1  # Mark face fixation
+
+        # Compute face fixation density for M2
+        for (start, stop), location in zip(m2_fix_intervals, m2_fix_locations):
+            if 'face' in location:
+                m2_face_density[start:stop + 1] += 1  # Mark face fixation
+
+        # Convert absolute counts to relative densities using dynamic window size
+        rolling_m1_face_density = np.convolve(m1_face_density, np.ones(window_size), mode='same') / window_size
+        rolling_m2_face_density = np.convolve(m2_face_density, np.ones(window_size), mode='same') / window_size
+
+        # Apply Gaussian smoothing to approximate interactiveness
+        smoothed_m1 = gaussian_filter1d(rolling_m1_face_density, sigma=sigma)
+        smoothed_m2 = gaussian_filter1d(rolling_m2_face_density, sigma=sigma)
+
+        # Compute mutual density using a time-proximity weighting instead of direct multiplication
+        mutual_density = np.sqrt(smoothed_m1 * smoothed_m2)  # Geometric mean to balance both densities
+
+        # Create relative time axis in minutes
+        time_axis = np.arange(timeline_len) / (1000 * 60)  # Convert samples to minutes
+
+        # Plot results
+        ax.plot(time_axis, rolling_m1_face_density, label="M1 Face Fixation Density", color="blue", alpha=0.7)
+        ax.plot(time_axis, rolling_m2_face_density, label="M2 Face Fixation Density", color="green", alpha=0.7)
+        ax.plot(time_axis, mutual_density, label="Mutual Face Fixation Density (Interactive Periods)", color="red", linewidth=2)
+
+        ax.set_title(f"Session: {session_name}, Run: {run_number} - Face Fixation Density (Window={window_size}, Sigma={sigma:.2f})")
+        ax.set_xlabel("Time (minutes)")
+        ax.set_ylabel("Density")
+        ax.legend()
+
+    plt.tight_layout()
+    save_path = os.path.join(root_dir, f"{session_name}_face_fixation_density.png")
+    plt.savefig(save_path, dpi=100)  # Set DPI to 100
+    plt.close()
+
+    # **Update tqdm progress bar**
+    with progress.get_lock():
+        progress.value += 1
+        pbar.update(1)
+
 
 
 
@@ -155,7 +201,7 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
     # Get unique session names for parallel processing
     session_names = eye_mvm_behav_df['session_name'].unique()
     # Parallelize across sessions
-    num_cpus = min(cpu_count(), len(session_names))  # Use available CPUs but not more than sessions
+    num_cpus = min(cpu_count(), 8)  # Use available CPUs but not more than sessions
     with Pool(num_cpus) as pool:
         pool.starmap(_process_session, [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir) for session_name in session_names])
     logger.info("Neural response plots saved in {}".format(root_dir))
@@ -268,6 +314,9 @@ def _compute_spiking_per_trial(fixation_times, spike_times, params):
         ).ravel()
         spike_counts, _ = np.histogram(spike_times, bins=bins)
         spike_counts = spike_counts / bin_size  # Convert to firing rate
+        if params["smooth_spike_counts"]:
+            smoothing_kernel = np.ones(5) / 5
+            spike_counts = np.convolve(spike_counts, smoothing_kernel, mode='same')
         spike_counts_per_trial.append(spike_counts)
     return np.array(spike_counts_per_trial), timeline
 
