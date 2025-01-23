@@ -30,6 +30,10 @@ def main():
     """
     logger.info("Starting the main function")
     params = _initialize_params()
+
+    path_to_ephys_sessions = os.path.join(params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
+    recording_sessions_and_monkeys = load_data.load_recording_days(path_to_ephys_sessions)
+    
     sparse_nan_removed_sync_gaze_data_df_filepath = os.path.join(
         params['processed_data_dir'], 'sparse_nan_removed_sync_gaze_data_df.pkl'
     )
@@ -45,9 +49,6 @@ def main():
     )
     logger.info("Loading spike times data")
     spike_times_df = load_data.get_data_df(spike_times_file_path)
-
-    path_to_ephys_sessions = os.path.join(params['processed_data_dir'], 'ephys_days_and_monkeys.pkl')
-    recording_sessions_and_monkeys = load_data.load_recording_days(path_to_ephys_sessions)
     
     pdb.set_trace()
 
@@ -74,7 +75,6 @@ def _initialize_params():
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
     return params
-
 
 
 def _plot_mean_behavioral_spiking_response(

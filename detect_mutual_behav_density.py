@@ -56,6 +56,8 @@ def _initialize_params():
     return params
 
 
+
+
 def plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params):
     """
     Computes and plots the density of mutual face fixations across time for each session in parallel,
@@ -79,19 +81,31 @@ def plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_
         total_sessions = len(session_names)
 
         with tqdm(total=total_sessions, desc="Processing Sessions", position=0) as pbar:
-            with Pool(num_processes) as pool:
-                pool.starmap(
+            pool = Pool(num_processes)
+            results = []
+
+            # Run processes asynchronously to update tqdm manually
+            for session_name in session_names:
+                result = pool.apply_async(
                     _process_session_face_fixation_density, 
-                    [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress, total_sessions, pbar) 
-                     for session_name in session_names]
+                    (session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress)
                 )
+                results.append(result)
+
+            for result in results:
+                result.get()  # Wait for each process to finish
+                progress.value += 1  # Increment shared counter
+                pbar.update(1)  # Update tqdm in main process
+
+            pool.close()
+            pool.join()
 
     print(f"Plots saved in {root_dir}")
 
 
-def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress, total_sessions, pbar):
+def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params, root_dir, progress):
     """
-    Processes and plots the mutual face fixation density for a given session, updating tqdm progress.
+    Processes and plots the mutual face fixation density for a given session.
     """
     session_df = eye_mvm_behav_df[eye_mvm_behav_df['session_name'] == session_name]
     runs = session_df['run_number'].unique()
@@ -175,10 +189,6 @@ def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, spars
     plt.savefig(save_path, dpi=100)  # Set DPI to 100
     plt.close()
 
-    # **Update tqdm progress bar**
-    with progress.get_lock():
-        progress.value += 1
-        pbar.update(1)
 
 
 

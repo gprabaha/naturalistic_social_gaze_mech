@@ -85,9 +85,13 @@ def main():
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-    
-    ## Plot fixation, saccade, and microsaccade behavior for each run
-    _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
+
+    if params.get('plot_gaze_event_dur_dist', True):
+        _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
+
+    if params.get('plot_eye_mvm_behav', False):
+        ## Plot fixation, saccade, and microsaccade behavior for each run
+        _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
     return 0
 
@@ -100,15 +104,14 @@ def _initialize_params():
         'try_using_single_run': False,
         'test_specific_runs': False,
         'recompute_fix_and_saccades_through_hpc_jobs': False,
-        'recompute_fix_and_saccades': True,
+        'recompute_fix_and_saccades': False,
+        'plot_gaze_event_dur_dist': True,
+        'plot_eye_mvm_behav': False,
         'is_grace': False,
         'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
-    params = curate_data.add_raw_data_dir_to_params(params)
-    params = curate_data.add_paths_to_all_data_files_to_params(params)
-    params = curate_data.prune_data_file_paths_with_pos_time_filename_mismatch(params)
     logger.info("Parameters initialized successfully")
     return params
 
@@ -384,6 +387,63 @@ def __determine_roi_of_location(position, roi_rects):
         if x_min <= position[0] <= x_max and y_min <= position[1] <= y_max:
             matching_rois.append(roi_name)
     return matching_rois if matching_rois else ['out_of_roi']
+
+
+
+def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
+    os.makedirs(plot_dir, exist_ok=True)
+    session_groups = eye_mvm_behav_df.groupby("session_name")
+    for session_name, session_df in tqdm(session_groups, desc="Processing sessions"):
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
+        for agent_idx, agent in enumerate(["m1", "m2"]):
+            agent_df = session_df[session_df["agent"] == agent]
+            if agent_df.empty:
+                print(f"Skipping {agent} for session {session_name}, no data found.")
+                continue
+            fixation_durations = []
+            saccade_durations = []
+            transition_times = []
+            for _, row in agent_df.iterrows():
+                fixations = row["fixation_start_stop"]
+                saccades = row["saccade_start_stop"]
+                fixation_locs = row["fixation_location"]
+                saccade_tos = row["saccade_to"]
+                # Compute fixation durations
+                fixation_durations.extend([end - start for start, end in fixations])
+                # Compute saccade durations
+                saccade_durations.extend([end - start for start, end in saccades])
+                # Compute transition times and validate saccade_to vs fixation_location
+                for saccade_idx, (saccade_start, _) in enumerate(saccades):
+                    next_fixation = next((fix_start for fix_start, _ in fixations if fix_start > saccade_start), None)
+                    if next_fixation is not None:
+                        transition_times.append(next_fixation - saccade_start)
+                    # Validate transitions
+                    if saccade_idx < len(saccade_tos) and saccade_idx < len(fixation_locs):
+                        saccade_target = saccade_tos[saccade_idx]
+                        fixation_target = fixation_locs[saccade_idx]
+                        if set(saccade_target) != set(fixation_target):
+                            print(f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}:")
+                            print(f"  saccade_to: {saccade_target}, fixation_location: {fixation_target}")
+            # Plot histograms
+            axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
+            axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
+            axes[agent_idx, 2].hist(transition_times, bins=50, alpha=0.75)
+            axes[agent_idx, 0].set_ylabel(f"{agent}")
+            if agent_idx == 1:
+                axes[agent_idx, 0].set_xlabel("Fixation duration (ms)")
+                axes[agent_idx, 1].set_xlabel("Saccade duration (ms)")
+                axes[agent_idx, 2].set_xlabel("Transition time (ms)")
+        axes[0, 0].set_title("Fixation durations")
+        axes[0, 1].set_title("Saccade durations")
+        axes[0, 2].set_title("Saccade to Fixation Transition")
+        plt.suptitle(f"Gaze Event Durations - Session {session_name}")
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
+        plt.savefig(save_path)
+        plt.close(fig)
+        print(f"Saved plot for session {session_name} at {save_path}")
 
 
 
