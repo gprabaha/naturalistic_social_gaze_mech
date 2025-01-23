@@ -201,7 +201,6 @@ def _prepare_tasks(synchronized_gaze_data_df, params):
     return df_keys_for_tasks
 
 
-
 def _save_params(params):
     params_file_path = os.path.join(params['processed_data_dir'], 'params.pkl')
     with open(params_file_path, 'wb') as f:
@@ -278,25 +277,17 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fix_stops), axis=0)
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, sacc_stops), axis=0)
         all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, micro_stops), axis=0)
-    # Verification: Ensure ascending order
+    # Verification: Ensure ascending order before sanitization
     assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
     assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
     assert np.all(np.diff(all_microsacc_start_stops[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
+    logger.info("Sanitizing fixations for session: %s", session_name)
+    # **Call Fixation Correction Function**
+    all_fix_start_stops = _remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(
+        all_fix_start_stops, all_sacc_start_stops
+    )
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
     return all_fix_start_stops, all_sacc_start_stops, all_microsacc_start_stops
-
-
-def __detect_fix_sacc_micro_in_chunk(args):
-    position_chunk, start_ind, session_name = args
-    logger.debug("Detecting fix/sacc/microsacc in chunk starting at index %d for session: %s", start_ind, session_name)
-    fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
-    fixation_start_stop_indices += start_ind
-    saccades_start_stop_inds, microsaccades_start_stop_inds = \
-        saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk, session_name)
-    saccades_start_stop_inds += start_ind
-    microsaccades_start_stop_inds += start_ind
-    return fixation_start_stop_indices, saccades_start_stop_inds, microsaccades_start_stop_inds
-
 
 def __extract_non_nan_chunks(positions):
     logger.debug("Extracting non-NaN chunks from positions")
@@ -316,6 +307,81 @@ def __extract_non_nan_chunks(positions):
         start_indices.append(start)
     logger.debug("Extracted %d non-NaN chunks", len(non_nan_chunks))
     return non_nan_chunks, start_indices
+
+def __detect_fix_sacc_micro_in_chunk(args):
+    position_chunk, start_ind, session_name = args
+    logger.debug("Detecting fix/sacc/microsacc in chunk starting at index %d for session: %s", start_ind, session_name)
+    fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
+    fixation_start_stop_indices += start_ind
+    saccades_start_stop_inds, microsaccades_start_stop_inds = \
+        saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk, session_name)
+    saccades_start_stop_inds += start_ind
+    microsaccades_start_stop_inds += start_ind
+    return fixation_start_stop_indices, saccades_start_stop_inds, microsaccades_start_stop_inds
+
+def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(all_fix_start_stops, all_sacc_start_stops):
+    """
+    Removes fixations that are fully contained within a saccade and splits fixations that fully enclose a saccade.
+
+    - If a fixation starts after a saccade starts but ends before the saccade ends (`fix_start > saccade_start and fix_stop < saccade_stop`),
+      the fixation is removed.
+    - If a fixation fully encloses a saccade (`fix_start < saccade_start and fix_stop > saccade_stop`),
+      it is split into two:
+      - `fix_start → saccade_start - 1`
+      - `saccade_stop + 1 → fix_stop`
+    - Ensures that all resulting fixations are at least 25 ms long.
+    - After all operations, filters out any remaining fixations shorter than 25 ms.
+    Parameters:
+    ----------
+    all_fix_start_stops : np.ndarray
+        Array of fixations with shape (N, 2), where each row represents [fix_start, fix_stop].
+
+    all_sacc_start_stops : np.ndarray
+        Array of saccades with shape (M, 2), where each row represents [saccade_start, saccade_stop].
+    Returns:
+    ----------
+    np.ndarray
+        Updated fixation array after applying the corrections.
+    """
+    updated_fixations = []
+    for fix_start, fix_stop in all_fix_start_stops:
+        remove_fixation = False  # Flag to track if the fixation should be removed
+        for saccade_start, saccade_stop in all_sacc_start_stops:
+            # **Case 1: Remove fixation if it falls entirely within a saccade**
+            if fix_start > saccade_start and fix_stop < saccade_stop:
+                logger.critical(
+                    f"Invalid fixation detected: Fixation ({fix_start}-{fix_stop}) is fully inside Saccade ({saccade_start}-{saccade_stop}). Removing fixation."
+                )
+                remove_fixation = True
+                break  # Stop checking this fixation since it will be removed
+            # **Case 2: Split fixation if it fully encloses a saccade**
+            elif fix_start < saccade_start and fix_stop > saccade_stop:
+                left_fixation = (fix_start, saccade_start - 1)
+                right_fixation = (saccade_stop + 1, fix_stop)
+
+                logger.warning(
+                    f"Fixation ({fix_start}-{fix_stop}) fully encloses Saccade ({saccade_start}-{saccade_stop}).\n"
+                    f"Splitting into {left_fixation} and {right_fixation}."
+                )
+                remove_fixation = True  # Original fixation is replaced with splits
+                # Add valid segments to updated fixations
+                if left_fixation[1] - left_fixation[0] >= 25:
+                    updated_fixations.append(left_fixation)
+                if right_fixation[1] - right_fixation[0] >= 25:
+                    updated_fixations.append(right_fixation)
+                break  # Stop checking since this fixation was replaced by splits
+        # Keep valid fixations that were not removed
+        if not remove_fixation:
+            updated_fixations.append((fix_start, fix_stop))
+    # **Final Filtering Step: Ensure all fixations are at least 25 ms long**
+    final_fixations = [fix for fix in updated_fixations if fix[1] - fix[0] >= 25]
+    # Log any fixations that were removed in the final filtering step
+    removed_count = len(updated_fixations) - len(final_fixations)
+    if removed_count > 0:
+        logger.warning(f"Removed {removed_count} fixations that were shorter than 25 ms after processing.")
+    # Convert list to a NumPy array and ensure ascending order
+    final_fixations = np.array(sorted(final_fixations, key=lambda x: x[0]), dtype=int)
+    return final_fixations
 
 
 
