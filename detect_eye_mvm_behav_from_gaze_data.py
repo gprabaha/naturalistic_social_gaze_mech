@@ -80,11 +80,14 @@ def main():
         logger.info(f"Annotating fix and saccade locations in eye mvm behav df.")
         eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
             eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
+        eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
         eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
         logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
+        eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
+        eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
 
     if params.get('plot_gaze_event_dur_dist', True):
         _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
@@ -92,7 +95,6 @@ def main():
     if params.get('plot_eye_mvm_behav', False):
         ## Plot fixation, saccade, and microsaccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-
 
 
 
@@ -388,6 +390,69 @@ def __determine_roi_of_location(position, roi_rects):
             matching_rois.append(roi_name)
     return matching_rois if matching_rois else ['out_of_roi']
 
+
+
+def _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df):
+    """
+    Aligns fixation and saccade events in a gaze behavior dataframe by start times,
+    then checks and corrects mismatches in location labels.
+    Specifically:
+    - Ensures fixations and saccades are ordered by start time.
+    - If a fixation is followed by a saccade within 100 ms, checks if the fixation 
+      location matches the saccade's starting location (`saccade_from`).
+      - If one of them is `"out_of_roi"`, it is replaced with the other label.
+    - If a saccade is followed by a fixation within 100 ms, checks if the saccade's 
+      ending location (`saccade_to`) matches the fixation location.
+      - Again, replaces `"out_of_roi"` if necessary.
+    Parameters:
+    ----------
+    eye_mvm_behav_df : pandas.DataFrame
+        Dataframe containing gaze behavior data, including fixation and saccade events.
+    Modifies:
+    ----------
+    - Updates `"fixation_location"`, `"saccade_from"`, and `"saccade_to"` in-place.
+    """
+    for idx, row in tqdm(eye_mvm_behav_df.iterrows(), desc="Checked consecutive fix sacc location label for row"):
+        # Extract relevant columns
+        fixations = row["fixation_start_stop"]
+        saccades = row["saccade_start_stop"]
+        fixation_locs = row["fixation_location"]
+        saccade_froms = row["saccade_from"]
+        saccade_tos = row["saccade_to"]
+        # Combine events into a single list for sorting
+        events = [(start, end, "fixation", i) for i, (start, end) in enumerate(fixations)]
+        events += [(start, end, "saccade", i) for i, (start, end) in enumerate(saccades)]
+        events.sort(key=lambda x: x[0])  # Sort events by start time
+        # Iterate through consecutive events
+        for i in range(len(events) - 1):
+            start1, end1, type1, index1 = events[i]
+            start2, end2, type2, index2 = events[i + 1]
+            # Case 1: Fixation → Saccade
+            if type1 == "fixation" and type2 == "saccade":
+                if start2 - end1 <= 100:  # Ensure the gap is within 100 ms
+                    fixation_label = fixation_locs[index1]
+                    saccade_from_label = saccade_froms[index2]
+                    # Fix mismatch if one is "out_of_roi"
+                    if set(fixation_label) != set(saccade_from_label):
+                        if "out_of_roi" in fixation_label:
+                            fixation_locs[index1] = saccade_from_label
+                        elif "out_of_roi" in saccade_from_label:
+                            saccade_froms[index2] = fixation_label
+            # Case 2: Saccade → Fixation
+            elif type1 == "saccade" and type2 == "fixation":
+                if start2 - end1 <= 100:  # Ensure the gap is within 100 ms
+                    saccade_to_label = saccade_tos[index1]
+                    fixation_label = fixation_locs[index2]
+                    # Fix mismatch if one is "out_of_roi"
+                    if set(saccade_to_label) != set(fixation_label):
+                        if "out_of_roi" in fixation_label:
+                            fixation_locs[index2] = saccade_to_label
+                        elif "out_of_roi" in saccade_to_label:
+                            saccade_tos[index1] = fixation_label
+        # Save the updated labels back into the DataFrame
+        eye_mvm_behav_df.at[idx, "fixation_location"] = fixation_locs
+        eye_mvm_behav_df.at[idx, "saccade_from"] = saccade_froms
+        eye_mvm_behav_df.at[idx, "saccade_to"] = saccade_tos
 
 
 def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
