@@ -93,7 +93,7 @@ def main():
         ## Plot fixation, saccade, and microsaccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
-    return 0
+
 
 
 def _initialize_params():
@@ -395,12 +395,12 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
     plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
     os.makedirs(plot_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby("session_name")
-    for session_name, session_df in tqdm(session_groups, desc="Processing sessions"):
+    for session_name, session_df in tqdm(session_groups, desc="Plotting behav event duration distribution sessions"):
         fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
         for agent_idx, agent in enumerate(["m1", "m2"]):
             agent_df = session_df[session_df["agent"] == agent]
             if agent_df.empty:
-                print(f"Skipping {agent} for session {session_name}, no data found.")
+                logger.warning(f"Skipping {agent} for session {session_name}, no data found.")
                 continue
             fixation_durations = []
             saccade_durations = []
@@ -423,9 +423,6 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
                     if saccade_idx < len(saccade_tos) and saccade_idx < len(fixation_locs):
                         saccade_target = saccade_tos[saccade_idx]
                         fixation_target = fixation_locs[saccade_idx]
-                        if set(saccade_target) != set(fixation_target):
-                            print(f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}:")
-                            print(f"  saccade_to: {saccade_target}, fixation_location: {fixation_target}")
             # Plot histograms
             axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
             axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
@@ -443,7 +440,7 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
         save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
         plt.savefig(save_path)
         plt.close(fig)
-        print(f"Saved plot for session {session_name} at {save_path}")
+    logger.info("Behav event duration distribution plot generation completed.")
 
 
 
