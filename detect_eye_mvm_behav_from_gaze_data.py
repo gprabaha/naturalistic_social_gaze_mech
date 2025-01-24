@@ -37,6 +37,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+
+def _initialize_params():
+    logger.info("Initializing parameters")
+    params = {
+        'recompute_sparse_nan_removed_gaze_data': False,
+        'remake_eye_mvm_df_from_gaze_data': False,
+        'try_using_single_run': False,
+        'test_specific_runs': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'recompute_fix_and_saccades': False,
+        'plot_eye_mvm_behav': False,
+        'plot_gaze_event_dur_dist': True,
+        'is_grace': False,
+        'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
+    }
+    params = curate_data.add_root_data_to_params(params)
+    params = curate_data.add_processed_data_to_params(params)
+    logger.info("Parameters initialized successfully")
+    return params
+
+
 def main():
     logger.info("Starting the main function")
     # Initialize params with data paths
@@ -75,8 +96,6 @@ def main():
         eye_mvm_behav_df = _process_fixations_and_saccades(df_keys_for_tasks, params)
         # Log results
         logger.info("Detection completed for both agents.")
-        eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
-        logger.info(f"Fix and saccade saved to combined df in {eye_mvm_behav_df_file_path}")
         logger.info(f"Annotating fix and saccade locations in eye mvm behav df.")
         eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
             eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
@@ -86,36 +105,13 @@ def main():
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-        eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
-        # eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
-
-    if params.get('plot_gaze_event_dur_dist', True):
-        _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
 
     if params.get('plot_eye_mvm_behav', False):
         ## Plot fixation, saccade, and microsaccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
-
-
-def _initialize_params():
-    logger.info("Initializing parameters")
-    params = {
-        'recompute_sparse_nan_removed_gaze_data': False,
-        'remake_eye_mvm_df_from_gaze_data': False,
-        'try_using_single_run': False,
-        'test_specific_runs': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
-        'recompute_fix_and_saccades': False,
-        'plot_gaze_event_dur_dist': True,
-        'plot_eye_mvm_behav': False,
-        'is_grace': False,
-        'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
-    }
-    params = curate_data.add_root_data_to_params(params)
-    params = curate_data.add_processed_data_to_params(params)
-    logger.info("Parameters initialized successfully")
-    return params
+    if params.get('plot_gaze_event_dur_dist', False):
+        _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
 
 
 
@@ -140,7 +136,6 @@ def _remove_object_rois_for_m2(dataframe):
         axis=1
     )
     return dataframe
-
 
 
 def _interpolate_nans_in_positions_with_sliding_window(positions, window_size=10, max_nans=3):
@@ -283,7 +278,7 @@ def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name)
     assert np.all(np.diff(all_microsacc_start_stops[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
     logger.info("Sanitizing fixations for session: %s", session_name)
     # **Call Fixation Correction Function**
-    all_fix_start_stops = _remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(
+    all_fix_start_stops = __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(
         all_fix_start_stops, all_sacc_start_stops
     )
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
@@ -335,7 +330,6 @@ def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_sacca
     ----------
     all_fix_start_stops : np.ndarray
         Array of fixations with shape (N, 2), where each row represents [fix_start, fix_stop].
-
     all_sacc_start_stops : np.ndarray
         Array of saccades with shape (M, 2), where each row represents [saccade_start, saccade_stop].
     Returns:
@@ -355,10 +349,9 @@ def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_sacca
                 remove_fixation = True
                 break  # Stop checking this fixation since it will be removed
             # **Case 2: Split fixation if it fully encloses a saccade**
-            elif fix_start < saccade_start and fix_stop > saccade_stop:
+            elif saccade_start > fix_start  and saccade_stop < fix_stop:
                 left_fixation = (fix_start, saccade_start - 1)
                 right_fixation = (saccade_stop + 1, fix_stop)
-
                 logger.warning(
                     f"Fixation ({fix_start}-{fix_stop}) fully encloses Saccade ({saccade_start}-{saccade_stop}).\n"
                     f"Splitting into {left_fixation} and {right_fixation}."
@@ -373,16 +366,9 @@ def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_sacca
         # Keep valid fixations that were not removed
         if not remove_fixation:
             updated_fixations.append((fix_start, fix_stop))
-    # **Final Filtering Step: Ensure all fixations are at least 25 ms long**
-    final_fixations = [fix for fix in updated_fixations if fix[1] - fix[0] >= 25]
-    # Log any fixations that were removed in the final filtering step
-    removed_count = len(updated_fixations) - len(final_fixations)
-    if removed_count > 0:
-        logger.warning(f"Removed {removed_count} fixations that were shorter than 25 ms after processing.")
     # Convert list to a NumPy array and ensure ascending order
-    final_fixations = np.array(sorted(final_fixations, key=lambda x: x[0]), dtype=int)
+    final_fixations = np.array(sorted(updated_fixations, key=lambda x: x[0]), dtype=int)
     return final_fixations
-
 
 
 def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df):
@@ -455,7 +441,6 @@ def __determine_roi_of_location(position, roi_rects):
         if x_min <= position[0] <= x_max and y_min <= position[1] <= y_max:
             matching_rois.append(roi_name)
     return matching_rois if matching_rois else ['out_of_roi']
-
 
 
 def _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df):
@@ -532,47 +517,36 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
       - `fix_start > saccade_start` but `fix_stop < saccade_stop`
       - `next_fixation[0] - saccade_stop < 100 ms`
     """
-
     today_date = datetime.now().strftime("%Y-%m-%d")
     plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
     os.makedirs(plot_dir, exist_ok=True)
-
     session_groups = eye_mvm_behav_df.groupby("session_name")
-
     for session_name, session_df in tqdm(session_groups, desc="Plotting behav event duration distribution sessions"):
         fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
-
         for agent_idx, agent in enumerate(["m1", "m2"]):
             agent_df = session_df[session_df["agent"] == agent]
             if agent_df.empty:
                 logger.warning(f"Skipping {agent} for session {session_name}, no data found.")
                 continue
-
             fixation_durations = []
             saccade_durations = []
             transition_times = []
-
             for _, row in agent_df.iterrows():
                 fixations = row["fixation_start_stop"]
                 saccades = row["saccade_start_stop"]
                 fixation_locs = row["fixation_location"]
                 saccade_tos = row["saccade_to"]
-
                 # Compute fixation durations
                 fixation_durations.extend([end - start for start, end in fixations])
-
                 # Compute saccade durations
                 saccade_durations.extend([end - start for start, end in saccades])
-
                 # Compute transition times and validate saccade_to vs fixation_location
                 for saccade_idx, (saccade_start, saccade_stop) in enumerate(saccades):
                     # Find the first fixation that starts after the saccade start
                     next_fixation = next(((fix_start, fix_stop, idx) for idx, (fix_start, fix_stop) 
                                         in enumerate(fixations) if fix_start > saccade_start), None)
-
                     if next_fixation is not None:
                         fix_start, fix_stop, fixation_idx = next_fixation
-                        
                         # Check if `fix_start > saccade_start` but `fix_stop < saccade_stop`
                         if fix_start > saccade_start and fix_stop < saccade_stop:
                             logger.critical(
@@ -581,51 +555,38 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
                                 f"Saccade Start: {saccade_start}, Saccade Stop: {saccade_stop}\n"
                                 f"Fixation Start: {fix_start}, Fixation Stop: {fix_stop}"
                             )
-
                         # Compute transition time
                         transition_time = fix_start - saccade_stop
-
                         transition_times.append(transition_time)
-
-                        # Validate transitions using the next fixation's index
-                        if saccade_idx < len(saccade_tos):
-                            saccade_target = saccade_tos[saccade_idx]
-                            fixation_target = fixation_locs[fixation_idx]
-
-                            if set(saccade_target) != set(fixation_target) and transition_time < 100:
+                        # Check if sets do not match and transition time is < 100 ms
+                        if set(saccade_target) != set(fixation_target) and transition_time < 100:
+                            # Only print warning if at least one of them is "out_of_roi"
+                            if "out_of_roi" in saccade_target or "out_of_roi" in fixation_target:
                                 logger.warning(
                                     f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}: "
                                     f"saccade_to: {saccade_target}, fixation_location: {fixation_target}, "
                                     f"time_diff: {transition_time} ms"
                                 )
-
             # Plot histograms
             axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
             axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
             axes[agent_idx, 2].hist(transition_times, bins=50, alpha=0.75)
-
             axes[agent_idx, 0].set_ylabel(f"{agent}")
             if agent_idx == 1:
                 axes[agent_idx, 0].set_xlabel("Fixation duration (ms)")
                 axes[agent_idx, 1].set_xlabel("Saccade duration (ms)")
                 axes[agent_idx, 2].set_xlabel("Transition time (ms)")
-
         # Set titles
         axes[0, 0].set_title("Fixation durations")
         axes[0, 1].set_title("Saccade durations")
         axes[0, 2].set_title("Saccade to Fixation Transition")
-
         plt.suptitle(f"Gaze Event Durations - Session {session_name}")
         plt.tight_layout(rect=[0, 0, 1, 0.96])
-
         # Save figure
         save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
         plt.savefig(save_path)
         plt.close(fig)
-
     logger.info("Behav event duration distribution plot generation completed.")
-
-
 
 
 
