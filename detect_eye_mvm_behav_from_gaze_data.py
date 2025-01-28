@@ -243,7 +243,7 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds = \
-                _detect_fixations_and_saccades_in_run(positions, session, False)
+                _detect_fixations_and_saccades_in_run(positions, session, True)
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,

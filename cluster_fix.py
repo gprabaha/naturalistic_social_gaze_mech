@@ -184,9 +184,9 @@ def _refine_fixation_classification_to_get_notfix_inds(fixation_start_stop, feat
         kmeans = KMeans(n_clusters=optimal_clusters, n_init=5, random_state=42)
         cluster_labels = kmeans.fit_predict(local_features)
         # Compute median feature values and range for each cluster
-        cluster_medians = np.median([local_features[cluster_labels == k] for k in range(optimal_clusters)], axis=1)
+        cluster_medians = np.array([np.median(local_features[cluster_labels == k, :], axis=0) for k in range(optimal_clusters)])
         cluster_ranges = np.array([
-            [np.max(local_features[cluster_labels == k], axis=0), np.min(local_features[cluster_labels == k], axis=0)]
+            [np.max(local_features[cluster_labels == k, :], axis=0), np.min(local_features[cluster_labels == k, :], axis=0)]
             if np.any(cluster_labels == k) else np.ones((2, local_features.shape[1]))
             for k in range(optimal_clusters)
         ])
