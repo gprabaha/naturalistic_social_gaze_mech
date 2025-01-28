@@ -89,7 +89,7 @@ def main(task_key, params_file_path):
             pickle.dump(fix_indices, f)
         logger.info("Fixation results saved successfully at %s", fixation_output_path)
         with open(saccade_output_path, 'wb') as f:
-            pickle.dump((sacc_indices), f)
+            pickle.dump(sacc_indices, f)
         logger.info("Saccade results saved successfully at %s", saccade_output_path)
     except Exception as e:
         logger.error("Failed to save results: %s", e)

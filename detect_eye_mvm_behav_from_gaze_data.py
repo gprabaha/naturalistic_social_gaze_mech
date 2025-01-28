@@ -43,12 +43,12 @@ def _initialize_params():
     params = {
         'recompute_sparse_nan_removed_gaze_data': False,
         'remake_eye_mvm_df_from_gaze_data': True,
-        'try_using_single_run': True,
+        'try_using_single_run': False,
         'test_specific_runs': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
-        'recompute_fix_and_saccades': False,
-        'plot_eye_mvm_behav': False,
-        'plot_gaze_event_dur_dist': True,
+        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'recompute_fix_and_saccades': True,
+        'plot_eye_mvm_behav': True,
+        'plot_gaze_event_dur_dist': False,
         'is_grace': False,
         'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
     }
@@ -101,7 +101,6 @@ def main():
         eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
             eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
-        pdb.set_trace()
         eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
         logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     else:
@@ -109,8 +108,7 @@ def main():
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
         _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df)
-        pdb.set_trace()
-    if params.get('plot_eye_mvm_behav', False):
+    if params.get('plot_eye_mvm_behav', True):
         ## Plot fixation, saccade, and microsaccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
@@ -243,7 +241,7 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds = \
-                _detect_fixations_and_saccades_in_run(positions, session, False)
+                _detect_fixations_and_saccades_in_run(positions, session, True)
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -258,10 +256,8 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
 
 def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=True):
     logger.info("Detecting fixations, saccades, and microsaccades for session: %s", session_name)
-    
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
     args = [(chunk, start_ind) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
-
     if use_parallel:
         num_cpus = cpu_count()
         parallel_threads = min(16, num_cpus)
@@ -271,18 +267,20 @@ def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=
     else:
         logger.info("Running in serial mode")
         results = [__detect_fix_sacc_in_chunk(arg) for arg in args]
-
     all_fix_start_stops = np.empty((0, 2), dtype=int)
     all_sacc_start_stops = np.empty((0, 2), dtype=int)
-
     for fix_stops, sacc_stops in results:
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fix_stops), axis=0)
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, sacc_stops), axis=0)
-
-    # Verification: Ensure ascending order before sanitization
-    assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
-    assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
-
+    # Combine both fixation and saccade intervals
+    all_events = np.vstack((all_fix_start_stops, all_sacc_start_stops))
+    # Sort events by start time
+    all_events = all_events[np.argsort(all_events[:, 0])]
+    # Check for overlaps
+    for i in range(len(all_events) - 1):
+        start1, end1 = all_events[i]
+        start2, end2 = all_events[i + 1]
+        assert end1 < start2, f"Overlap detected between ({start1}, {end1}) and ({start2}, {end2})"
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
     return all_fix_start_stops, all_sacc_start_stops
 
@@ -305,6 +303,7 @@ def __extract_non_nan_chunks(positions):
         start_indices.append(start)
     logger.debug("Extracted %d non-NaN chunks", len(non_nan_chunks))
     return non_nan_chunks, start_indices
+
 
 def __detect_fix_sacc_in_chunk(args):
     position_chunk, start_ind = args
