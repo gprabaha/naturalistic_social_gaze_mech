@@ -73,8 +73,8 @@ def main(task_key, params_file_path):
         positions = filtered_df['positions'].iloc[0]  # Assuming 'positions' is a single column per row
         logger.info("Successfully extracted positions for fixation and saccade detection.")
         # Run fixation and saccade detection
-        fix_indices, sacc_indices, microsacc_indices = \
-            detect_eye_mvm_behav_from_gaze_data._detect_fixations_saccades_and_microsaccades_in_run(positions, session)
+        fix_indices, sacc_indices = \
+            detect_eye_mvm_behav_from_gaze_data._detect_fixations_and_saccades_in_run(positions, session)
         logger.info("Fixation and saccade detection completed successfully.")
     except Exception as e:
         logger.error("Failed during fixation and saccade detection: %s", e)
@@ -89,7 +89,7 @@ def main(task_key, params_file_path):
             pickle.dump(fix_indices, f)
         logger.info("Fixation results saved successfully at %s", fixation_output_path)
         with open(saccade_output_path, 'wb') as f:
-            pickle.dump((sacc_indices, microsacc_indices), f)
+            pickle.dump((sacc_indices), f)
         logger.info("Saccade results saved successfully at %s", saccade_output_path)
     except Exception as e:
         logger.error("Failed to save results: %s", e)

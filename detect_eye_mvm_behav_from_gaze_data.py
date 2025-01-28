@@ -19,8 +19,7 @@ import curate_data
 import load_data
 import util
 import hpc_fix_and_saccade_detector
-import fixation_detector
-import saccade_detector
+import cluster_fix
 
 import pdb
 
@@ -220,73 +219,81 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
         hpc_data_subfolder = params.get('hpc_job_output_subfolder', '')
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, _ = task
-            logger.info("Updating fix/saccade results for: %s, %s, %s, %s", session, interaction_type, run, agent)
+            logger.info("Appending fix/saccade results for: %s, %s, %s, %s", session, interaction_type, run, agent)
             run_str = str(run)
             fix_path = os.path.join(params['processed_data_dir'], hpc_data_subfolder, f'fixation_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             sacc_path = os.path.join(params['processed_data_dir'], hpc_data_subfolder, f'saccade_results_{session}_{interaction_type}_{run_str}_{agent}.pkl')
             fix_indices = None
             sacc_indices = None
-            microsacc_inds = None
             if os.path.exists(fix_path):
                 with open(fix_path, 'rb') as f:
                     fix_indices = pickle.load(f)
             if os.path.exists(sacc_path):
                 with open(sacc_path, 'rb') as f:
-                    sacc_indices, microsacc_inds = pickle.load(f)
+                    sacc_indices = pickle.load(f)
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
                 'run_number': run,
                 'agent': agent,
                 'fixation_start_stop': fix_indices,
-                'saccade_start_stop': sacc_indices,
-                'microsaccade_start_stop': microsacc_inds
+                'saccade_start_stop': sacc_indices
             })
     else:
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
-            fixation_start_stop_inds, saccades_start_stop_inds, microsaccades_start_stop_inds = \
-                _detect_fixations_saccades_and_microsaccades_in_run(positions, session)
+            fixation_start_stop_inds, saccades_start_stop_inds = \
+                _detect_fixations_and_saccades_in_run(positions, session, False)
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
                 'run_number': run,
                 'agent': agent,
                 'fixation_start_stop': fixation_start_stop_inds,
-                'saccade_start_stop': saccades_start_stop_inds,
-                'microsaccade_start_stop': microsaccades_start_stop_inds
+                'saccade_start_stop': saccades_start_stop_inds
             })
     logger.info("Fixation and saccade detection completed")
     return pd.DataFrame(eye_mvm_behav_rows)
 
 
-def _detect_fixations_saccades_and_microsaccades_in_run(positions, session_name):
+def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=True):
     logger.info("Detecting fixations, saccades, and microsaccades for session: %s", session_name)
+    
     non_nan_chunks, chunk_start_indices = __extract_non_nan_chunks(positions)
-    num_cpus = cpu_count()
-    logger.info("Detected %d CPUs for parallel processing", num_cpus)
-    args = [(chunk, start_ind, session_name) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
-    parallel_threads = min(16, num_cpus)
-    with Pool(processes=parallel_threads) as pool:
-        results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
+    args = [(chunk, start_ind) for chunk, start_ind in zip(non_nan_chunks, chunk_start_indices)]
+
+    if use_parallel:
+        num_cpus = cpu_count()
+        parallel_threads = min(16, num_cpus)
+        logger.info("Using %d CPUs for parallel processing", parallel_threads)
+        with Pool(processes=parallel_threads) as pool:
+            results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
+    else:
+        logger.info("Running in serial mode")
+        results = [__detect_fix_sacc_in_chunk(arg) for arg in args]
+
     all_fix_start_stops = np.empty((0, 2), dtype=int)
     all_sacc_start_stops = np.empty((0, 2), dtype=int)
-    all_microsacc_start_stops = np.empty((0, 2), dtype=int)
-    for fix_stops, sacc_stops, micro_stops in results:
+
+    for fix_stops, sacc_stops in results:
         all_fix_start_stops = np.concatenate((all_fix_start_stops, fix_stops), axis=0)
         all_sacc_start_stops = np.concatenate((all_sacc_start_stops, sacc_stops), axis=0)
-        all_microsacc_start_stops = np.concatenate((all_microsacc_start_stops, micro_stops), axis=0)
+
     # Verification: Ensure ascending order before sanitization
     assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
     assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
-    assert np.all(np.diff(all_microsacc_start_stops[:, 0]) >= 0), "Microsaccade start-stops are not in ascending order."
+
     logger.info("Sanitizing fixations for session: %s", session_name)
+
     # **Call Fixation Correction Function**
+    pdb.set_trace()
     all_fix_start_stops = __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(
         all_fix_start_stops, all_sacc_start_stops
     )
+
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
-    return all_fix_start_stops, all_sacc_start_stops, all_microsacc_start_stops
+    return all_fix_start_stops, all_sacc_start_stops
+
 
 def __extract_non_nan_chunks(positions):
     logger.debug("Extracting non-NaN chunks from positions")
@@ -307,16 +314,13 @@ def __extract_non_nan_chunks(positions):
     logger.debug("Extracted %d non-NaN chunks", len(non_nan_chunks))
     return non_nan_chunks, start_indices
 
-def __detect_fix_sacc_micro_in_chunk(args):
-    position_chunk, start_ind, session_name = args
-    logger.debug("Detecting fix/sacc/microsacc in chunk starting at index %d for session: %s", start_ind, session_name)
-    fixation_start_stop_indices = fixation_detector.detect_fixation_in_position_array(position_chunk, session_name)
+def __detect_fix_sacc_in_chunk(args):
+    position_chunk, start_ind = args
+    logger.debug("Detecting fix/sacc/microsacc in chunk starting at index %d", start_ind)
+    fixation_start_stop_indices, saccades_start_stop_inds = cluster_fix.detect_fixations_saccades(position_chunk)
     fixation_start_stop_indices += start_ind
-    saccades_start_stop_inds, microsaccades_start_stop_inds = \
-        saccade_detector.detect_saccades_and_microsaccades_in_position_array(position_chunk, session_name)
     saccades_start_stop_inds += start_ind
-    microsaccades_start_stop_inds += start_ind
-    return fixation_start_stop_indices, saccades_start_stop_inds, microsaccades_start_stop_inds
+    return fixation_start_stop_indices, saccades_start_stop_inds
 
 def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(all_fix_start_stops, all_sacc_start_stops):
     """
