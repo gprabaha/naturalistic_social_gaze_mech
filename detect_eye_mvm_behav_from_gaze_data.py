@@ -243,7 +243,7 @@ def _process_fixations_and_saccades(df_keys_for_tasks, params):
         for task in df_keys_for_tasks:
             session, interaction_type, run, agent, positions = task
             fixation_start_stop_inds, saccades_start_stop_inds = \
-                _detect_fixations_and_saccades_in_run(positions, session, True)
+                _detect_fixations_and_saccades_in_run(positions, session, False)
             eye_mvm_behav_rows.append({
                 'session_name': session,
                 'interaction_type': interaction_type,
@@ -267,7 +267,7 @@ def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=
         parallel_threads = min(16, num_cpus)
         logger.info("Using %d CPUs for parallel processing", parallel_threads)
         with Pool(processes=parallel_threads) as pool:
-            results = pool.map(__detect_fix_sacc_micro_in_chunk, args)
+            results = pool.map(__detect_fix_sacc_in_chunk, args)
     else:
         logger.info("Running in serial mode")
         results = [__detect_fix_sacc_in_chunk(arg) for arg in args]
@@ -282,14 +282,6 @@ def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=
     # Verification: Ensure ascending order before sanitization
     assert np.all(np.diff(all_fix_start_stops[:, 0]) >= 0), "Fixation start-stops are not in ascending order."
     assert np.all(np.diff(all_sacc_start_stops[:, 0]) >= 0), "Saccade start-stops are not in ascending order."
-
-    logger.info("Sanitizing fixations for session: %s", session_name)
-
-    # **Call Fixation Correction Function**
-    pdb.set_trace()
-    all_fix_start_stops = __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(
-        all_fix_start_stops, all_sacc_start_stops
-    )
 
     logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
     return all_fix_start_stops, all_sacc_start_stops
@@ -321,69 +313,6 @@ def __detect_fix_sacc_in_chunk(args):
     fixation_start_stop_indices += start_ind
     saccades_start_stop_inds += start_ind
     return fixation_start_stop_indices, saccades_start_stop_inds
-
-def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_saccade_inside(all_fix_start_stops, all_sacc_start_stops):
-    """
-    Removes fixations that are fully contained within a saccade and splits fixations that fully enclose a saccade.
-
-    - If a fixation starts after a saccade starts but ends before the saccade ends (`fix_start > saccade_start and fix_stop < saccade_stop`),
-      the fixation is removed.
-    - If a fixation fully encloses a saccade (`fix_start < saccade_start and fix_stop > saccade_stop`),
-      it is split into two:
-      - `fix_start → saccade_start - 1`
-      - `saccade_stop + 1 → fix_stop`
-    - Ensures that all resulting fixations are at least 25 ms long.
-    - After all operations, filters out any remaining fixations shorter than 25 ms.
-    Parameters:
-    ----------
-    all_fix_start_stops : np.ndarray
-        Array of fixations with shape (N, 2), where each row represents [fix_start, fix_stop].
-    all_sacc_start_stops : np.ndarray
-        Array of saccades with shape (M, 2), where each row represents [saccade_start, saccade_stop].
-    Returns:
-    ----------
-    np.ndarray
-        Updated fixation array after applying the corrections.
-    """
-    updated_fixations = []
-    for fix_start, fix_stop in all_fix_start_stops:
-        remove_fixation = False  # Flag to track if the fixation should be removed
-        for saccade_start, saccade_stop in all_sacc_start_stops:
-            # **Case 1: Remove fixation if it falls entirely within a saccade**
-            if saccade_start <= fix_start and fix_stop <= saccade_stop:
-                logger.critical(
-                    f"REMOVING: Fixation ({fix_start}-{fix_stop}) fully inside Saccade ({saccade_start}-{saccade_stop})."
-                )
-                remove_fixation = True
-                break  # Stop checking this fixation since it will be removed
-            # **Case 2: Split fixation if it fully encloses a saccade**
-            elif fix_start <= saccade_start and saccade_stop <= fix_stop:
-                left_fixation = (fix_start, saccade_start - 1)
-                right_fixation = (saccade_stop + 1, fix_stop)
-                logger.warning(
-                    f"SPLITTING: Fixation ({fix_start}-{fix_stop}) fully encloses Saccade ({saccade_start}-{saccade_stop}).\n"
-                    f"New Fixations: {left_fixation} and {right_fixation}."
-                )
-                remove_fixation = True  # Original fixation is replaced with splits
-                # Add valid segments to updated fixations
-                if left_fixation[1] - left_fixation[0] >= 25:
-                    updated_fixations.append(left_fixation)
-                if right_fixation[1] - right_fixation[0] >= 25:
-                    updated_fixations.append(right_fixation)
-                break  # Stop checking since this fixation was replaced by splits
-        # Keep valid fixations that were not removed
-        if not remove_fixation:
-            updated_fixations.append((fix_start, fix_stop))
-    # Convert list to a NumPy array and ensure ascending order
-    final_fixations = np.array(sorted(updated_fixations, key=lambda x: x[0]), dtype=int)
-    # **Verify that no fixations are inside a saccade AFTER correction**
-    for fix_start, fix_stop in final_fixations:
-        for saccade_start, saccade_stop in all_sacc_start_stops:
-            if saccade_start < fix_start and fix_stop < saccade_stop:
-                logger.critical(
-                    f"ERROR: Fixation ({fix_start}-{fix_stop}) STILL inside Saccade ({saccade_start}-{saccade_stop}) after correction!"
-                )
-    return final_fixations
 
 
 

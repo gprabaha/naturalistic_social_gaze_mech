@@ -57,7 +57,7 @@ class HPCFixAndSaccadeDetector:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task 4 --mem-per-cpu 10000 -t 01:00:00 --mail-type FAIL',
+                f'--cpus-per-task 6 --mem-per-cpu 4000 -t 00:20:00 --mail-type FAIL',
                 shell=True, check=True, executable='/bin/bash'
             )
             logger.info("Successfully generated the dSQ job script.")
