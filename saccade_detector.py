@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def detect_saccades_and_microsaccades_in_position_array(positions, session_name, samprate=1/1000):
     sacc_params = _get_saccade_parameters(session_name, samprate)
-    if positions.shape[0] > int(30 / (sacc_params['samprate'] * 1000)):
+    if positions.shape[0] > int(100 / (sacc_params['samprate'] * 1000)):
         logger.info("Preprocessing positions data for saccade detection")
         x, y = _preprocess_data(positions, sacc_params)
         # Detect saccades and microsaccades

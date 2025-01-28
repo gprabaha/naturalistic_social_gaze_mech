@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def detect_fixation_in_position_array(positions, session_name, samprate=1/1000):
     fix_params = _get_fixation_parameters(session_name, samprate)
-    min_points = int(30 / (fix_params['samprate'] * 1000))
+    min_points = int(100 / (fix_params['samprate'] * 1000))
     if positions.shape[0] > min_points:    
         logger.info("Preprocessing positions data for fixation detection")
         x, y = _preprocess_data(positions, fix_params)
@@ -105,8 +105,10 @@ def _extract_motion_parameters(x, y):
     logger.info("Extracting velocity, acceleration, angle, distance, and rotation parameters")
     velx = np.diff(x)
     vely = np.diff(y)
+    accelx = np.diff(velx)
+    accely = np.diff(vely)
     vel = np.sqrt(velx ** 2 + vely ** 2)
-    accel = np.abs(np.diff(vel))
+    accel = np.sqrt(accelx ** 2 + accely ** 2)
     angle = np.degrees(np.arctan2(vely, velx))
     vel = vel[:-1]
     rot = np.zeros(len(x) - 2)
@@ -258,7 +260,7 @@ def _refine_fixation_start_stop_with_reclustering(fixation_start_stop_indices, n
         if invalid_indices.size > 0:
             logger.warning("Detected %d invalid fixation intervals where stop index is before or equal to start index.", len(invalid_indices))
         refined_fixation_indices = refined_fixation_indices[refined_fixation_indices[:, 0] < refined_fixation_indices[:, 1]]
-        min_duration = int(0.025 / fix_params['samprate'])
+        min_duration = int(0.05 / fix_params['samprate'])
         refined_fixation_indices = refined_fixation_indices[
             (refined_fixation_indices[:, 1] - refined_fixation_indices[:, 0] + 1) >= min_duration
         ]

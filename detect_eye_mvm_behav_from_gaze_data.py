@@ -25,6 +25,7 @@ import saccade_detector
 import pdb
 
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -42,8 +43,8 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'recompute_sparse_nan_removed_gaze_data': False,
-        'remake_eye_mvm_df_from_gaze_data': False,
-        'try_using_single_run': False,
+        'remake_eye_mvm_df_from_gaze_data': True,
+        'try_using_single_run': True,
         'test_specific_runs': False,
         'recompute_fix_and_saccades_through_hpc_jobs': False,
         'recompute_fix_and_saccades': False,
@@ -56,6 +57,7 @@ def _initialize_params():
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
     return params
+
 
 
 def main():
@@ -100,19 +102,21 @@ def main():
         eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
             eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
+        pdb.set_trace()
         eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
         logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     else:
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-
+        eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
+        _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df)
+        pdb.set_trace()
     if params.get('plot_eye_mvm_behav', False):
         ## Plot fixation, saccade, and microsaccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
     if params.get('plot_gaze_event_dur_dist', False):
         _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
-
 
 
 def _remove_object_rois_for_m2(dataframe):
@@ -342,19 +346,19 @@ def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_sacca
         remove_fixation = False  # Flag to track if the fixation should be removed
         for saccade_start, saccade_stop in all_sacc_start_stops:
             # **Case 1: Remove fixation if it falls entirely within a saccade**
-            if fix_start > saccade_start and fix_stop < saccade_stop:
+            if saccade_start <= fix_start and fix_stop <= saccade_stop:
                 logger.critical(
-                    f"Invalid fixation detected: Fixation ({fix_start}-{fix_stop}) is fully inside Saccade ({saccade_start}-{saccade_stop}). Removing fixation."
+                    f"REMOVING: Fixation ({fix_start}-{fix_stop}) fully inside Saccade ({saccade_start}-{saccade_stop})."
                 )
                 remove_fixation = True
                 break  # Stop checking this fixation since it will be removed
             # **Case 2: Split fixation if it fully encloses a saccade**
-            elif saccade_start > fix_start  and saccade_stop < fix_stop:
+            elif fix_start <= saccade_start and saccade_stop <= fix_stop:
                 left_fixation = (fix_start, saccade_start - 1)
                 right_fixation = (saccade_stop + 1, fix_stop)
                 logger.warning(
-                    f"Fixation ({fix_start}-{fix_stop}) fully encloses Saccade ({saccade_start}-{saccade_stop}).\n"
-                    f"Splitting into {left_fixation} and {right_fixation}."
+                    f"SPLITTING: Fixation ({fix_start}-{fix_stop}) fully encloses Saccade ({saccade_start}-{saccade_stop}).\n"
+                    f"New Fixations: {left_fixation} and {right_fixation}."
                 )
                 remove_fixation = True  # Original fixation is replaced with splits
                 # Add valid segments to updated fixations
@@ -368,7 +372,15 @@ def __remove_fixations_detected_within_saccade_and_sanitize_fixations_with_sacca
             updated_fixations.append((fix_start, fix_stop))
     # Convert list to a NumPy array and ensure ascending order
     final_fixations = np.array(sorted(updated_fixations, key=lambda x: x[0]), dtype=int)
+    # **Verify that no fixations are inside a saccade AFTER correction**
+    for fix_start, fix_stop in final_fixations:
+        for saccade_start, saccade_stop in all_sacc_start_stops:
+            if saccade_start < fix_start and fix_stop < saccade_stop:
+                logger.critical(
+                    f"ERROR: Fixation ({fix_start}-{fix_stop}) STILL inside Saccade ({saccade_start}-{saccade_stop}) after correction!"
+                )
     return final_fixations
+
 
 
 def _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df):
@@ -463,13 +475,15 @@ def _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df):
     ----------
     - Updates `"fixation_location"`, `"saccade_from"`, and `"saccade_to"` in-place.
     """
-    for idx, row in tqdm(eye_mvm_behav_df.iterrows(), desc="Checked consecutive fix sacc location label for row"):
+    for idx, row in tqdm(eye_mvm_behav_df.iterrows(), desc="Processing df row"):
         # Extract relevant columns
+        session_name = row['session_name']
+        agent = row['agent']
         fixations = row["fixation_start_stop"]
         saccades = row["saccade_start_stop"]
-        fixation_locs = row["fixation_location"]
-        saccade_froms = row["saccade_from"]
-        saccade_tos = row["saccade_to"]
+        fixation_locs = row["fixation_location"].copy()
+        saccade_froms = row["saccade_from"].copy()
+        saccade_tos = row["saccade_to"].copy()
         # Combine events into a single list for sorting
         events = [(start, end, "fixation", i) for i, (start, end) in enumerate(fixations)]
         events += [(start, end, "saccade", i) for i, (start, end) in enumerate(saccades)]
@@ -484,110 +498,43 @@ def _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df):
                     fixation_label = fixation_locs[index1]
                     saccade_from_label = saccade_froms[index2]
                     # Fix mismatch if one is "out_of_roi"
-                    if set(fixation_locs[index1]) != set(saccade_froms[index2]):
-                        if "out_of_roi" in fixation_locs[index1]:
-                            fixation_locs[index1] = saccade_froms[index2]
-                        elif "out_of_roi" in saccade_froms[index2]:
-                            saccade_froms[index2] = fixation_locs[index1]
+                    if set(fixation_label) != set(saccade_from_label):
+                        if "out_of_roi" in fixation_label:
+                            logger.info(
+                                f"Updating fixation_location at index {index1} (session {session_name}, agent {agent}): "
+                                f"{fixation_label} → {saccade_from_label}"
+                            )
+                            fixation_locs[index1] = saccade_from_label
+                        if "out_of_roi" in saccade_from_label:
+                            logger.info(
+                                f"Updating saccade_from at index {index2} (session {session_name}, agent {agent}): "
+                                f"{saccade_from_label} → {fixation_label}"
+                            )
+                            saccade_froms[index2] = fixation_label
             # Case 2: Saccade → Fixation
             elif type1 == "saccade" and type2 == "fixation":
                 if start2 - end1 <= 100:  # Ensure the gap is within 100 ms
                     saccade_to_label = saccade_tos[index1]
                     fixation_label = fixation_locs[index2]
                     # Fix mismatch if one is "out_of_roi"
-                    if set(saccade_tos[index1]) != set(fixation_locs[index2]):
-                        if "out_of_roi" in fixation_locs[index2]:
-                            fixation_locs[index2] = saccade_tos[index1]
-                        elif "out_of_roi" in saccade_tos[index1]:
-                            saccade_tos[index1] = fixation_locs[index2]
+                    if set(saccade_to_label) != set(fixation_label):
+                        if "out_of_roi" in fixation_label:
+                            logger.info(
+                                f"Updating fixation_location at index {index2} (session {session_name}, agent {agent}): "
+                                f"{fixation_label} → {saccade_to_label}"
+                            )
+                            fixation_locs[index2] = saccade_to_label
+                        if "out_of_roi" in saccade_to_label:
+                            logger.info(
+                                f"Updating saccade_to at index {index1} (session {session_name}, agent {agent}): "
+                                f"{saccade_to_label} → {fixation_label}"
+                            )
+                            saccade_tos[index1] = fixation_label
         # Save the updated labels back into the DataFrame
         eye_mvm_behav_df.at[idx, "fixation_location"] = fixation_locs
         eye_mvm_behav_df.at[idx, "saccade_from"] = saccade_froms
         eye_mvm_behav_df.at[idx, "saccade_to"] = saccade_tos
     return eye_mvm_behav_df
-
-
-def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
-    """
-    Generates and saves histograms of fixation durations, saccade durations,
-    and transition times (saccade start to next fixation start) for each session.
-    If a fixation is found where `fix_start > saccade_start` but `fix_stop < saccade_stop`,
-    prints a **major warning** because this case should never happen.
-    Only prints a warning if:
-      - `fix_start > saccade_start` but `fix_stop < saccade_stop`
-      - `next_fixation[0] - saccade_stop < 100 ms`
-    """
-    today_date = datetime.now().strftime("%Y-%m-%d")
-    plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
-    os.makedirs(plot_dir, exist_ok=True)
-    session_groups = eye_mvm_behav_df.groupby("session_name")
-    for session_name, session_df in tqdm(session_groups, desc="Plotting behav event duration distribution sessions"):
-        fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
-        for agent_idx, agent in enumerate(["m1", "m2"]):
-            agent_df = session_df[session_df["agent"] == agent]
-            if agent_df.empty:
-                logger.warning(f"Skipping {agent} for session {session_name}, no data found.")
-                continue
-            fixation_durations = []
-            saccade_durations = []
-            transition_times = []
-            for _, row in agent_df.iterrows():
-                fixations = row["fixation_start_stop"]
-                saccades = row["saccade_start_stop"]
-                fixation_locs = row["fixation_location"]
-                saccade_tos = row["saccade_to"]
-                # Compute fixation durations
-                fixation_durations.extend([end - start for start, end in fixations])
-                # Compute saccade durations
-                saccade_durations.extend([end - start for start, end in saccades])
-                # Compute transition times and validate saccade_to vs fixation_location
-                for saccade_idx, (saccade_start, saccade_stop) in enumerate(saccades):
-                    # Find the first fixation that starts after the saccade start
-                    next_fixation = next(((fix_start, fix_stop, idx) for idx, (fix_start, fix_stop) 
-                                        in enumerate(fixations) if fix_start > saccade_start), None)
-                    if next_fixation is not None:
-                        fix_start, fix_stop, fixation_idx = next_fixation
-                        # Check if `fix_start > saccade_start` but `fix_stop < saccade_stop`
-                        if fix_start > saccade_start and fix_stop < saccade_stop:
-                            logger.critical(
-                                f"MAJOR WARNING: Fixation starts after saccade but ends before saccade stops!\n"
-                                f"Session: {session_name}, Agent: {agent}, Run: {row['run_number']}\n"
-                                f"Saccade Start: {saccade_start}, Saccade Stop: {saccade_stop}\n"
-                                f"Fixation Start: {fix_start}, Fixation Stop: {fix_stop}"
-                            )
-                        # Compute transition time
-                        transition_time = fix_start - saccade_stop
-                        transition_times.append(transition_time)
-                        # Check if sets do not match and transition time is < 100 ms
-                        if set(saccade_target) != set(fixation_target) and transition_time < 100:
-                            # Only print warning if at least one of them is "out_of_roi"
-                            if "out_of_roi" in saccade_target or "out_of_roi" in fixation_target:
-                                logger.warning(
-                                    f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}: "
-                                    f"saccade_to: {saccade_target}, fixation_location: {fixation_target}, "
-                                    f"time_diff: {transition_time} ms"
-                                )
-            # Plot histograms
-            axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
-            axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
-            axes[agent_idx, 2].hist(transition_times, bins=50, alpha=0.75)
-            axes[agent_idx, 0].set_ylabel(f"{agent}")
-            if agent_idx == 1:
-                axes[agent_idx, 0].set_xlabel("Fixation duration (ms)")
-                axes[agent_idx, 1].set_xlabel("Saccade duration (ms)")
-                axes[agent_idx, 2].set_xlabel("Transition time (ms)")
-        # Set titles
-        axes[0, 0].set_title("Fixation durations")
-        axes[0, 1].set_title("Saccade durations")
-        axes[0, 2].set_title("Saccade to Fixation Transition")
-        plt.suptitle(f"Gaze Event Durations - Session {session_name}")
-        plt.tight_layout(rect=[0, 0, 1, 0.96])
-        # Save figure
-        save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
-        plt.savefig(save_path)
-        plt.close(fig)
-    logger.info("Behav event duration distribution plot generation completed.")
-
 
 
 def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params):
@@ -692,6 +639,182 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
         plt.close(fig)
         logger.info(f"Saved plot: {plot_path}")
     logger.info("Behavioral plot generation completed.")
+
+
+def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
+    """
+    Generates and saves histograms of fixation durations, saccade durations,
+    and transition times (saccade start to next fixation start) for each session.
+    If a fixation is found where `fix_start > saccade_start` but `fix_stop < saccade_stop`,
+    prints a **major warning** because this case should never happen.
+    Only prints a warning if:
+      - `fix_start > saccade_start` but `fix_stop < saccade_stop`
+      - `next_fixation[0] - saccade_stop < 100 ms`
+    """
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
+    os.makedirs(plot_dir, exist_ok=True)
+    session_groups = eye_mvm_behav_df.groupby("session_name")
+
+    for session_name, session_df in tqdm(session_groups, desc="Plotting behav event duration distribution sessions"):
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
+
+        for agent_idx, agent in enumerate(["m1", "m2"]):
+            agent_df = session_df[session_df["agent"] == agent]
+            if agent_df.empty:
+                logger.warning(f"Skipping {agent} for session {session_name}, no data found.")
+                continue
+
+            fixation_durations = []
+            saccade_durations = []
+            transition_times = []
+
+            for _, row in agent_df.iterrows():
+                fixations = row["fixation_start_stop"]
+                saccades = row["saccade_start_stop"]
+                fixation_locs = row["fixation_location"]
+                saccade_tos = row["saccade_to"]
+
+                # Combine fixations and saccades into a single sorted event list
+                events = [(start, end, "fixation", i) for i, (start, end) in enumerate(fixations)]
+                events += [(start, end, "saccade", i) for i, (start, end) in enumerate(saccades)]
+                events.sort(key=lambda x: x[0])  # Ensure ordering by start time
+
+                # Compute fixation and saccade durations
+                fixation_durations.extend([end - start for start, end in fixations])
+                saccade_durations.extend([end - start for start, end in saccades])
+
+                # Compute transition times and validate saccade_to vs fixation_location
+                for i in range(len(events) - 1):
+                    start1, stop1, type1, index1 = events[i]
+                    start2, stop2, type2, index2 = events[i + 1]
+
+                    # Case: Saccade → Fixation transition
+                    if type1 == "saccade" and type2 == "fixation":
+                        transition_time = start2 - stop1
+                        transition_times.append(transition_time)
+
+                        saccade_target = saccade_tos[index1]
+                        fixation_target = fixation_locs[index2]
+
+                        # Major warning if a fixation starts after a saccade but ends before it
+                        if start2 > start1 and stop2 < stop1:
+                            logger.critical(
+                                f"MAJOR WARNING: Fixation starts after saccade but ends before saccade stops!\n"
+                                f"Session: {session_name}, Agent: {agent}, Run: {row['run_number']}\n"
+                                f"Saccade Start: {start1}, Saccade Stop: {stop1}\n"
+                                f"Fixation Start: {start2}, Fixation Stop: {stop2}"
+                            )
+
+                        # Check for mismatches in saccade_to and fixation_location
+                        if set(saccade_target) != set(fixation_target) and transition_time < 100:
+                            if "out_of_roi" in saccade_target or "out_of_roi" in fixation_target:
+                                logger.warning(
+                                    f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}: "
+                                    f"saccade_to: {saccade_target}, fixation_location: {fixation_target}, "
+                                    f"time_diff: {transition_time} ms"
+                                )
+
+            # Plot histograms
+            axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
+            axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
+            axes[agent_idx, 2].hist(transition_times, bins=50, alpha=0.75)
+
+            axes[agent_idx, 0].set_ylabel(f"{agent}")
+            if agent_idx == 1:
+                axes[agent_idx, 0].set_xlabel("Fixation duration (ms)")
+                axes[agent_idx, 1].set_xlabel("Saccade duration (ms)")
+                axes[agent_idx, 2].set_xlabel("Transition time (ms)")
+
+        # Set titles
+        axes[0, 0].set_title("Fixation durations")
+        axes[0, 1].set_title("Saccade durations")
+        axes[0, 2].set_title("Saccade to Fixation Transition")
+        plt.suptitle(f"Gaze Event Durations - Session {session_name}")
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+        # Save figure
+        save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
+        plt.savefig(save_path)
+        plt.close(fig)
+
+    logger.info("Behav event duration distribution plot generation completed.")
+
+
+
+def _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df):
+    """
+    Validates that fixation and saccade start-stop times:
+    1. Are ordered by start time within each row.
+    2. Do not overlap within fixations or within saccades.
+    3. No fixation is entirely inside a saccade.
+    4. No saccade is entirely inside a fixation.
+
+    Parameters
+    ----------
+    eye_mvm_behav_df : pandas.DataFrame
+        Dataframe containing gaze behavior data, including fixation and saccade start-stop times.
+
+    Returns
+    -------
+    None
+        Prints warnings for any detected issues.
+    """
+    for idx, row in tqdm(eye_mvm_behav_df.iterrows(), desc="Validating fixation and saccade order and overlaps"):
+        session_name = row['session_name']
+        agent = row['agent']
+        run_number = row['run_number']
+        
+        fixations = row["fixation_start_stop"]
+        saccades = row["saccade_start_stop"]
+
+        # **Check order of fixations**
+        fixation_starts = [start for start, _ in fixations]
+        if fixation_starts != sorted(fixation_starts):
+            logger.warning(f"Fixations out of order in session {session_name}, agent {agent}, run {run_number}")
+
+        # **Check order of saccades**
+        saccade_starts = [start for start, _ in saccades]
+        if saccade_starts != sorted(saccade_starts):
+            logger.warning(f"Saccades out of order in session {session_name}, agent {agent}, run {run_number}")
+
+        # **Check for overlapping fixations**
+        for i in range(len(fixations) - 1):
+            start1, stop1 = fixations[i]
+            start2, stop2 = fixations[i + 1]
+            if start2 < stop1:
+                logger.warning(
+                    f"Overlapping fixations in session {session_name}, agent {agent}, run {run_number}: "
+                    f"({start1}, {stop1}) and ({start2}, {stop2})"
+                )
+
+        # **Check for overlapping saccades**
+        for i in range(len(saccades) - 1):
+            start1, stop1 = saccades[i]
+            start2, stop2 = saccades[i + 1]
+            if start2 < stop1:
+                logger.warning(
+                    f"Overlapping saccades in session {session_name}, agent {agent}, run {run_number}: "
+                    f"({start1}, {stop1}) and ({start2}, {stop2})"
+                )
+
+        # **Check if a fixation is entirely inside a saccade**
+        for fix_start, fix_stop in fixations:
+            for sacc_start, sacc_stop in saccades:
+                if sacc_start < fix_start and fix_stop < sacc_stop:
+                    logger.warning(
+                        f"Fixation completely inside a saccade in session {session_name}, agent {agent}, run {run_number}: "
+                        f"Fixation ({fix_start}, {fix_stop}) inside Saccade ({sacc_start}, {sacc_stop})"
+                    )
+
+        # **Check if a saccade is entirely inside a fixation**
+        for sacc_start, sacc_stop in saccades:
+            for fix_start, fix_stop in fixations:
+                if fix_start < sacc_start and sacc_stop < fix_stop:
+                    logger.warning(
+                        f"Saccade completely inside a fixation in session {session_name}, agent {agent}, run {run_number}: "
+                        f"Saccade ({sacc_start}, {sacc_stop}) inside Fixation ({fix_start}, {fix_stop})"
+                    )
 
 
 
