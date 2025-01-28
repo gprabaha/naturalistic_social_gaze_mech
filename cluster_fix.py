@@ -4,95 +4,52 @@ import logging
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-# Configure logging to display messages at INFO level
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
-import numpy as np
-import scipy.signal as signal
-import logging
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_samples, silhouette_score
 
-# Configure logging to display messages at INFO level
-logging.basicConfig(level=logging.INFO)
-
-def detect_fixations_saccades(eye_data):
+def detect_fixations_saccades(positions):
     """
     Detect fixations and saccades using k-means clustering.
-    :param eye_data: 2D numpy array with shape (N, 2) containing [x, y] eye position data.
+    :param positions: 2D numpy array with shape (N, 2) containing [x, y] eye position data.
     :return: fixation_start_stop and saccade_start_stop as numpy arrays of shape (M,2) or empty if no events detected.
     """
     if eye_data.shape[0] < 500:
         logging.info("Insufficient data points (< 500), returning empty arrays.")
         return np.empty((0, 2), dtype=int), np.empty((0, 2), dtype=int)
     
-    # Define filter properties for low-pass filtering
-    fltord = 60
-    lowpass_freq = 30
-    nyquist_freq = 1000 / 2
-    flt = signal.firwin(fltord, cutoff=lowpass_freq/nyquist_freq, pass_zero=True)
+    # Apply low-pass filtering to smooth position signals
+    xss, yss = _apply_lowpass_filter(positions)
+
+    # Compute velocity, acceleration, angular velocity, and displacement
+    feature_matrix = _compute_motion_features(xss, yss)
     
-    # Extract x and y position data
-    x, y = eye_data[:, 0], eye_data[:, 1]
+    # Normalize features for clustering
+    feature_matrix = _normalize_features(feature_matrix)
     
-    # Apply low-pass filtering to smooth the signals
-    xss = signal.filtfilt(flt, 1, x)
-    yss = signal.filtfilt(flt, 1, y)
-    
-    # Compute velocity, acceleration, and angular velocity
-    velx, vely = np.diff(xss), np.diff(yss)
-    vel = np.sqrt(velx**2 + vely**2)
-    accel = np.abs(np.diff(vel))
-    angle = np.degrees(np.arctan2(vely, velx))
-    vel, angle = vel[:-1], angle[:-1]
-    
-    # Compute angular velocity and displacement
-    rot, displacement = np.zeros(len(xss)-2), np.zeros(len(xss)-2)
-    for i in range(len(xss)-2):
-        rot[i] = np.abs(angle[i] - angle[i+1])
-        displacement[i] = np.sqrt((xss[i] - xss[i+2])**2 + (yss[i] - yss[i+2])**2)
-    
-    # Normalize angular velocity for proper scaling
-    rot[rot > 180] -= 180
-    rot = 360 - rot
-    
-    # Construct feature matrix for clustering
-    feature_matrix = np.column_stack((displacement, vel, accel, rot))
-    feature_matrix = normalize_features(feature_matrix)
-    
-    # Perform global clustering to classify fixations and saccades
-    num_clusters = determine_optimal_clusters(feature_matrix[:, 1:4])
-    labels = KMeans(n_clusters=num_clusters, n_init=5).fit_predict(feature_matrix)
-    
-    # Compute mean and standard deviation for each cluster
-    unique_clusters = np.unique(labels)
-    mean_values = np.array([np.mean(feature_matrix[labels == k], axis=0) for k in unique_clusters])
-    std_values = np.array([np.std(feature_matrix[labels == k], axis=0) for k in unique_clusters])
-    
-    # Identify primary and secondary fixation clusters
-    fixation_cluster = np.argmin(np.sum(mean_values[:, 1:3], axis=1))
-    labels[labels == fixation_cluster] = 100
-    secondary_fixation_clusters = np.where(mean_values[:, 1] < mean_values[fixation_cluster, 1] + 3 * std_values[fixation_cluster, 1])[0]
-    labels[np.isin(labels, secondary_fixation_clusters)] = 100
-    labels[labels != 100] = 2
-    labels[labels == 100] = 1
-    
-    fixation_indices = np.where(labels == 1)[0]
-    saccade_indices = np.where(labels == 2)[0]
+    # Get initial estimate of fixation indices through global k means clustering of the data
+    fixation_indices = _extract_fixation_indices_through_global_k_means(feature_matrix)
     
     # Extract start-stop intervals for fixations
-    fixation_start_stop = extract_behavior_intervals(fixation_indices)
+    fixation_start_stop = _extract_behavior_intervals(fixation_indices)
     
     # Perform local re-clustering for refinement
-    not_fixations = refine_fixation_classification(fixation_start_stop, feature_matrix)
+    not_fixations = _refine_fixation_classification_to_get_notfix_inds(fixation_start_stop, feature_matrix)
     fixation_indices = np.setdiff1d(fixation_indices, not_fixations)
     saccade_indices = np.setdiff1d(np.arange(len(feature_matrix)), fixation_indices)
     
     # Further filtering to remove short fixations and saccades
-    fixation_start_stop = extract_behavior_intervals(fixation_indices + 1) # The +1 is to account for the smaller vel/accel vectors compared to eyedat
-    fixation_start_stop = filter_behavior_intervals(fixation_start_stop, min_duration=25)
-    saccade_start_stop = extract_behavior_intervals(saccade_indices + 1)
-    saccade_start_stop = filter_behavior_intervals(saccade_start_stop, min_duration=10)
+    fixation_start_stop = _extract_behavior_intervals(fixation_indices + 1) # The +1 is to account for the smaller vel/accel vectors compared to eyedat
+    fixation_start_stop = _filter_behavior_intervals(fixation_start_stop, min_duration=25)
+    saccade_start_stop = _extract_behavior_intervals(saccade_indices + 1)
+    saccade_start_stop = _filter_behavior_intervals(saccade_start_stop, min_duration=10)
     
     # Ensure output arrays have the correct shape
     fixation_start_stop = fixation_start_stop if fixation_start_stop.size else np.empty((0, 2), dtype=int)
@@ -101,8 +58,34 @@ def detect_fixations_saccades(eye_data):
     return fixation_start_stop, saccade_start_stop
 
 
+def _apply_lowpass_filter(positions):
+    """Applies a low-pass FIR filter to smooth eye movement data."""
+    fltord = 60  # Filter order
+    lowpass_freq = 30  # Cutoff frequency in Hz
+    nyquist_freq = 500  # Nyquist frequency for 1000Hz sampling rate
+    flt = signal.firwin(fltord, cutoff=lowpass_freq/nyquist_freq, pass_zero=True)
+    xss = signal.filtfilt(flt, 1, positions[:, 0])
+    yss = signal.filtfilt(flt, 1, positions[:, 1])
+    return xss, yss
 
-def normalize_features(feature_matrix):
+
+def _compute_motion_features(xss, yss):
+    """Computes velocity, acceleration, angular velocity, and displacement from smoothed position data."""
+    velx, vely = np.diff(xss), np.diff(yss)
+    vel = np.sqrt(velx**2 + vely**2)
+    accel = np.abs(np.diff(vel))
+    angle = np.degrees(np.arctan2(vely, velx))[:-1]
+    vel = vel[:-1]
+    rot, displacement = np.zeros(len(xss)-2), np.zeros(len(xss)-2)
+    for i in range(len(xss)-2):
+        rot[i] = np.abs(angle[i] - angle[i+1])
+        displacement[i] = np.sqrt((xss[i] - xss[i+2])**2 + (yss[i] - yss[i+2])**2)
+    rot[rot > 180] -= 180  # Normalize angular velocity to be within 180 degrees
+    rot = 360 - rot
+    return np.column_stack((displacement, vel, accel, rot))
+
+
+def _normalize_features(feature_matrix):
     """
     Normalize feature values to [0,1] range to ensure even scaling across features.
     """
@@ -114,7 +97,34 @@ def normalize_features(feature_matrix):
     return feature_matrix
 
 
-def determine_optimal_clusters(data):
+def _extract_fixation_indices_through_global_k_means(feature_matrix):
+    """
+    Perform global clustering to classify fixations and saccades using K-Means.
+    Parameters:
+    feature_matrix (np.ndarray): Feature matrix where each row represents a data point.
+    Returns:
+    tuple: (fixation_indices, saccade_indices) where each is an array of indices.
+    """
+    # Determine the optimal number of clusters
+    num_clusters = __determine_optimal_clusters(feature_matrix[:, 1:4])
+    labels = KMeans(n_clusters=num_clusters, n_init=5).fit_predict(feature_matrix)
+    # Compute mean and standard deviation for each cluster
+    unique_clusters = np.unique(labels)
+    mean_values = np.array([np.mean(feature_matrix[labels == k], axis=0) for k in unique_clusters])
+    std_values = np.array([np.std(feature_matrix[labels == k], axis=0) for k in unique_clusters])
+    # Identify primary and secondary fixation clusters
+    fixation_cluster = np.argmin(np.sum(mean_values[:, 1:3], axis=1))
+    labels[labels == fixation_cluster] = 100
+    secondary_fixation_clusters = np.where(
+        mean_values[:, 1] < mean_values[fixation_cluster, 1] + 3 * std_values[fixation_cluster, 1]
+    )[0]
+    labels[np.isin(labels, secondary_fixation_clusters)] = 100
+    labels[labels != 100] = 2
+    labels[labels == 100] = 1
+    fixation_indices = np.where(labels == 1)[0]
+    return fixation_indices
+
+def __determine_optimal_clusters(data):
     """
     Determine the optimal number of clusters using silhouette scoring.
     """
@@ -127,18 +137,7 @@ def determine_optimal_clusters(data):
     return best_k
 
 
-def classify_fixations_saccades(labels, feature_matrix):
-    """
-    Determine fixation and saccade clusters based on velocity and acceleration properties using median values.
-    """
-    cluster_medians = np.array([np.mean(feature_matrix[labels == k, 1:3], axis=0) for k in np.unique(labels)])
-    fixation_cluster = np.argmin(np.sum(cluster_medians, axis=1))
-    fixation_indices = np.where(labels == fixation_cluster)[0]
-    saccade_indices = np.where(labels != fixation_cluster)[0]
-    return fixation_indices, saccade_indices
-
-
-def refine_fixation_classification(fixation_start_stop, feature_matrix):
+def _refine_fixation_classification_to_get_notfix_inds(fixation_start_stop, feature_matrix):
     """
     Refines the classification of fixation and non-fixation points based on clustering analysis.
     Identifies non-fixation indices by re-evaluating local fixation clusters.
@@ -197,20 +196,19 @@ def refine_fixation_classification(fixation_start_stop, feature_matrix):
     return np.array(non_fixation_indices)
 
 
-def extract_behavior_intervals(indices):
+def _extract_behavior_intervals(indices):
     """
     Convert classified index sequences into continuous behavioral periods.
     """
     if len(indices) == 0:
         return np.empty((0, 2), dtype=int)
-    
     diffs = np.diff(indices)
     gaps = np.where(diffs > 1)[0]
     times = np.vstack((indices[np.insert(gaps + 1, 0, 0)], indices[np.append(gaps, len(indices) - 1)])).T
     return times
 
 
-def filter_behavior_intervals(intervals, min_duration):
+def _filter_behavior_intervals(intervals, min_duration):
     """
     Remove behavioral intervals that are shorter than the minimum duration.
     """
