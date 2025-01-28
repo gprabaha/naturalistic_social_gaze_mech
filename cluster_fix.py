@@ -30,7 +30,7 @@ def detect_fixations_saccades(positions):
     # Apply low-pass filtering to smooth position signals
     logger.info("Preprocessing positions data for fixation detection")
     x, y = _apply_lowpass_filter(positions)
-    pdb.set_trace()
+    
     # Compute velocity, acceleration, angular velocity, and displacement
     logger.info("Extracting motion parameters for k-means clustering")
     feature_matrix = _compute_motion_features(x, y)
@@ -71,9 +71,9 @@ def _apply_lowpass_filter(positions):
     lowpass_freq = 30  # Cutoff frequency in Hz
     nyquist_freq = 500  # Nyquist frequency for 1000Hz sampling rate
     flt = signal.firwin2(fltord, 
-                         [0, lowpasfrq / nyqfrq, lowpasfrq / nyqfrq, 1], 
+                         [0, lowpass_freq / nyquist_freq, lowpass_freq / nyquist_freq, 1], 
                          [1, 1, 0, 0])
-    buffer = int(100 / (samprate * 1000))
+    buffer = 100
     x = np.pad(positions[:, 0], (buffer, buffer), 'reflect')
     y = np.pad(positions[:, 1], (buffer, buffer), 'reflect')
     flt = signal.firwin(fltord, cutoff=lowpass_freq/nyquist_freq, pass_zero=True)
@@ -89,14 +89,14 @@ def _compute_motion_features(xss, yss):
     velx, vely = np.diff(xss), np.diff(yss)
     vel = np.sqrt(velx**2 + vely**2)
     accel = np.abs(np.diff(vel))
-    angle = np.degrees(np.arctan2(vely, velx))[:-1]
-    vel = vel[:-1]
+    angle = np.degrees(np.arctan2(vely, velx))
     rot, displacement = np.zeros(len(xss)-2), np.zeros(len(xss)-2)
     for i in range(len(xss)-2):
         rot[i] = np.abs(angle[i] - angle[i+1])
         displacement[i] = np.sqrt((xss[i] - xss[i+2])**2 + (yss[i] - yss[i+2])**2)
     rot[rot > 180] -= 180  # Normalize angular velocity to be within 180 degrees
     rot = 360 - rot
+    vel = vel[:-1]
     return np.column_stack((displacement, vel, accel, rot))
 
 
@@ -137,6 +137,7 @@ def _extract_fixation_indices_through_global_k_means(feature_matrix):
     labels[labels != 100] = 2
     labels[labels == 100] = 1
     fixation_indices = np.where(labels == 1)[0]
+    logger.info(f'Found fixation indices from global clustering')
     return fixation_indices
 
 def __determine_optimal_clusters(data):
@@ -149,6 +150,7 @@ def __determine_optimal_clusters(data):
         sil_score = silhouette_score(data, kmeans.labels_)
         if sil_score > best_sil:
             best_sil, best_k = sil_score, k
+    logger.info(f'Optimal k-Means cluster number was found to be: {best_k}')
     return best_k
 
 
@@ -170,14 +172,14 @@ def _refine_fixation_classification_to_get_notfix_inds(fixation_start_stop, feat
         local_features = feature_matrix[surrounding_indices, :]
         # Determine optimal number of clusters using silhouette score
         silhouette_scores = []
-        for num_clusters in range(1, 6):  # Testing between 1 to 5 clusters
+        for num_clusters in range(2, 6):  # Testing between 1 to 5 clusters
             kmeans = KMeans(n_clusters=num_clusters, n_init=5, random_state=42)
             labels = kmeans.fit_predict(local_features[::5, :])  # Use every 5th data point to reduce computation
             silhouette_scores.append(silhouette_score(local_features[::5, :], labels))
         # Select optimal number of clusters based on highest silhouette score
         silhouette_scores = np.array(silhouette_scores)
         silhouette_scores[silhouette_scores > 0.9 * np.max(silhouette_scores)] = 1
-        optimal_clusters = np.argmax(silhouette_scores) + 1
+        optimal_clusters = np.argmax(silhouette_scores) + 2
         # Perform KMeans clustering with the chosen optimal cluster count
         kmeans = KMeans(n_clusters=optimal_clusters, n_init=5, random_state=42)
         cluster_labels = kmeans.fit_predict(local_features)
@@ -208,6 +210,7 @@ def _refine_fixation_classification_to_get_notfix_inds(fixation_start_stop, feat
         cluster_labels[cluster_labels == 100] = 1
         # Collect indices of non-fixation points
         non_fixation_indices.extend(surrounding_indices[cluster_labels == 2])
+    logger.info(f'Found not-fixation indices from local re-clustering')
     return np.array(non_fixation_indices)
 
 
@@ -220,7 +223,6 @@ def _extract_behavior_intervals(indices):
     diffs = np.diff(indices)
     gaps = np.where(diffs > 1)[0]
     times = np.vstack((indices[np.insert(gaps + 1, 0, 0)], indices[np.append(gaps, len(indices) - 1)])).T
-    pdb.set_trace()
     return times
 
 
