@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'remake_firing_rate_df': False,
+        'remake_firing_rate_df': True,
         'neural_data_bin_size': 10,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'gaussian_smoothing_sigma': 5,
@@ -74,7 +74,7 @@ def main():
 
 
 def compute_firing_rates_for_fixations_and_saccades(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params):
-    num_cpus = min(cpu_count(), params.get('num_cpus', cpu_count()))
+    num_cpus = min(16, cpu_count())
     output_path = os.path.join(params['processed_data_dir'], 'behavioral_firing_rate_df.pkl')
     
     with Pool(num_cpus) as pool:
