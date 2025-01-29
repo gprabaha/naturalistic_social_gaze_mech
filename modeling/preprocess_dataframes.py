@@ -77,18 +77,20 @@ def compute_firing_rates_for_fixations_and_saccades(eye_mvm_behav_df, sparse_nan
     num_cpus = min(16, cpu_count())
     output_path = os.path.join(params['processed_data_dir'], 'behavioral_firing_rate_df.pkl')
     
-    with Pool(num_cpus) as pool:
-        results = list(tqdm(
-            pool.imap_unordered(lambda session: extract_firing_rates_for_session(session[0], session[1], sparse_nan_removed_sync_gaze_df, spike_times_df, params), 
-                                eye_mvm_behav_df.groupby('session_name')),
-            total=len(eye_mvm_behav_df['session_name'].unique()),
-            desc='Processing Sessions'
-        ))
+    session_groups = list(eye_mvm_behav_df.groupby('session_name'))
+    
+    with Pool(num_cpus) as pool, tqdm(total=len(session_groups), desc='Processing Sessions') as pbar:
+        results = []
+        for result in pool.starmap(extract_firing_rates_for_session, 
+                                   [(session_name, session_group, sparse_nan_removed_sync_gaze_df, spike_times_df, params) 
+                                    for session_name, session_group in session_groups]):
+            results.append(result)
+            pbar.update()
     
     firing_rate_data = [item for sublist in results for item in sublist]
     firing_rate_df = pd.DataFrame(firing_rate_data)
     firing_rate_df.to_pickle(output_path)
-    
+
     return firing_rate_df
 
 
@@ -109,9 +111,9 @@ def extract_firing_rates_for_session(session_name, session_group, sparse_nan_rem
         if run_gaze.empty:
             continue
         
-        neural_time_list = run_gaze.iloc[0]['neural_timeline']
         run_gaze = run_gaze[run_gaze['agent'] == 'm1']
         run_behaviors = run_group[run_group['agent'] == 'm1']
+        neural_time_list = run_gaze.iloc[0]['neural_timeline']
         
         for _, row in run_behaviors.iterrows():
             fixations = row['fixation_start_stop']
