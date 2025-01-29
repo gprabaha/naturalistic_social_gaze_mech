@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import logging
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
@@ -89,7 +90,10 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     brain_region = unit["region"]
     spike_times = np.array(unit["spike_ts"])
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
-    fig, axs = plt.subplots(4, 3, figsize=(16, 24), sharex=True, sharey=True)
+    fig = plt.figure(figsize=(16, 24))
+    gs = gridspec.GridSpec(4, 3, figure=fig)
+    axs = [[fig.add_subplot(gs[i, j]) for j in range(2)] for i in range(4)]
+    significance_ax = fig.add_subplot(gs[:, 2])  # Spanning all rows in the third column
     statistical_results = {}
     for idx, roi in enumerate(rois):
         transitions = ["eyes", "non_eye_face", "object", "out_of_roi"]
@@ -97,13 +101,13 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
             spike_data = []  # Store (spike_counts, transition_label) tuples
             timeline = None
             for trans in transitions:
-                trial_spike_counts, timeline = ____compute_spiking_per_trial(
+                trial_spike_counts, timeline = ___compute_spiking_per_trial(
                     roi, trans, session_behav_df, session_gaze_df, spike_times, params, transition_type
                 )
                 if trial_spike_counts:
                     spike_data.extend(trial_spike_counts)
             if timeline is not None:
-                significant_bins = ___perform_anova_and_mark_plot(spike_data, timeline, axs[idx, col_idx])
+                significant_bins = ___perform_anova_and_mark_plot(spike_data, timeline, axs[idx][col_idx])
                 if significant_bins >= 5:
                     statistical_results.setdefault(roi, {}).setdefault(transition_type, []).append(unit_uuid)
             if spike_data:
@@ -113,21 +117,21 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
                     spike_matrix = np.array(data.tolist())
                     mean_spiking[transition] = np.mean(spike_matrix, axis=0)
                 for transition, mean_values in mean_spiking.items():
-                    axs[idx, col_idx].plot(timeline[:-1], mean_values, label=transition)
-            axs[idx, col_idx].set_title(f"Fixation on {roi} ({transition_type} transition)")
-            axs[idx, col_idx].legend()
+                    axs[idx][col_idx].plot(timeline[:-1], mean_values, label=transition)
+            axs[idx][col_idx].set_title(f"Fixation on {roi} ({transition_type} transition)")
+            axs[idx][col_idx].legend()
     # Add black and white significance matrix
     significance_matrix = np.zeros((len(rois), 2))
     for i, roi in enumerate(rois):
         for j, transition_type in enumerate(["from", "to"]):
             if roi in statistical_results and transition_type in statistical_results[roi]:
                 significance_matrix[i, j] = 1
-    axs[0:, 2].imshow(significance_matrix, cmap="gray", aspect="auto")
-    axs[0:, 2].set_yticks(range(len(rois)))
-    axs[0:, 2].set_yticklabels(rois)
-    axs[0:, 2].set_xticks([0, 1])
-    axs[0:, 2].set_xticklabels(["from", "to"])
-    axs[0:, 2].set_title("Significance Matrix")
+    significance_ax.imshow(significance_matrix, cmap="gray", aspect="auto")
+    significance_ax.set_yticks(range(len(rois)))
+    significance_ax.set_yticklabels(rois)
+    significance_ax.set_xticks([0, 1])
+    significance_ax.set_xticklabels(["from", "to"])
+    significance_ax.set_title("Significance Matrix")
     plt.suptitle(f"Fixation Transition Spiking for UUID {unit_uuid}")
     plt.tight_layout()
     if statistical_results:
@@ -140,7 +144,7 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     return unit_uuid, brain_region, statistical_results
 
 
-def ____compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze_df, spike_times, params, transition_type):
+def ___compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze_df, spike_times, params, transition_type):
     """Computes spike counts per trial for a given transition type."""
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
@@ -169,7 +173,9 @@ def ____compute_spiking_per_trial(roi, transition, session_behav_df, session_gaz
             ]
         if not relevant_fixations:
             continue
-        run_gaze_data = session_gaze_df[session_gaze_df["run_number"] == run_number]
+        run_gaze_data = session_gaze_df[
+            (session_gaze_df["run_number"] == run_number) & (session_gaze_df["agent"] == 'm1')
+        ]
         if run_gaze_data.empty:
             continue
         neural_timeline = run_gaze_data.iloc[0]["neural_timeline"]
@@ -178,7 +184,7 @@ def ____compute_spiking_per_trial(roi, transition, session_behav_df, session_gaz
             if fixation_start >= len(neural_timeline):
                 continue
             fixation_time = neural_timeline[fixation_start]
-            bins = np.linspace(fixation_time - time_window, fixation_time + time_window, int(2 * time_window / bin_size) + 1)
+            bins = np.linspace(fixation_time - time_window, fixation_time + time_window, int(2 * time_window / bin_size) + 1).ravel()
             spike_counts, _ = np.histogram(spike_times, bins=bins)
             spike_counts = spike_counts / bin_size
             if params["smooth_spike_counts"]:
@@ -209,6 +215,7 @@ def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=F
         _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
     else:
         corrected_p_values = p_values
+    corrected_p_values = np.array(corrected_p_values)
     significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
     for bin_idx in significant_bins:
         ax.axvline(timeline[bin_idx], color='red', linestyle='--', alpha=0.5)
