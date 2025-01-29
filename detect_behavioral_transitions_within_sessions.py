@@ -59,10 +59,16 @@ def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, s
     today_date = datetime.now().strftime("%Y-%m-%d")
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
+    all_statistical_summaries = []
     for session_name, session_behav_df in tqdm(eye_mvm_behav_df.groupby("session_name"), desc="Processing Sessions"):
         session_spike_df = spike_times_df[spike_times_df["session_name"] == session_name]
         session_gaze_df = sparse_nan_removed_sync_gaze_df[sparse_nan_removed_sync_gaze_df["session_name"] == session_name]
-        __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params)
+        session_summary = __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params)
+        all_statistical_summaries.extend(session_summary)
+    # Plot region summary across all sessions
+    region_summary_dir = os.path.join(root_dir, "region_summary")
+    os.makedirs(region_summary_dir, exist_ok=True)
+    __plot_region_summary(all_statistical_summaries, spike_times_df, region_summary_dir)
 
 
 def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params):
@@ -74,9 +80,6 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
         )
         if significant_results:
             statistical_summary.append((unit_uuid, brain_region, significant_results))
-    region_summary_dir = os.path.join(root_dir, "region_summary")
-    os.makedirs(region_summary_dir, exist_ok=True)
-    __plot_region_summary(statistical_summary, session_spike_df, region_summary_dir)
     return statistical_summary
 
 
@@ -212,27 +215,34 @@ def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=F
     return len(significant_bins)
 
 
-def __plot_region_summary(statistical_summary, session_spike_df, region_summary_dir):
-    """Creates a summary plot showing the fraction of significant units per region for each ROI and transition."""
-    regions = session_spike_df["region"].unique()
+def __plot_region_summary(statistical_summary, spike_times_df, region_summary_dir):
+    """Creates a summary plot showing the counts and percentages of significant units per region for each ROI and transition across all sessions."""
+    regions = spike_times_df["region"].unique()
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
     transitions = ["from", "to"]
-    summary_matrix = np.zeros((len(regions), len(rois), len(transitions)))
-    region_unit_counts = {region: len(session_spike_df[session_spike_df["region"] == region]) for region in regions}
+    total_units_per_region = {region: len(spike_times_df[spike_times_df["region"] == region]) for region in regions}
+    significant_counts = np.zeros((len(regions), len(rois), len(transitions)))
     for unit_uuid, brain_region, sig_results in statistical_summary:
         for roi_idx, roi in enumerate(rois):
             for trans_idx, transition_type in enumerate(transitions):
                 if roi in sig_results and transition_type in sig_results[roi]:
-                    summary_matrix[regions.tolist().index(brain_region), roi_idx, trans_idx] += 1
-    summary_matrix /= np.array([region_unit_counts[region] for region in regions])[:, None, None]
-    fig, axs = plt.subplots(len(regions), 1, figsize=(10, len(regions) * 3))
+                    significant_counts[regions.tolist().index(brain_region), roi_idx, trans_idx] += 1
+    fig, axs = plt.subplots(len(regions), 1, figsize=(12, len(regions) * 4))
     for i, region in enumerate(regions):
-        im = axs[i].imshow(summary_matrix[i], cmap="viridis", aspect="auto")
+        total_units = total_units_per_region[region]
+        percent_significant = (significant_counts[i] / total_units) * 100 if total_units > 0 else np.zeros_like(significant_counts[i])
+        table_data = [[f"{int(significant_counts[i, j, k])}/{total_units} ({percent_significant[j, k]:.2f}%)" 
+                       for k in range(len(transitions))] for j in range(len(rois))]
+        im = axs[i].imshow(percent_significant, cmap="viridis", aspect="auto")
         axs[i].set_xticks(range(len(transitions)))
         axs[i].set_xticklabels(transitions)
         axs[i].set_yticks(range(len(rois)))
         axs[i].set_yticklabels(rois)
-        axs[i].set_title(f"{region} - Fraction of Significant Units")
+        axs[i].set_title(f"{region} - Total Units: {total_units}")
+        # Add counts and percentages as text annotations
+        for j in range(len(rois)):
+            for k in range(len(transitions)):
+                axs[i].text(k, j, table_data[j][k], ha="center", va="center", color="black")
         fig.colorbar(im, ax=axs[i])
     plt.tight_layout()
     plt.savefig(os.path.join(region_summary_dir, "region_summary.png"), dpi=100)
