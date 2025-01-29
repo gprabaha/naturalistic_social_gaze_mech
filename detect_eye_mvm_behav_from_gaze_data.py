@@ -545,102 +545,41 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
 
 def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
     """
-    Generates and saves histograms of fixation durations, saccade durations,
-    and transition times (saccade start to next fixation start) for each session.
-    If a fixation is found where `fix_start > saccade_start` but `fix_stop < saccade_stop`,
-    prints a **major warning** because this case should never happen.
-    Only prints a warning if:
-      - `fix_start > saccade_start` but `fix_stop < saccade_stop`
-      - `next_fixation[0] - saccade_stop < 100 ms`
+    Generates and saves histograms of fixation and saccade durations for each session.
     """
     today_date = datetime.now().strftime("%Y-%m-%d")
     plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
     os.makedirs(plot_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby("session_name")
-
-    for session_name, session_df in tqdm(session_groups, desc="Plotting behav event duration distribution sessions"):
-        fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
-
+    for session_name, session_df in tqdm(session_groups, desc="Plotting gaze event duration distributions"):
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharex=True, sharey=True)
         for agent_idx, agent in enumerate(["m1", "m2"]):
             agent_df = session_df[session_df["agent"] == agent]
             if agent_df.empty:
                 logger.warning(f"Skipping {agent} for session {session_name}, no data found.")
                 continue
-
             fixation_durations = []
             saccade_durations = []
-            transition_times = []
-
             for _, row in agent_df.iterrows():
                 fixations = row["fixation_start_stop"]
                 saccades = row["saccade_start_stop"]
-                fixation_locs = row["fixation_location"]
-                saccade_tos = row["saccade_to"]
-
-                # Combine fixations and saccades into a single sorted event list
-                events = [(start, end, "fixation", i) for i, (start, end) in enumerate(fixations)]
-                events += [(start, end, "saccade", i) for i, (start, end) in enumerate(saccades)]
-                events.sort(key=lambda x: x[0])  # Ensure ordering by start time
-
-                # Compute fixation and saccade durations
                 fixation_durations.extend([end - start for start, end in fixations])
                 saccade_durations.extend([end - start for start, end in saccades])
-
-                # Compute transition times and validate saccade_to vs fixation_location
-                for i in range(len(events) - 1):
-                    start1, stop1, type1, index1 = events[i]
-                    start2, stop2, type2, index2 = events[i + 1]
-
-                    # Case: Saccade → Fixation transition
-                    if type1 == "saccade" and type2 == "fixation":
-                        transition_time = start2 - stop1
-                        transition_times.append(transition_time)
-
-                        saccade_target = saccade_tos[index1]
-                        fixation_target = fixation_locs[index2]
-
-                        # Major warning if a fixation starts after a saccade but ends before it
-                        if start2 > start1 and stop2 < stop1:
-                            logger.critical(
-                                f"MAJOR WARNING: Fixation starts after saccade but ends before saccade stops!\n"
-                                f"Session: {session_name}, Agent: {agent}, Run: {row['run_number']}\n"
-                                f"Saccade Start: {start1}, Saccade Stop: {stop1}\n"
-                                f"Fixation Start: {start2}, Fixation Stop: {stop2}"
-                            )
-
-                        # Check for mismatches in saccade_to and fixation_location
-                        if set(saccade_target) != set(fixation_target) and transition_time < 100:
-                            if "out_of_roi" in saccade_target or "out_of_roi" in fixation_target:
-                                logger.warning(
-                                    f"Mismatch in session {session_name}, agent {agent}, run {row['run_number']}: "
-                                    f"saccade_to: {saccade_target}, fixation_location: {fixation_target}, "
-                                    f"time_diff: {transition_time} ms"
-                                )
-
-            # Plot histograms
-            axes[agent_idx, 0].hist(fixation_durations, bins=50, alpha=0.75)
-            axes[agent_idx, 1].hist(saccade_durations, bins=50, alpha=0.75)
-            axes[agent_idx, 2].hist(transition_times, bins=50, alpha=0.75)
-
-            axes[agent_idx, 0].set_ylabel(f"{agent}")
-            if agent_idx == 1:
-                axes[agent_idx, 0].set_xlabel("Fixation duration (ms)")
-                axes[agent_idx, 1].set_xlabel("Saccade duration (ms)")
-                axes[agent_idx, 2].set_xlabel("Transition time (ms)")
-
-        # Set titles
-        axes[0, 0].set_title("Fixation durations")
-        axes[0, 1].set_title("Saccade durations")
-        axes[0, 2].set_title("Saccade to Fixation Transition")
+            # Plot histograms with max duration capped at 1500 ms
+            axes[agent_idx].hist(fixation_durations, bins=50, alpha=0.75, label="Fixation")
+            axes[agent_idx].hist(saccade_durations, bins=50, alpha=0.75, label="Saccade")
+            axes[agent_idx].set_xlim(0, 1500)
+            axes[agent_idx].set_title(f"{agent} Event Durations")
+            axes[agent_idx].set_xlabel("Duration (ms)")
+            axes[agent_idx].legend()
+        axes[0].set_ylabel("Frequency")
         plt.suptitle(f"Gaze Event Durations - Session {session_name}")
         plt.tight_layout(rect=[0, 0, 1, 0.96])
-
         # Save figure
         save_path = os.path.join(plot_dir, f"{session_name}_gaze_durations.png")
         plt.savefig(save_path)
         plt.close(fig)
-
-    logger.info("Behav event duration distribution plot generation completed.")
+    logger.info("Gaze event duration distribution plot generation completed.")
 
 
 
