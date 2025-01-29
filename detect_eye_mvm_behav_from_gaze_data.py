@@ -42,11 +42,11 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'recompute_sparse_nan_removed_gaze_data': False,
-        'remake_eye_mvm_df_from_gaze_data': True,
+        'remake_eye_mvm_df_from_gaze_data': False,
         'try_using_single_run': False,
         'test_specific_runs': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': True,
-        'recompute_fix_and_saccades': True,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'recompute_fix_and_saccades': False,
         'plot_eye_mvm_behav': True,
         'plot_gaze_event_dur_dist': False,
         'is_grace': False,
@@ -109,10 +109,10 @@ def main():
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
         _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df)
     if params.get('plot_eye_mvm_behav', True):
-        ## Plot fixation, saccade, and microsaccade behavior for each run
+        ## Plot fixation and saccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
 
-    if params.get('plot_gaze_event_dur_dist', False):
+    if params.get('plot_gaze_event_dur_dist', True):
         _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params)
 
 
@@ -281,7 +281,7 @@ def _detect_fixations_and_saccades_in_run(positions, session_name, use_parallel=
         start1, end1 = all_events[i]
         start2, end2 = all_events[i + 1]
         assert end1 < start2, f"Overlap detected between ({start1}, {end1}) and ({start2}, {end2})"
-    logger.info("Fixations, saccades, and microsaccades detection completed for session: %s", session_name)
+    logger.info("Fixations and saccades detection completed for session: %s", session_name)
     return all_fix_start_stops, all_sacc_start_stops
 
 
@@ -478,99 +478,69 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
         f"{today_date}"
     )
     os.makedirs(root_dir, exist_ok=True)
-    session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type'])
     logger.info("Starting to generate behavioral plots...")
-    for (session, interaction_type, run), group in tqdm(session_groups, desc="Processing sessions"):
-        session_folder = os.path.join(root_dir, session)
-        os.makedirs(session_folder, exist_ok=True)
-        # Extract data for both agents
-        agents_data = {}
-        for agent in ['m1', 'm2']:
-            agent_data = group[group['agent'] == agent]
-            gaze_data = sparse_nan_removed_sync_gaze_df[
-                (sparse_nan_removed_sync_gaze_df['session_name'] == session) &
-                (sparse_nan_removed_sync_gaze_df['interaction_type'] == interaction_type) &
-                (sparse_nan_removed_sync_gaze_df['run_number'] == run) &
-                (sparse_nan_removed_sync_gaze_df['agent'] == agent)
-            ]
-            if not gaze_data.empty:
-                agents_data[agent] = {
-                    'fixation_start_stop': agent_data['fixation_start_stop'].iloc[0],
-                    'saccade_start_stop': agent_data['saccade_start_stop'].iloc[0],
-                    'microsaccade_start_stop': agent_data['microsaccade_start_stop'].iloc[0],
-                    'positions': gaze_data['positions'].iloc[0],
-                    'roi_rects': gaze_data['roi_rects'].iloc[0]
-                }
-        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-        axs[0, 0].set_title("Agent m1 - Fixations & Saccades")
-        axs[0, 1].set_title("Agent m2 - Fixations & Saccades")
-        axs[1, 0].set_title("Agent m1 - Microsaccades")
-        axs[1, 1].set_title("Agent m2 - Microsaccades")
-        roi_color = 'red'  # Use red color for all ROI rects
-        for idx, (agent, data) in enumerate(agents_data.items()):
-            if not data:
-                continue
-            # Top row: Fixations and Saccades
-            ax = axs[0, idx]
-            fixation_start_stop = data['fixation_start_stop']
-            saccade_start_stop = data['saccade_start_stop']
-            positions = data['positions']
-            roi_rects = data['roi_rects']
-            total_time = len(positions)
-            time_norm = Normalize(vmin=0, vmax=total_time)
-            cmap = cm.viridis
-            # Combine fixations and saccades in temporal order
-            all_events = []
-            all_events.extend([(start, stop, 'fixation') for start, stop in fixation_start_stop])
-            all_events.extend([(start, stop, 'saccade') for start, stop in saccade_start_stop])
-            all_events.sort(key=lambda x: x[0])
-            for start, stop, event_type in all_events:
-                if event_type == 'fixation':
-                    fixation_positions = positions[start:stop]
-                    mean_pos = fixation_positions.mean(axis=0)
-                    color = cmap(time_norm((start + stop) // 2))
-                    ax.plot(mean_pos[0], mean_pos[1], marker='o', color=color, zorder=2)
-                elif event_type == 'saccade':
-                    start_pos = positions[start]
-                    stop_pos = positions[stop - 1]
-                    color = cmap(time_norm((start + stop) // 2))
-                    ax.arrow(
-                        start_pos[0], start_pos[1],
-                        stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
-                        head_width=5, head_length=5, fc=color, ec=color, zorder=2
-                    )
-            # Overlay ROI rects after plotting fixations and saccades
-            for roi_idx, (roi, rect) in enumerate(roi_rects.items()):
-                x, y, x_max, y_max = rect
-                ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_color, linewidth=1, zorder=3)
-                )
-            ax.invert_yaxis()
-            # Bottom row: Microsaccades
-            ax = axs[1, idx]
-            microsaccade_start_stop = data['microsaccade_start_stop']
-            for start, stop in microsaccade_start_stop:
-                start_pos = positions[start]
-                stop_pos = positions[stop - 1]
-                color = cmap(time_norm((start + stop) // 2))
-                ax.arrow(
-                    start_pos[0], start_pos[1],
-                    stop_pos[0] - start_pos[0], stop_pos[1] - start_pos[1],
-                    head_width=2, head_length=2, fc=color, ec=color, zorder=2
-                )
-            # Overlay ROI rects after plotting microsaccades
-            for idx, (roi, rect) in enumerate(roi_rects.items()):
-                x, y, x_max, y_max = rect
-                ax.add_patch(
-                    Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_color, linewidth=1, zorder=3)
-                )
-            ax.invert_yaxis()
-        plt.suptitle(f"Session: {session}, Interaction: {interaction_type}, Run: {run}")
-        plot_path = os.path.join(session_folder, f"{session}_{interaction_type}_run_{run}.png")
+    for (session, interaction_type), group in tqdm(session_groups, desc="Processing sessions"):
+        runs = group['run_number'].unique()
+        fig, axs = plt.subplots(len(runs), 2, figsize=(12, 6 * len(runs)))
+        if len(runs) == 1:
+            axs = np.expand_dims(axs, axis=0)
+        for row_idx, run in enumerate(runs):
+            agents_data = {}
+            for col_idx, agent in enumerate(['m1', 'm2']):
+                ax = axs[row_idx, col_idx]
+                ax.set_title(f"Run {run} - Agent {agent}")
+                agent_data = group[(group['run_number'] == run) & (group['agent'] == agent)]
+                gaze_data = sparse_nan_removed_sync_gaze_df[
+                    (sparse_nan_removed_sync_gaze_df['session_name'] == session) &
+                    (sparse_nan_removed_sync_gaze_df['interaction_type'] == interaction_type) &
+                    (sparse_nan_removed_sync_gaze_df['run_number'] == run) &
+                    (sparse_nan_removed_sync_gaze_df['agent'] == agent)
+                ]
+                if not gaze_data.empty:
+                    agents_data[agent] = {
+                        'fixation_start_stop': agent_data['fixation_start_stop'].iloc[0],
+                        'saccade_start_stop': agent_data['saccade_start_stop'].iloc[0],
+                        'positions': gaze_data['positions'].iloc[0],
+                        'roi_rects': gaze_data['roi_rects'].iloc[0]
+                    }
+                roi_color = 'red'
+                if agent in agents_data:
+                    data = agents_data[agent]
+                    fixation_start_stop = data['fixation_start_stop']
+                    saccade_start_stop = data['saccade_start_stop']
+                    positions = data['positions']
+                    roi_rects = data['roi_rects']
+                    total_time = len(positions)
+                    time_norm = Normalize(vmin=0, vmax=total_time)
+                    cmap = cm.viridis
+                    all_events = []
+                    all_events.extend([(start, stop, 'fixation') for start, stop in fixation_start_stop])
+                    all_events.extend([(start, stop, 'saccade') for start, stop in saccade_start_stop])
+                    all_events.sort(key=lambda x: x[0])
+                    for start, stop, event_type in all_events:
+                        if event_type == 'fixation':
+                            fixation_positions = positions[start:stop]
+                            mean_pos = fixation_positions.mean(axis=0)
+                            color = cmap(time_norm((start + stop) // 2))
+                            ax.plot(mean_pos[0], mean_pos[1], marker='o', color=color, zorder=2)
+                        elif event_type == 'saccade':
+                            saccade_positions = positions[start:stop]
+                            color = cmap(time_norm((start + stop) // 2))
+                            ax.plot(saccade_positions[:, 0], saccade_positions[:, 1], color=color, linewidth=2, zorder=2)
+                    for roi_idx, (roi, rect) in enumerate(roi_rects.items()):
+                        x, y, x_max, y_max = rect
+                        ax.add_patch(
+                            Rectangle((x, y), x_max - x, y_max - y, fill=False, edgecolor=roi_color, linewidth=1, zorder=3)
+                        )
+                    ax.invert_yaxis()
+        plt.suptitle(f"Session: {session}, Interaction: {interaction_type}")
+        plot_path = os.path.join(root_dir, f"{session}_{interaction_type}_fixation_saccade_timeseries.png")
         plt.savefig(plot_path)
         plt.close(fig)
         logger.info(f"Saved plot: {plot_path}")
     logger.info("Behavioral plot generation completed.")
+
 
 
 def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):

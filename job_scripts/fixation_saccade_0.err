@@ -3,3 +3,291 @@ CondaError: Run 'conda init' before 'conda deactivate'
 
 2025-01-28 15:57:50,396 - __main__ - INFO - Starting the main function
 2025-01-28 15:57:50,398 - __main__ - INFO - Parameters loaded successfully from /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl
+2025-01-28 15:58:02,103 - __main__ - INFO - Gaze data dataframe loaded successfully from /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/sparse_nan_removed_sync_gaze_data_df.pkl
+2025-01-28 15:58:02,105 - __main__ - INFO - Parsed task key successfully: session=01022019, interaction_type=interactive, run=1, agent=m1
+2025-01-28 15:58:02,160 - numexpr.utils - INFO - Note: NumExpr detected 48 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2025-01-28 15:58:02,160 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+2025-01-28 15:58:02,174 - __main__ - INFO - Successfully extracted positions for fixation and saccade detection.
+2025-01-28 15:58:02,174 - detect_eye_mvm_behav_from_gaze_data - INFO - Detecting fixations, saccades, and microsaccades for session: 01022019
+2025-01-28 15:58:02,246 - detect_eye_mvm_behav_from_gaze_data - INFO - Using 16 CPUs for parallel processing
+2025-01-28 15:58:02,601 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,601 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,601 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,602 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,602 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,602 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,602 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,603 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,603 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,603 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,603 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,604 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,604 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,604 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,606 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,610 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,610 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,610 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,611 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,611 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,611 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,611 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 15:58:02,612 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:02,612 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:58:05,293 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,388 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,388 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,391 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,457 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,458 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,492 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,525 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,570 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,574 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,574 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,637 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,658 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,661 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,662 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,662 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,693 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,704 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,705 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,731 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,731 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,731 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,732 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,732 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,767 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,836 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,865 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,866 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,883 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,884 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,899 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:05,950 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,951 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,964 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,965 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,967 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:05,968 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:05,989 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:58:06,101 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:06,102 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:06,105 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:06,105 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:06,124 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:06,125 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:06,165 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:06,165 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:06,691 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:58:06,752 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:58:34,815 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:58:35,139 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:58:40,255 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:58:40,256 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:58:44,255 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:58:44,263 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:58:45,368 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 15:58:48,409 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:58:48,711 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:58:52,669 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:58:52,669 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:58:54,849 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:58:54,849 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:58:57,734 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:58:57,734 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:02,195 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 15:59:08,749 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:08,750 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:09,954 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 15:59:16,100 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:16,100 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:28,327 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:59:29,057 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:59:30,378 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 15:59:35,573 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:35,598 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:37,835 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:37,835 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:38,628 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:38,628 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:40,592 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 15:59:41,110 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 15:59:46,591 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 15:59:46,608 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:59:49,044 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:59:49,233 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:59:49,234 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 15:59:49,364 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:49,364 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:50,277 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 15:59:50,291 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 15:59:50,772 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 15:59:50,773 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 15:59:53,562 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 15:59:53,766 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 15:59:53,766 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:00:01,120 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:00:02,068 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:00:08,996 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:00:09,009 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:00:10,954 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:00:10,954 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:00:12,135 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:00:12,324 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:00:12,325 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:00:13,123 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:00:13,124 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:00:13,125 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:00:14,887 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:00:14,887 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:00:16,404 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:00:16,498 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:00:16,499 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:00:48,726 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:00:59,126 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:00:59,127 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:01:01,015 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:01:01,016 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:01:01,017 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:01:01,017 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:01:01,017 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:01:01,017 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:01:04,909 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:01:04,925 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:01:04,925 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:01:21,389 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:01:28,187 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:01:33,729 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:01:33,729 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:01:35,659 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:01:35,659 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:01:46,911 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 4
+2025-01-28 16:01:57,149 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:01:57,149 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:02:07,160 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:02:07,161 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:02:07,161 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:02:07,161 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:02:07,162 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:02:11,094 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:02:11,153 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:02:11,153 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:02:12,812 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:02:28,732 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:02:28,732 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:02:45,148 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:02:46,274 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:02:53,468 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:02:53,468 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:02:55,036 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:02:55,036 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:03:06,241 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:06,259 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:10,403 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:10,600 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:10,600 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:03:16,070 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:16,075 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:18,364 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:18,365 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:03:18,378 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:19,673 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:20,044 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:20,082 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:03:22,393 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:22,682 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:22,723 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:03:31,752 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:31,771 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:03:31,771 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:03:31,772 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:35,045 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:35,045 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:35,298 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:35,353 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:35,353 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:03:38,101 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:38,104 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:38,104 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:03:45,328 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:03:45,329 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:03:48,315 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:03:48,318 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:03:48,319 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:04:02,699 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:04:07,693 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:04:07,693 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:04:09,966 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:04:09,967 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,967 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,967 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,967 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,967 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,968 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,968 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,968 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,968 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,968 - root - INFO - Insufficient data points (< 500), returning empty arrays.
+2025-01-28 16:04:09,999 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:04:11,413 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:04:11,904 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:04:14,193 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:04:14,477 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:04:14,478 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:04:17,548 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:04:17,548 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:04:21,057 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:04:21,057 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:04:26,557 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:04:35,976 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:04:35,976 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:04:45,138 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:04:46,042 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:04:46,044 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:04:49,108 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:04:49,116 - cluster_fix - INFO - Preprocessing positions data for fixation detection
+2025-01-28 16:04:50,004 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:04:50,054 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:04:50,055 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:04:50,641 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:04:50,642 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:04:52,651 - cluster_fix - INFO - Extracting motion parameters for k-means clustering
+2025-01-28 16:04:53,029 - cluster_fix - INFO - Normalizing parameters for k-means clustering
+2025-01-28 16:04:53,030 - cluster_fix - INFO - Performing global clustering of points for 2 to 5 cluster sizes
+2025-01-28 16:05:31,307 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:05:31,473 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 5
+2025-01-28 16:05:33,482 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:05:39,598 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:05:39,598 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:05:51,291 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 2
+2025-01-28 16:05:57,425 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:05:57,425 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:06:07,276 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:06:13,956 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:06:14,819 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:06:20,987 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:06:23,678 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:06:31,198 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:06:31,199 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:06:34,143 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:06:40,711 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:06:40,712 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:07:03,146 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:07:04,169 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:07:15,425 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:07:27,190 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:07:28,987 - cluster_fix - INFO - Optimal k-Means cluster number was found to be: 3
+2025-01-28 16:07:34,444 - cluster_fix - INFO - Found fixation indices from global clustering
+2025-01-28 16:07:34,444 - cluster_fix - INFO - Refining fixation start-stop indices using local reclustering
+2025-01-28 16:07:51,322 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:07:58,771 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:08:15,147 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:08:41,170 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:08:43,309 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:08:49,218 - cluster_fix - INFO - Found not-fixation indices from local re-clustering
+2025-01-28 16:08:49,315 - detect_eye_mvm_behav_from_gaze_data - INFO - Fixations, saccades, and microsaccades detection completed for session: 01022019
+2025-01-28 16:08:49,315 - __main__ - INFO - Fixation and saccade detection completed successfully.
+2025-01-28 16:08:49,340 - __main__ - INFO - Fixation results saved successfully at /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/single_run_fix_sacc_detection_results/fixation_results_01022019_interactive_1_m1.pkl
+2025-01-28 16:08:49,342 - __main__ - INFO - Saccade results saved successfully at /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/single_run_fix_sacc_detection_results/saccade_results_01022019_interactive_1_m1.pkl
