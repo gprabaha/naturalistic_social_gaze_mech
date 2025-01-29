@@ -62,29 +62,25 @@ def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, s
     for session_name, session_behav_df in tqdm(eye_mvm_behav_df.groupby("session_name"), desc="Processing Sessions"):
         session_spike_df = spike_times_df[spike_times_df["session_name"] == session_name]
         session_gaze_df = sparse_nan_removed_sync_gaze_df[sparse_nan_removed_sync_gaze_df["session_name"] == session_name]
-        session_dir = os.path.join(root_dir, session_name)
-        os.makedirs(session_dir, exist_ok=True)
-        __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params)
+        __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params)
 
 
-def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, session_dir, params):
+def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params):
     logger.info(f"Processing session {session_name}")
     statistical_summary = []
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
         unit_uuid, brain_region, significant_results = __plot_fixation_transition_spiking(
-            unit, session_behav_df, session_gaze_df, session_dir, params
+            unit, session_behav_df, session_gaze_df, root_dir, params
         )
         if significant_results:
             statistical_summary.append((unit_uuid, brain_region, significant_results))
-    if statistical_summary:
-        logger.info(f"Summary of significant effects in session {session_name}:")
-        for unit_uuid, brain_region, sig_results in statistical_summary:
-            for roi, count in sig_results.items():
-                logger.info(f"Unit {unit_uuid} ({brain_region}): {roi} transition significant in {count} bins.")
+    region_summary_dir = os.path.join(root_dir, "region_summary")
+    os.makedirs(region_summary_dir, exist_ok=True)
+    __plot_region_summary(statistical_summary, session_spike_df, region_summary_dir)
     return statistical_summary
 
 
-def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, session_dir, params):
+def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, root_dir, params):
     """Plots fixation transition spiking and runs statistical tests for both previous and next fixation transitions."""
     unit_uuid = unit["unit_uuid"]
     brain_region = unit["region"]
@@ -131,7 +127,12 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     axs[0:, 2].set_title("Significance Matrix")
     plt.suptitle(f"Fixation Transition Spiking for UUID {unit_uuid}")
     plt.tight_layout()
-    plt.savefig(os.path.join(session_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
+    if statistical_results:
+        sig_units_dir = os.path.join(root_dir, "sig_units")
+        os.makedirs(sig_units_dir, exist_ok=True)
+        plt.savefig(os.path.join(root_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
+    else:
+        plt.savefig(os.path.join(root_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
     plt.close(fig)
     return unit_uuid, brain_region, statistical_results
 
@@ -183,11 +184,14 @@ def ____compute_spiking_per_trial(roi, transition, session_behav_df, session_gaz
     return spike_counts_per_trial, timeline
 
 
-def ___perform_anova_and_mark_plot(spike_data, timeline, ax):
+def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=False):
     """Performs ANOVA for each time bin and marks significant bins on the plot."""
     num_bins = len(timeline) - 1
     spike_df = pd.DataFrame(spike_data, columns=["spike_counts", "transition"])
     p_values = []
+    # Define the time window for counting significant bins
+    time_window_start, time_window_end = -450, 450
+    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
     for bin_idx in range(num_bins):
         bin_data = spike_df["spike_counts"].apply(lambda x: x[bin_idx])
         groups = spike_df["transition"]
@@ -198,12 +202,41 @@ def ___perform_anova_and_mark_plot(spike_data, timeline, ax):
             p_values.append(p_value)
         else:
             p_values.append(1.0)
-    _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
-    significant_bins = np.where(corrected_p_values < 0.05)[0]
+    if do_fdr_correction:
+        _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+    else:
+        corrected_p_values = p_values
+    significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
     for bin_idx in significant_bins:
         ax.axvline(timeline[bin_idx], color='red', linestyle='--', alpha=0.5)
     return len(significant_bins)
 
+
+def __plot_region_summary(statistical_summary, session_spike_df, region_summary_dir):
+    """Creates a summary plot showing the fraction of significant units per region for each ROI and transition."""
+    regions = session_spike_df["region"].unique()
+    rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
+    transitions = ["from", "to"]
+    summary_matrix = np.zeros((len(regions), len(rois), len(transitions)))
+    region_unit_counts = {region: len(session_spike_df[session_spike_df["region"] == region]) for region in regions}
+    for unit_uuid, brain_region, sig_results in statistical_summary:
+        for roi_idx, roi in enumerate(rois):
+            for trans_idx, transition_type in enumerate(transitions):
+                if roi in sig_results and transition_type in sig_results[roi]:
+                    summary_matrix[regions.tolist().index(brain_region), roi_idx, trans_idx] += 1
+    summary_matrix /= np.array([region_unit_counts[region] for region in regions])[:, None, None]
+    fig, axs = plt.subplots(len(regions), 1, figsize=(10, len(regions) * 3))
+    for i, region in enumerate(regions):
+        im = axs[i].imshow(summary_matrix[i], cmap="viridis", aspect="auto")
+        axs[i].set_xticks(range(len(transitions)))
+        axs[i].set_xticklabels(transitions)
+        axs[i].set_yticks(range(len(rois)))
+        axs[i].set_yticklabels(rois)
+        axs[i].set_title(f"{region} - Fraction of Significant Units")
+        fig.colorbar(im, ax=axs[i])
+    plt.tight_layout()
+    plt.savefig(os.path.join(region_summary_dir, "region_summary.png"), dpi=100)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
