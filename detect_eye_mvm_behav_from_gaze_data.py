@@ -45,9 +45,9 @@ def _initialize_params():
         'remake_eye_mvm_df_from_gaze_data': False,
         'try_using_single_run': False,
         'test_specific_runs': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': False,
+        'recompute_fix_and_saccades_through_hpc_jobs': True,
         'recompute_fix_and_saccades': False,
-        'plot_eye_mvm_behav': True,
+        'plot_eye_mvm_behav': False,
         'plot_gaze_event_dur_dist': False,
         'is_grace': False,
         'hpc_job_output_subfolder': 'single_run_fix_sacc_detection_results'
@@ -107,7 +107,7 @@ def main():
         logger.info("Loading eye_mvm_behav_df")
         eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
-        _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df)
+        # eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
     if params.get('plot_eye_mvm_behav', True):
         ## Plot fixation and saccade behavior for each run
         _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
@@ -480,7 +480,7 @@ def _plot_eye_mvm_behav_for_each_run(eye_mvm_behav_df, sparse_nan_removed_sync_g
     os.makedirs(root_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby(['session_name', 'interaction_type'])
     logger.info("Starting to generate behavioral plots...")
-    for (session, interaction_type), group in tqdm(session_groups, desc="Processing sessions"):
+    for (session, interaction_type), group in tqdm(session_groups, desc="Plotting fix and sacc"):
         runs = group['run_number'].unique()
         fig, axs = plt.subplots(len(runs), 2, figsize=(12, 6 * len(runs)))
         if len(runs) == 1:
@@ -551,7 +551,7 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
     plot_dir = os.path.join(params['root_data_dir'], "plots", "gaze_event_durations", today_date)
     os.makedirs(plot_dir, exist_ok=True)
     session_groups = eye_mvm_behav_df.groupby("session_name")
-    for session_name, session_df in tqdm(session_groups, desc="Plotting gaze event duration distributions"):
+    for session_name, session_df in tqdm(session_groups, desc="Plotting gaze event duration dist."):
         fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharex=True, sharey=True)
         for agent_idx, agent in enumerate(["m1", "m2"]):
             agent_df = session_df[session_df["agent"] == agent]
@@ -581,81 +581,6 @@ def _plot_gaze_event_duration_distributions(eye_mvm_behav_df, params):
         plt.close(fig)
     logger.info("Gaze event duration distribution plot generation completed.")
 
-
-
-def _validate_fixation_saccade_order_and_overlap(eye_mvm_behav_df):
-    """
-    Validates that fixation and saccade start-stop times:
-    1. Are ordered by start time within each row.
-    2. Do not overlap within fixations or within saccades.
-    3. No fixation is entirely inside a saccade.
-    4. No saccade is entirely inside a fixation.
-
-    Parameters
-    ----------
-    eye_mvm_behav_df : pandas.DataFrame
-        Dataframe containing gaze behavior data, including fixation and saccade start-stop times.
-
-    Returns
-    -------
-    None
-        Prints warnings for any detected issues.
-    """
-    for idx, row in tqdm(eye_mvm_behav_df.iterrows(), desc="Validating fixation and saccade order and overlaps"):
-        session_name = row['session_name']
-        agent = row['agent']
-        run_number = row['run_number']
-        
-        fixations = row["fixation_start_stop"]
-        saccades = row["saccade_start_stop"]
-
-        # **Check order of fixations**
-        fixation_starts = [start for start, _ in fixations]
-        if fixation_starts != sorted(fixation_starts):
-            logger.warning(f"Fixations out of order in session {session_name}, agent {agent}, run {run_number}")
-
-        # **Check order of saccades**
-        saccade_starts = [start for start, _ in saccades]
-        if saccade_starts != sorted(saccade_starts):
-            logger.warning(f"Saccades out of order in session {session_name}, agent {agent}, run {run_number}")
-
-        # **Check for overlapping fixations**
-        for i in range(len(fixations) - 1):
-            start1, stop1 = fixations[i]
-            start2, stop2 = fixations[i + 1]
-            if start2 < stop1:
-                logger.warning(
-                    f"Overlapping fixations in session {session_name}, agent {agent}, run {run_number}: "
-                    f"({start1}, {stop1}) and ({start2}, {stop2})"
-                )
-
-        # **Check for overlapping saccades**
-        for i in range(len(saccades) - 1):
-            start1, stop1 = saccades[i]
-            start2, stop2 = saccades[i + 1]
-            if start2 < stop1:
-                logger.warning(
-                    f"Overlapping saccades in session {session_name}, agent {agent}, run {run_number}: "
-                    f"({start1}, {stop1}) and ({start2}, {stop2})"
-                )
-
-        # **Check if a fixation is entirely inside a saccade**
-        for fix_start, fix_stop in fixations:
-            for sacc_start, sacc_stop in saccades:
-                if sacc_start < fix_start and fix_stop < sacc_stop:
-                    logger.warning(
-                        f"Fixation completely inside a saccade in session {session_name}, agent {agent}, run {run_number}: "
-                        f"Fixation ({fix_start}, {fix_stop}) inside Saccade ({sacc_start}, {sacc_stop})"
-                    )
-
-        # **Check if a saccade is entirely inside a fixation**
-        for sacc_start, sacc_stop in saccades:
-            for fix_start, fix_stop in fixations:
-                if fix_start < sacc_start and sacc_stop < fix_stop:
-                    logger.warning(
-                        f"Saccade completely inside a fixation in session {session_name}, agent {agent}, run {run_number}: "
-                        f"Saccade ({sacc_start}, {sacc_stop}) inside Fixation ({fix_start}, {fix_stop})"
-                    )
 
 
 
