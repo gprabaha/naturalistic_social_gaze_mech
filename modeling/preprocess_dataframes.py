@@ -31,7 +31,7 @@ def _initialize_params():
         'remake_firing_rate_df': True,
         'neural_data_bin_size': 10,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'gaussian_smoothing_sigma': 3,
+        'gaussian_smoothing_sigma': 2,
         'time_window_before_event': 500
     }
     params = curate_data.add_root_data_to_params(params)
