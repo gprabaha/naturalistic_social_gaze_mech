@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
+import itertools
 
 import pdb
 
@@ -58,8 +59,8 @@ def main():
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
-    plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-    # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
+    # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
+    plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
 
 
 
@@ -198,10 +199,11 @@ def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, spars
 
 
 
+
 def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params):
     """
     Analyzes neural response to face fixations of M1 during high vs. low mutual face fixation density periods.
-    
+
     Parameters:
     - eye_mvm_behav_df: DataFrame containing fixation data.
     - sparse_nan_removed_sync_gaze_df: DataFrame containing synchronized gaze data.
@@ -217,21 +219,19 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
 
     # Get unique session names for parallel processing
     session_names = eye_mvm_behav_df['session_name'].unique()
+    num_processes = min(8, cpu_count())  # Use configured CPUs, fallback to 8
 
-    # Parallelize across sessions
-    num_cpus = min(params.get('num_cpus', 8), len(session_names))  
-    with Pool(num_cpus) as pool:
-        results = pool.starmap(
-            _process_session,
-            [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir)
-             for session_name in session_names]
-        )
+    # Prepare arguments for parallel execution
+    task_args = [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, root_dir, params) for session_name in session_names]
 
-    # Initialize dictionaries to store merged results
     merged_sig_units = {}
     merged_non_sig_units = {}
 
-    # Merge results across sessions
+    # Use tqdm with imap_unordered for better load balancing
+    with Pool(num_processes) as pool:
+        results = list(tqdm(pool.imap_unordered(_process_session_wrapper, task_args), total=len(session_names), desc="Processing sessions"))
+
+    # Merge results
     for sig_units, non_sig_units in results:
         for region, units in sig_units.items():
             merged_sig_units.setdefault(region, []).extend(units)
@@ -239,11 +239,10 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
             merged_non_sig_units.setdefault(region, []).extend(units)
 
     # Compute summary counts
-    summary_counts = {}
-    for region in set(merged_sig_units.keys()).union(set(merged_non_sig_units.keys())):
-        sig_count = len(merged_sig_units.get(region, []))
-        total_count = sig_count + len(merged_non_sig_units.get(region, []))
-        summary_counts[region] = (sig_count, total_count)
+    summary_counts = {
+        region: (len(merged_sig_units.get(region, [])), len(merged_sig_units.get(region, [])) + len(merged_non_sig_units.get(region, [])))
+        for region in set(merged_sig_units.keys()).union(set(merged_non_sig_units.keys()))
+    }
 
     # Display results
     logger.info("Significant neuron counts by brain region:")
@@ -251,13 +250,19 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
         logger.info(f"{region}: {sig_count} / {total_count} significant units")
 
 
+def _process_session_wrapper(args):
+    """ Wrapper function to unpack arguments for multiprocessing """
+    return _process_session(*args)
 
-def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir):
+
+
+def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, root_dir, params):
     """
     Processes a single session, computing and plotting neural response for mutual face fixation periods.
     """
-    params.get('min_consecutive_sig_bins', 5)
-    params.get('min_total_sig_bins', 25)
+    logger.info(f'Processing session {session_name}')
+    min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
+    min_total_sig_bins = params.get('min_total_sig_bins', 25)
     high_density_fixations = []
     low_density_fixations = []
     session_df = eye_mvm_behav_df[eye_mvm_behav_df['session_name'] == session_name]
@@ -328,6 +333,7 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
     for _, unit in session_spike_data.iterrows():
         unit_uuid = unit["unit_uuid"]
         brain_region = unit["region"]
+        logger.info(f'Plotting for {unit_uuid} in {brain_region}')
         spike_times = np.array(unit["spike_ts"])
         is_sig = 0
         # Compute spike counts per trial
