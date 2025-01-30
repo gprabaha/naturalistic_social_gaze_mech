@@ -29,10 +29,10 @@ def _initialize_params():
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'gaussian_smoothing_sigma': 1,
+        'gaussian_smoothing_sigma': 2,
         'time_window_before_and_after_event_for_psth': 0.5,
         'min_consecutive_sig_bins': 9,
-        'min_total_sig_bins': 90
+        'min_total_sig_bins': 45
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -63,9 +63,7 @@ def main():
 def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params):
     logger.info("Computing transition probabilities and spiking responses")
     today_date = datetime.now().strftime("%Y-%m-%d")
-    pdb.set_trace()
-    today_date += "_2"
-    pdb.set_trace()
+    today_date += "_3"
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
     all_statistical_summaries = []
@@ -130,17 +128,8 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
                 # Ensure we check for **at least min_consecutive_sig_bins in a row**
                 if len(significant_bins) > 0:
                     # **Fixed Consecutive Check: Identify longest run of consecutive bins**
-                    diffs = np.diff(significant_bins)
-                    longest_run = 0
-                    current_run = 1
-                    for d in diffs:
-                        if d == 1:
-                            current_run += 1
-                        else:
-                            longest_run = max(longest_run, current_run)
-                            current_run = 1
-                    longest_run = max(longest_run, current_run)  # Ensure last run is considered
-
+                    groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
+                    longest_run = max(len(g) for g in groups)  # Ensure last run is considered
                     if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
                         statistical_results.setdefault(roi, {}).setdefault(transition_type, []).append(unit_uuid)
 
@@ -348,9 +337,12 @@ def __plot_region_summary(statistical_summary, spike_times_df, region_summary_di
     plt.close(fig)
 
 
-
 if __name__ == "__main__":
     main()
+
+
+
+
 
 
 # ** ARCHIVE **

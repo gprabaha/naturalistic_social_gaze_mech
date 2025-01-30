@@ -24,6 +24,24 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
+
+def _initialize_params():
+    logger.info("Initializing parameters")
+    params = {
+        'neural_data_bin_size': 0.01,  # 10 ms in seconds
+        'smooth_spike_counts': True,
+        'time_window_before_and_after_event_for_psth': 0.5,
+        'gaussian_smoothing_sigma': 2,
+        'min_consecutive_sig_bins': 5,
+        'min_total_sig_bins': 25
+    }
+    params = curate_data.add_root_data_to_params(params)
+    params = curate_data.add_processed_data_to_params(params)
+    logger.info("Parameters initialized successfully")
+    return params
+
+
+
 def main():
     logger.info("Starting the script")
     params = _initialize_params()
@@ -43,17 +61,6 @@ def main():
     plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
     # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
 
-def _initialize_params():
-    logger.info("Initializing parameters")
-    params = {
-        'neural_data_bin_size': 0.01,  # 10 ms in seconds
-        'smooth_spike_counts': True,
-        'time_window_before_and_after_event_for_psth': 0.5
-    }
-    params = curate_data.add_root_data_to_params(params)
-    params = curate_data.add_processed_data_to_params(params)
-    logger.info("Parameters initialized successfully")
-    return params
 
 
 
@@ -191,8 +198,6 @@ def _process_session_face_fixation_density(session_name, eye_mvm_behav_df, spars
 
 
 
-
-
 def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params):
     """
     Analyzes neural response to face fixations of M1 during high vs. low mutual face fixation density periods.
@@ -204,23 +209,55 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
     - params: Dictionary containing root directory paths.
     """
     logger.info("Starting neural analysis for mutual face fixation periods")
+
     # Set up plot save directory
     today_date = datetime.today().strftime('%Y-%m-%d')
     root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
+
     # Get unique session names for parallel processing
     session_names = eye_mvm_behav_df['session_name'].unique()
+
     # Parallelize across sessions
-    num_cpus = min(cpu_count(), 8)  # Use available CPUs but not more than sessions
+    num_cpus = min(params.get('num_cpus', 8), len(session_names))  
     with Pool(num_cpus) as pool:
-        pool.starmap(_process_session, [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir) for session_name in session_names])
-    logger.info("Neural response plots saved in {}".format(root_dir))
+        results = pool.starmap(
+            _process_session,
+            [(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir)
+             for session_name in session_names]
+        )
+
+    # Initialize dictionaries to store merged results
+    merged_sig_units = {}
+    merged_non_sig_units = {}
+
+    # Merge results across sessions
+    for sig_units, non_sig_units in results:
+        for region, units in sig_units.items():
+            merged_sig_units.setdefault(region, []).extend(units)
+        for region, units in non_sig_units.items():
+            merged_non_sig_units.setdefault(region, []).extend(units)
+
+    # Compute summary counts
+    summary_counts = {}
+    for region in set(merged_sig_units.keys()).union(set(merged_non_sig_units.keys())):
+        sig_count = len(merged_sig_units.get(region, []))
+        total_count = sig_count + len(merged_non_sig_units.get(region, []))
+        summary_counts[region] = (sig_count, total_count)
+
+    # Display results
+    logger.info("Significant neuron counts by brain region:")
+    for region, (sig_count, total_count) in summary_counts.items():
+        logger.info(f"{region}: {sig_count} / {total_count} significant units")
+
 
 
 def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params, root_dir):
     """
     Processes a single session, computing and plotting neural response for mutual face fixation periods.
     """
+    params.get('min_consecutive_sig_bins', 5)
+    params.get('min_total_sig_bins', 25)
     high_density_fixations = []
     low_density_fixations = []
     session_df = eye_mvm_behav_df[eye_mvm_behav_df['session_name'] == session_name]
@@ -270,7 +307,7 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
         smoothed_m2 = gaussian_filter1d(rolling_m2_face_density, sigma=sigma)
         mutual_density = np.sqrt(smoothed_m1 * smoothed_m2)
         # Threshold mutual density to define high/low density fixations
-        mutual_density_threshold = np.mean(mutual_density)
+        mutual_density_threshold = np.mean(mutual_density)*0.63
         # Identify face fixations of M1 in high vs. low mutual density periods
         for (start, stop), location in zip(m1_fix_intervals, m1_fix_locations):
             if 'face' in location:
@@ -286,15 +323,25 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
     if session_spike_data.empty:
         return
     # Process each neuron separately
+    sig_units = {}
+    non_sig_units = {}
     for _, unit in session_spike_data.iterrows():
         unit_uuid = unit["unit_uuid"]
         brain_region = unit["region"]
         spike_times = np.array(unit["spike_ts"])
+        is_sig = 0
         # Compute spike counts per trial
         high_density_spike_counts, timeline = _compute_spiking_per_trial(high_density_fixations, spike_times, params)
         low_density_spike_counts, _ = _compute_spiking_per_trial(low_density_fixations, spike_times, params)
         # Perform t-test per bin with FDR correction
         significant_bins = _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_counts, timeline)
+        groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
+        longest_run = max(len(g) for g in groups)  # Ensure last run is considered
+        if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
+            is_sig = 1
+            sig_units.setdefault(brain_region, {}).append(unit_uuid)
+        else:
+            non_sig_units.setdefault(brain_region, {}).append(unit_uuid)
         # Plot results
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(timeline[:-1], np.mean(high_density_spike_counts, axis=0), label="High Mutual Density", color="blue")
@@ -305,15 +352,19 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Firing Rate (Hz)")
         ax.legend()
-        save_path = os.path.join(root_dir, f"{session_name}_{brain_region}_{unit_uuid}_face_fix.png")
+        save_dir = os.path.join(root_dir, "sig_units") if is_sig else root_dir
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{session_name}_{brain_region}_{unit_uuid}_face_fix.png")
         plt.savefig(save_path, dpi=100)
         plt.close()
+    return sig_units, non_sig_units
 
 
 def _compute_spiking_per_trial(fixation_times, spike_times, params):
     """Computes spike counts per fixation trial."""
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
+    sigma = params["gaussian_smoothing_sigma"]
     time_window = params['time_window_before_and_after_event_for_psth']
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
     for fixation_time in fixation_times:
@@ -325,13 +376,12 @@ def _compute_spiking_per_trial(fixation_times, spike_times, params):
         spike_counts, _ = np.histogram(spike_times, bins=bins)
         spike_counts = spike_counts / bin_size  # Convert to firing rate
         if params["smooth_spike_counts"]:
-            smoothing_kernel = np.ones(5) / 5
-            spike_counts = np.convolve(spike_counts, smoothing_kernel, mode='same')
+            spike_counts = gaussian_filter1d(spike_counts, sigma=sigma)
         spike_counts_per_trial.append(spike_counts)
     return np.array(spike_counts_per_trial), timeline
 
 
-def _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_counts, timeline):
+def _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False):
     """Performs t-test per bin and applies FDR correction."""
     num_bins = len(timeline) - 1
     p_values = []
@@ -343,7 +393,10 @@ def _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_
         )[1]
         p_values.append(p_value)
     # Apply FDR correction
-    _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+    if fdr_correct:
+        _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+    else:
+        corrected_p_values = np.array(p_values)
     # Identify significant bins
     significant_bins = np.where(corrected_p_values < 0.05)[0]
     return significant_bins
