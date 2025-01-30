@@ -69,7 +69,7 @@ def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, s
     # Plot region summary across all sessions
     region_summary_dir = os.path.join(root_dir, "region_summary")
     os.makedirs(region_summary_dir, exist_ok=True)
-    __plot_region_summary(all_statistical_summaries, spike_times_df, region_summary_dir)
+    __plot_region_summary(all_statistical_summaries, spike_times_df, root_dir)
 
 
 def __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params):
@@ -90,57 +90,66 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     brain_region = unit["region"]
     spike_times = np.array(unit["spike_ts"])
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
-    fig = plt.figure(figsize=(16, 24))
-    gs = gridspec.GridSpec(4, 3, figure=fig)
-    axs = [[fig.add_subplot(gs[i, j]) for j in range(2)] for i in range(4)]
-    significance_ax = fig.add_subplot(gs[:, 2])  # Spanning all rows in the third column
+
+    fig = plt.figure(figsize=(20, 18))
+    gs = gridspec.GridSpec(3, 4, figure=fig)
+    axs = [[fig.add_subplot(gs[row, col]) for col in range(4)] for row in range(2)]  # First two rows: Mean spiking
+    significance_ax = fig.add_subplot(gs[2, :])  # Third row: Significance matrix
+
     statistical_results = {}
-    for idx, roi in enumerate(rois):
-        transitions = ["eyes", "non_eye_face", "object", "out_of_roi"]
-        for col_idx, transition_type in enumerate(["from", "to"]):
+
+    for col_idx, transition_type in enumerate(["from", "to"]):
+        for roi_idx, roi in enumerate(rois):
             spike_data = []  # Store (spike_counts, transition_label) tuples
             timeline = None
-            for trans in transitions:
+
+            for trans in rois:
                 trial_spike_counts, timeline = ___compute_spiking_per_trial(
                     roi, trans, session_behav_df, session_gaze_df, spike_times, params, transition_type
                 )
                 if trial_spike_counts:
                     spike_data.extend(trial_spike_counts)
+
             if timeline is not None:
-                significant_bins = ___perform_anova_and_mark_plot(spike_data, timeline, axs[idx][col_idx])
+                significant_bins = ___perform_anova_and_mark_plot(spike_data, timeline, axs[col_idx][roi_idx])
                 if significant_bins >= 5:
                     statistical_results.setdefault(roi, {}).setdefault(transition_type, []).append(unit_uuid)
+
             if spike_data:
                 spike_df = pd.DataFrame(spike_data, columns=["spike_counts", "transition"])
-                mean_spiking = {}
-                for transition, data in spike_df.groupby("transition")["spike_counts"]:
-                    spike_matrix = np.array(data.tolist())
-                    mean_spiking[transition] = np.mean(spike_matrix, axis=0)
+                mean_spiking = {
+                    transition: np.mean(np.array(data.tolist()), axis=0)
+                    for transition, data in spike_df.groupby("transition")["spike_counts"]
+                }
                 for transition, mean_values in mean_spiking.items():
-                    axs[idx][col_idx].plot(timeline[:-1], mean_values, label=transition)
-            axs[idx][col_idx].set_title(f"Fixation on {roi} ({transition_type} transition)")
-            axs[idx][col_idx].legend()
-    # Add black and white significance matrix
-    significance_matrix = np.zeros((len(rois), 2))
-    for i, roi in enumerate(rois):
-        for j, transition_type in enumerate(["from", "to"]):
+                    axs[col_idx][roi_idx].plot(timeline[:-1], mean_values, label=transition)
+
+            axs[col_idx][roi_idx].set_title(f"{transition_type.capitalize()} Transition: {roi}")
+            axs[col_idx][roi_idx].legend()
+
+    # Create significance matrix (X and Y axes flipped)
+    significance_matrix = np.zeros((2, len(rois)))
+    for roi_idx, roi in enumerate(rois):
+        for trans_idx, transition_type in enumerate(["from", "to"]):
             if roi in statistical_results and transition_type in statistical_results[roi]:
-                significance_matrix[i, j] = 1
-    significance_ax.imshow(significance_matrix, cmap="gray", aspect="auto")
-    significance_ax.set_yticks(range(len(rois)))
-    significance_ax.set_yticklabels(rois)
-    significance_ax.set_xticks([0, 1])
-    significance_ax.set_xticklabels(["from", "to"])
-    significance_ax.set_title("Significance Matrix")
+                significance_matrix[trans_idx, roi_idx] = 1
+
+    significance_ax.imshow(significance_matrix.T, cmap="gray", aspect="auto")
+    significance_ax.set_xticks(range(len(rois)))
+    significance_ax.set_xticklabels(rois)
+    significance_ax.set_yticks([0, 1])
+    significance_ax.set_yticklabels(["from", "to"])
+    significance_ax.set_title("ROI-Level Significance Matrix")
+
     plt.suptitle(f"Fixation Transition Spiking for UUID {unit_uuid}")
     plt.tight_layout()
-    if statistical_results:
-        sig_units_dir = os.path.join(root_dir, "sig_units")
-        os.makedirs(sig_units_dir, exist_ok=True)
-        plt.savefig(os.path.join(root_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
-    else:
-        plt.savefig(os.path.join(root_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
+
+    # Save plots
+    save_dir = os.path.join(root_dir, "sig_units") if statistical_results else root_dir
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(os.path.join(save_dir, f"fixation_transitions_{unit_uuid}.png"), dpi=100)
     plt.close(fig)
+
     return unit_uuid, brain_region, statistical_results
 
 
@@ -252,7 +261,7 @@ def __plot_region_summary(statistical_summary, spike_times_df, region_summary_di
                 axs[i].text(k, j, table_data[j][k], ha="center", va="center", color="black")
         fig.colorbar(im, ax=axs[i])
     plt.tight_layout()
-    plt.savefig(os.path.join(region_summary_dir, "region_summary.png"), dpi=100)
+    plt.savefig(os.path.join(region_summary_dir, "all_region_summary.png"), dpi=100)
     plt.close(fig)
 
 
