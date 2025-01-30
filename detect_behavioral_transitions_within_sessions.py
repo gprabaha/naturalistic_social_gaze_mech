@@ -48,7 +48,7 @@ def _initialize_params():
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'gaussian_smoothing_sigma': 3,
+        'gaussian_smoothing_sigma': 2,
         'time_window_before_and_after_event_for_psth': 0.5
     }
     params = curate_data.add_root_data_to_params(params)
@@ -136,7 +136,7 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
             if roi in statistical_results and transition_type in statistical_results[roi]:
                 significance_matrix[trans_idx, roi_idx] = 1
 
-    significance_ax.imshow(significance_matrix.T, cmap="gray", aspect="auto")
+    significance_ax.imshow(significance_matrix, cmap="gray", aspect="auto")
     significance_ax.set_xticks(range(len(rois)))
     significance_ax.set_xticklabels(rois)
     significance_ax.set_yticks([0, 1])
