@@ -202,6 +202,35 @@ def ___compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze
     return spike_counts_per_trial, timeline
 
 
+def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=False):
+    """Performs ANOVA for each time bin and marks significant bins on the plot."""
+    num_bins = len(timeline) - 1
+    spike_df = pd.DataFrame(spike_data, columns=["spike_counts", "transition"])
+    p_values = []
+    # Define the time window for counting significant bins
+    time_window_start, time_window_end = -450, 450
+    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
+    for bin_idx in range(num_bins):
+        bin_data = spike_df["spike_counts"].apply(lambda x: x[bin_idx])
+        groups = spike_df["transition"]
+        unique_groups = groups.unique()
+        spike_lists = [bin_data[groups == grp].tolist() for grp in unique_groups]
+        if len(spike_lists) > 1:
+            _, p_value = f_oneway(*spike_lists)
+            p_values.append(p_value)
+        else:
+            p_values.append(1.0)
+    if do_fdr_correction:
+        _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+    else:
+        corrected_p_values = p_values
+    corrected_p_values = np.array(corrected_p_values)
+    significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
+    for bin_idx in significant_bins:
+        ax.axvline(timeline[bin_idx], color='red', linestyle='--', alpha=0.5)
+    return len(significant_bins)
+
+
 def __plot_region_summary(statistical_summary, spike_times_df, region_summary_dir):
     """Creates a summary plot showing the counts and percentages of significant units per region for each ROI and transition across all sessions."""
     regions = spike_times_df["region"].unique()
