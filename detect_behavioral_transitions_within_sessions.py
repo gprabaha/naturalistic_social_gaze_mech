@@ -202,67 +202,65 @@ def ___compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze
     return spike_counts_per_trial, timeline
 
 
-def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=False):
-    """Performs ANOVA for each time bin and marks significant bins on the plot."""
-    num_bins = len(timeline) - 1
-    spike_df = pd.DataFrame(spike_data, columns=["spike_counts", "transition"])
-    p_values = []
-    # Define the time window for counting significant bins
-    time_window_start, time_window_end = -450, 450
-    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
-    for bin_idx in range(num_bins):
-        bin_data = spike_df["spike_counts"].apply(lambda x: x[bin_idx])
-        groups = spike_df["transition"]
-        unique_groups = groups.unique()
-        spike_lists = [bin_data[groups == grp].tolist() for grp in unique_groups]
-        if len(spike_lists) > 1:
-            _, p_value = f_oneway(*spike_lists)
-            p_values.append(p_value)
-        else:
-            p_values.append(1.0)
-    if do_fdr_correction:
-        _, corrected_p_values, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
-    else:
-        corrected_p_values = p_values
-    corrected_p_values = np.array(corrected_p_values)
-    significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
-    for bin_idx in significant_bins:
-        ax.axvline(timeline[bin_idx], color='red', linestyle='--', alpha=0.5)
-    return len(significant_bins)
-
-
 def __plot_region_summary(statistical_summary, spike_times_df, region_summary_dir):
     """Creates a summary plot showing the counts and percentages of significant units per region for each ROI and transition across all sessions."""
     regions = spike_times_df["region"].unique()
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
     transitions = ["from", "to"]
+    
     total_units_per_region = {region: len(spike_times_df[spike_times_df["region"] == region]) for region in regions}
     significant_counts = np.zeros((len(regions), len(rois), len(transitions)))
+
     for unit_uuid, brain_region, sig_results in statistical_summary:
         for roi_idx, roi in enumerate(rois):
             for trans_idx, transition_type in enumerate(transitions):
                 if roi in sig_results and transition_type in sig_results[roi]:
                     significant_counts[regions.tolist().index(brain_region), roi_idx, trans_idx] += 1
-    fig, axs = plt.subplots(len(regions), 1, figsize=(12, len(regions) * 4))
+
+    n_regions = len(regions)
+    n_cols = 2
+    n_rows = int(np.ceil(n_regions / n_cols))  # Ensure enough rows for all regions
+
+    # Determine the common color scale
+    max_percent = (significant_counts / np.array(list(total_units_per_region.values()))[:, None, None] * 100)
+    max_percent[np.isnan(max_percent)] = 0  # Handle NaNs where total_units_per_region = 0
+    vmin, vmax = 0, max_percent.max()
+
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(12, 8))
+    axs = axs.flatten()  # Flatten in case n_regions < 4
+
     for i, region in enumerate(regions):
         total_units = total_units_per_region[region]
         percent_significant = (significant_counts[i] / total_units) * 100 if total_units > 0 else np.zeros_like(significant_counts[i])
-        table_data = [[f"{int(significant_counts[i, j, k])}/{total_units} ({percent_significant[j, k]:.2f}%)" 
+        
+        # Prepare text overlay with significant unit count and percentage
+        table_data = [[f"{int(significant_counts[i, j, k])}\n({percent_significant[j, k]:.1f}%)"  
                        for k in range(len(transitions))] for j in range(len(rois))]
-        im = axs[i].imshow(percent_significant, cmap="viridis", aspect="auto")
+        
+        im = axs[i].imshow(percent_significant, cmap="gray", aspect="auto", vmin=vmin, vmax=vmax)
         axs[i].set_xticks(range(len(transitions)))
         axs[i].set_xticklabels(transitions)
         axs[i].set_yticks(range(len(rois)))
         axs[i].set_yticklabels(rois)
-        axs[i].set_title(f"{region} - Total Units: {total_units}")
-        # Add counts and percentages as text annotations
+        axs[i].set_title(f"{region} (Total Units: {total_units})")  # Added total unit count to title
+
+        # Add significant unit counts and percentage as text overlay
         for j in range(len(rois)):
             for k in range(len(transitions)):
                 axs[i].text(k, j, table_data[j][k], ha="center", va="center", color="black")
-        fig.colorbar(im, ax=axs[i])
-    plt.tight_layout()
+
+    # Add a single colorbar for all subplots
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # Adjusted for better positioning
+    fig.colorbar(im, cax=cbar_ax, label="Percentage of Significant Units")
+
+    # Remove empty subplots if regions < 4
+    for i in range(n_regions, len(axs)):
+        fig.delaxes(axs[i])
+
+    plt.tight_layout(rect=[0, 0, 0.9, 1])  # Adjust layout to fit colorbar
     plt.savefig(os.path.join(region_summary_dir, "all_region_summary.png"), dpi=100)
     plt.close(fig)
+
 
 
 if __name__ == "__main__":
