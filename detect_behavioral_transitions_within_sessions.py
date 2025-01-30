@@ -29,9 +29,10 @@ def _initialize_params():
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'gaussian_smoothing_sigma': 2,
+        'gaussian_smoothing_sigma': 1,
         'time_window_before_and_after_event_for_psth': 0.5,
-        'min_consecutive_sig_bins': 5
+        'min_consecutive_sig_bins': 9,
+        'min_total_sig_bins': 90
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -62,6 +63,9 @@ def main():
 def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params):
     logger.info("Computing transition probabilities and spiking responses")
     today_date = datetime.now().strftime("%Y-%m-%d")
+    pdb.set_trace()
+    today_date += "_2"
+    pdb.set_trace()
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
     all_statistical_summaries = []
@@ -71,8 +75,6 @@ def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, s
         session_summary = __process_session(session_name, session_behav_df, session_spike_df, session_gaze_df, root_dir, params)
         all_statistical_summaries.extend(session_summary)
     # Plot region summary across all sessions
-    region_summary_dir = os.path.join(root_dir, "region_summary")
-    os.makedirs(region_summary_dir, exist_ok=True)
     __plot_region_summary(all_statistical_summaries, spike_times_df, root_dir)
 
 
@@ -80,7 +82,7 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
     logger.info(f"Processing session {session_name}")
     statistical_summary = []
     for _, unit in tqdm(session_spike_df.iterrows(), total=len(session_spike_df), desc=f"Processing units in {session_name}"):
-        if unit["unit_uuid"] == 
+        # if unit["unit_uuid"] == 
         unit_uuid, brain_region, significant_results = __plot_fixation_transition_spiking(
             unit, session_behav_df, session_gaze_df, root_dir, params
         )
@@ -97,7 +99,8 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
     spike_times = np.array(unit["spike_ts"])
     rois = ["eyes", "non_eye_face", "object", "out_of_roi"]
     transitions = ["from", "to"]
-    min_consecutive_sig_bins = params.get("min_consecutive_sig_bins", 5)  # Default to 5 if not specified
+    min_consecutive_sig_bins = params.get("min_consecutive_sig_bins", 9)  # Default to 5 if not specified
+    min_total_sig_bins = params.get("min_total_sig_bins", 90)
 
     fig = plt.figure(figsize=(20, 18))
     gs = gridspec.GridSpec(3, 4, figure=fig)
@@ -138,7 +141,7 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
                             current_run = 1
                     longest_run = max(longest_run, current_run)  # Ensure last run is considered
 
-                    if longest_run >= min_consecutive_sig_bins:
+                    if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
                         statistical_results.setdefault(roi, {}).setdefault(transition_type, []).append(unit_uuid)
 
             if spike_data:
@@ -241,7 +244,7 @@ def ___perform_anova_and_mark_plot(spike_data, timeline, ax, do_fdr_correction=F
     p_values = []
 
     # Define the time window for counting significant bins
-    time_window_start, time_window_end = -450, 450
+    time_window_start, time_window_end = -0.45, 0.45
     valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
 
     for bin_idx in range(num_bins):
@@ -320,7 +323,7 @@ def __plot_region_summary(statistical_summary, spike_times_df, region_summary_di
         table_data = [[f"{int(significant_counts[i, j, k])}\n({percent_significant[j, k]:.1f}%)"  
                        for k in range(len(transitions))] for j in range(len(rois))]
         
-        im = axs[i].imshow(percent_significant, cmap="gray", aspect="auto", vmin=vmin, vmax=vmax)
+        im = axs[i].imshow(percent_significant, cmap="gray_r", aspect="auto", vmin=vmin, vmax=vmax)
         axs[i].set_xticks(range(len(transitions)))
         axs[i].set_xticklabels(transitions)
         axs[i].set_yticks(range(len(rois)))
