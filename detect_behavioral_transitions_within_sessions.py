@@ -8,6 +8,7 @@ import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
 from scipy.stats import f_oneway
+from scipy.ndimage import gaussian_filter1d
 from statsmodels.stats.multitest import multipletests
 
 import pdb
@@ -47,6 +48,7 @@ def _initialize_params():
     params = {
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
+        'gaussian_smoothing_sigma': 3,
         'time_window_before_and_after_event_for_psth': 0.5
     }
     params = curate_data.add_root_data_to_params(params)
@@ -157,10 +159,10 @@ def ___compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze
     """Computes spike counts per trial for a given transition type."""
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
+    sigma = params['gaussian_smoothing_sigma']
     time_window = params['time_window_before_and_after_event_for_psth']
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
     m1_behav_df = session_behav_df[session_behav_df["agent"] == 'm1']
-    smoothing_kernel = np.ones(5) / 5 if params["smooth_spike_counts"] else None
     for _, run_row in m1_behav_df.iterrows():
         fixations = run_row["fixation_location"]
         categorized_fixations = [
@@ -197,7 +199,7 @@ def ___compute_spiking_per_trial(roi, transition, session_behav_df, session_gaze
             spike_counts, _ = np.histogram(spike_times, bins=bins)
             spike_counts = spike_counts / bin_size
             if params["smooth_spike_counts"]:
-                spike_counts = np.convolve(spike_counts, smoothing_kernel, mode='same')
+                spike_counts = gaussian_filter1d(spike_counts, sigma=sigma)
             spike_counts_per_trial.append((spike_counts, f"{transition} → {roi}"))
     return spike_counts_per_trial, timeline
 
