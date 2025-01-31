@@ -63,7 +63,7 @@ def main():
 def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params):
     logger.info("Computing transition probabilities and spiking responses")
     today_date = datetime.now().strftime("%Y-%m-%d")
-    today_date += "_3"
+    today_date += "_9-45_minbin"
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
     all_statistical_summaries = []
@@ -154,7 +154,7 @@ def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, 
                 significance_matrix[row_idx, col_idx] = 1  # Rows match transitions, columns match ROIs
 
     # **Fixed: Ensure white for non-significant, black for significant**
-    im = significance_ax.imshow(significance_matrix, cmap="gray_r", aspect="auto", vmin=0, vmax=1)  
+    im = significance_ax.imshow(significance_matrix, cmap="Reds", aspect="auto", vmin=0, vmax=1)  
     significance_ax.set_xticks(range(len(rois)))
     significance_ax.set_xticklabels(rois)
     significance_ax.set_yticks(range(len(transitions)))
@@ -312,7 +312,7 @@ def __plot_region_summary(statistical_summary, spike_times_df, region_summary_di
         table_data = [[f"{int(significant_counts[i, j, k])}\n({percent_significant[j, k]:.1f}%)"  
                        for k in range(len(transitions))] for j in range(len(rois))]
         
-        im = axs[i].imshow(percent_significant, cmap="gray_r", aspect="auto", vmin=vmin, vmax=vmax)
+        im = axs[i].imshow(percent_significant, cmap="Reds", aspect="auto", vmin=vmin, vmax=vmax)
         axs[i].set_xticks(range(len(transitions)))
         axs[i].set_xticklabels(transitions)
         axs[i].set_yticks(range(len(rois)))

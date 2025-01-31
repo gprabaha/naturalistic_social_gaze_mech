@@ -140,5 +140,7 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
     logger.info("Plot generation complete")
 
 
+# ** MAIN **
+
 if __name__ == "__main__":
     main()

@@ -33,8 +33,8 @@ def _initialize_params():
         'smooth_spike_counts': True,
         'time_window_before_and_after_event_for_psth': 0.5,
         'gaussian_smoothing_sigma': 2,
-        'min_consecutive_sig_bins': 9,
-        'min_total_sig_bins': 45
+        'min_consecutive_sig_bins': 5,
+        'min_total_sig_bins': 25
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -214,7 +214,7 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
 
     # Set up plot save directory
     today_date = datetime.today().strftime('%Y-%m-%d')
-    today_date += '_2'
+    today_date += '_5-25_minbin'
     root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
