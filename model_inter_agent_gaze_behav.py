@@ -33,23 +33,25 @@ def _initialize_params():
 def main():
     logger.info("Starting the script")
     params = _initialize_params()
+
     eye_mvm_behav_df_file_path = os.path.join(
         params['processed_data_dir'], 'eye_mvm_behav_df.pkl'
     )
     monkeys_per_session_dict_file_path = os.path.join(
         params['processed_data_dir'], 'ephys_days_and_monkeys.pkl'
     )
+
     logger.info("Loading data files")
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
     logger.info("Data loaded successfully")
 
-    
+    pdb.set_trace()
+
     logger.info("Analyzing fixation probabilities")
     analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params)
     logger.info("Analysis and plotting complete")
     
-
 
 
 def analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params):
@@ -104,7 +106,6 @@ def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
 
 def compute_joint_duration(m1_indices, m2_indices):
     """Compute the overlapping duration between m1 and m2 fixation events."""
-    
     m1_timepoints = set()
     for start, stop in m1_indices:
         m1_timepoints.update(range(start, stop + 1))
@@ -123,7 +124,7 @@ def categorize_fixations(fix_locations):
     """Categorize fixation locations into predefined categories."""
     return [
         "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
-        "non_eye_face" if "face" in set(fixes) else
+        "non_eye_face" if set(fixes) & {"mouth", "face"} else
         "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
         for fixes in fix_locations
     ]
@@ -133,12 +134,13 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
     """Generate subplot comparisons for fixation probability distributions."""
     logger.info("Generating fixation probability plots")
     today_date = datetime.today().strftime('%Y-%m-%d')
-    today_date += "_monkey_pair"
+    group_by = "monkey_pair"
+    today_date += f"_{group_by}"
     root_dir = os.path.join(params['root_data_dir'], "plots", "inter_agent_fix_prob", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
-    for monkey_pair, sub_df in tqdm(joint_prob_df.groupby("monkey_pair"), desc="Plotting monkey pair"):
-        fig, axes = plt.subplots(1, 4, figsize=(8, 16))
+    for grouping_name, sub_df in tqdm(joint_prob_df.groupby(group_by), desc=f"Plotting {group_by}"):
+        fig, axes = plt.subplots(1, 4, figsize=(16, 8))
         axes = axes.flatten()
         
         for i, category in enumerate(["eyes", "non_eye_face", "face", "out_of_roi"]):
@@ -155,12 +157,62 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
                     t_stat, p_val = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
                     axes[i].text(0.5, 0.9, f'p = {p_val:.4f}', ha='center', va='center', transform=axes[i].transAxes)
         
-        plt.suptitle(f"Monkay-pair: {monkey_pair} Fixation Probability Distributions")
+        plt.suptitle(f"{group_by.capitalize()}: {grouping_name} Fixation Probability Distributions")
         plt.tight_layout()
-        plt.savefig(os.path.join(root_dir, f"{monkey_pair}_fixation_probabilities.png"))
+        plt.savefig(os.path.join(root_dir, f"{grouping_name}_fixation_probabilities.png"))
         plt.close()
     
     logger.info("Plot generation complete")
+
+
+def generate_fixation_binary_vectors_long_format(df):
+    """
+    Generate a long-format dataframe with binary vectors for each fixation category 
+    (eyes, face, out_of_roi), where each row corresponds to a run and fixation type.
+
+    Args:
+        df (pd.DataFrame): DataFrame with fixation start-stop indices and fixation locations.
+
+    Returns:
+        pd.DataFrame: A long-format DataFrame where each row represents a fixation type's binary vector.
+    """
+    binary_vectors = []
+
+    for _, row in tqdm(df.iterrows(), desc="Processing df row"):
+        run_length = row["run_length"]
+        fixation_start_stop = row["fixation_start_stop"]
+        fixation_categories = categorize_fixations(row["fixation_location"])
+
+        # Initialize binary vectors
+        binary_dict = {
+            "eyes": np.zeros(run_length, dtype=int),
+            "face": np.zeros(run_length, dtype=int),
+            "out_of_roi": np.zeros(run_length, dtype=int),
+        }
+
+        for (start, stop), category in zip(fixation_start_stop, fixation_categories):
+            if category == "eyes":
+                binary_dict["eyes"][start:stop + 1] = 1
+                binary_dict["face"][start:stop + 1] = 1  # 'face' includes 'eyes'
+            elif category == "non_eye_face":
+                binary_dict["face"][start:stop + 1] = 1
+            elif category == "out_of_roi":
+                binary_dict["out_of_roi"][start:stop + 1] = 1
+
+        # Append binary vectors in long format
+        for fixation_type, binary_vector in binary_dict.items():
+            binary_vectors.append({
+                "session_name": row["session_name"],
+                "interaction_type": row["interaction_type"],
+                "run_number": row["run_number"],
+                "agent": row["agent"],
+                "fixation_type": fixation_type,
+                "binary_vector": binary_vector
+            })
+
+    return pd.DataFrame(binary_vectors)
+
+
 
 
 # ** MAIN **
