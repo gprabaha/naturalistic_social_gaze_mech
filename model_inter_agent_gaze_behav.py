@@ -23,7 +23,10 @@ logger = logging.getLogger(__name__)
 
 def _initialize_params():
     logger.info("Initializing parameters")
-    params = {'xx': 0}
+    params = {
+        'reanalyse_fixation_probabilities': False,
+        'reanalyze_fixation_crosscorrelations': True
+        }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
@@ -46,11 +49,17 @@ def main():
     monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
     logger.info("Data loaded successfully")
 
-    pdb.set_trace()
+    if params.get('reanalyse_fixation_probabilities', False):
+        logger.info("Analyzing fixation probabilities")
+        analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params)
+        logger.info("Analysis and plotting complete")
+    
+    if params.get('reanalyze_fixation_crosscorrelations', False):
+        logger.info("Generating fix-related binary vectors")
+        fix_binary_vector_df = generate_fixation_binary_vectors(eye_mvm_behav_df)
+        pdb.set_trace()
+        logger.info("Fix-related binary vectors generated")
 
-    logger.info("Analyzing fixation probabilities")
-    analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params)
-    logger.info("Analysis and plotting complete")
     
 
 
@@ -165,7 +174,7 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
     logger.info("Plot generation complete")
 
 
-def generate_fixation_binary_vectors_long_format(df):
+def generate_fixation_binary_vectors(df):
     """
     Generate a long-format dataframe with binary vectors for each fixation category 
     (eyes, face, out_of_roi), where each row corresponds to a run and fixation type.
@@ -212,6 +221,141 @@ def generate_fixation_binary_vectors_long_format(df):
 
     return pd.DataFrame(binary_vectors)
 
+
+
+
+import numpy as np
+import pandas as pd
+from scipy.signal import fftconvolve, gaussian
+from scipy.ndimage import convolve1d
+from multiprocessing import Pool
+
+
+def gaussian_smooth(vector, sigma=25):
+    """Apply a Gaussian filter to smooth a binary fixation vector."""
+    kernel_size = int(6 * sigma)  # 3-sigma rule
+    kernel_size += 1 if kernel_size % 2 == 0 else 0  # Ensure odd-sized kernel
+    kernel = gaussian(kernel_size, sigma)
+    kernel /= kernel.sum()  # Normalize
+    return convolve1d(vector, kernel, mode='constant')
+
+
+def fft_crosscorrelation(x, y):
+    """Compute cross-correlation between two signals using FFT."""
+    n = len(x)
+    x_fft = np.fft.fft(x, n*2)
+    y_fft = np.fft.fft(y, n*2)
+    corr = np.fft.ifft(x_fft * np.conj(y_fft)).real[:n]
+    return corr / np.max(corr)  # Normalize
+
+
+def generate_shuffled_vectors(original_vector, event_start_stop, num_shuffles=20):
+    """Generate shuffled versions of a binary fixation vector by jittering event start times."""
+    run_length = len(original_vector)
+    shuffled_vectors = []
+    max_shift = run_length - max([stop - start for start, stop in event_start_stop])  # Prevent out-of-bounds
+    
+    for _ in range(num_shuffles):
+        shuffled_vector = np.zeros(run_length, dtype=int)
+        for start, stop in event_start_stop:
+            duration = stop - start
+            new_start = np.random.randint(0, max_shift)
+            new_stop = new_start + duration
+            shuffled_vector[new_start:new_stop + 1] = 1
+        shuffled_vectors.append(shuffled_vector)
+    
+    return shuffled_vectors
+
+
+def compute_shuffled_crosscorr(pair):
+    """Helper function to compute cross-correlations for shuffled vectors."""
+    m1_shuff, m2_shuff, sigma = pair
+    smoothed_m1 = gaussian_smooth(m1_shuff, sigma)
+    smoothed_m2 = gaussian_smooth(m2_shuff, sigma)
+    return fft_crosscorrelation(smoothed_m1, smoothed_m2)
+
+
+def compute_crosscorr_and_shuffled_stats(df, sigma=25, num_shuffles=20, num_cpus=8):
+    """
+    Compute Gaussian-smoothed cross-correlation between m1 and m2's fixation behaviors,
+    generate shuffled distributions in parallel, and store means & stds of shuffled cross-correlations.
+
+    Args:
+        df (pd.DataFrame): Dataframe containing binary fixation vectors.
+        sigma (int): Gaussian smoothing sigma.
+        num_shuffles (int): Number of shuffled samples.
+        num_cpus (int): Number of CPUs for parallel processing.
+
+    Returns:
+        pd.DataFrame: Dataframe with original cross-correlations and shuffled statistics.
+    """
+    results = []
+
+    # Group by session, run, fixation type
+    grouped = df.groupby(["session_name", "interaction_type", "run_number", "fixation_type"])
+
+    for (session, interaction, run, fixation_type), group in grouped:
+        if len(group) != 2:
+            continue  # Skip if both m1 and m2 aren't present
+        
+        m1_row = group[group["agent"] == "m1"].iloc[0]
+        m2_row = group[group["agent"] == "m2"].iloc[0]
+
+        m1_vector = np.array(m1_row["binary_vector"])
+        m2_vector = np.array(m2_row["binary_vector"])
+
+        # Apply Gaussian smoothing
+        m1_smooth = gaussian_smooth(m1_vector, sigma)
+        m2_smooth = gaussian_smooth(m2_vector, sigma)
+
+        # Compute original cross-correlations
+        crosscorr_m1_m2 = fft_crosscorrelation(m1_smooth, m2_smooth)
+        crosscorr_m2_m1 = fft_crosscorrelation(m2_smooth, m1_smooth)
+
+        # Generate shuffled vectors
+        shuffled_m1_vectors = generate_shuffled_vectors(m1_vector, m1_row["binary_vector"], num_shuffles)
+        shuffled_m2_vectors = generate_shuffled_vectors(m2_vector, m2_row["binary_vector"], num_shuffles)
+
+        # Parallel processing for shuffled cross-correlations
+        with Pool(num_cpus) as pool:
+            shuffled_crosscorrs_m1_m2 = pool.map(
+                compute_shuffled_crosscorr,
+                [(m1_shuff, m2_shuff, sigma) for m1_shuff, m2_shuff in zip(shuffled_m1_vectors, shuffled_m2_vectors)]
+            )
+            shuffled_crosscorrs_m2_m1 = pool.map(
+                compute_shuffled_crosscorr,
+                [(m2_shuff, m1_shuff, sigma) for m1_shuff, m2_shuff in zip(shuffled_m1_vectors, shuffled_m2_vectors)]
+            )
+
+        # Convert results to numpy arrays
+        shuffled_crosscorrs_m1_m2 = np.array(shuffled_crosscorrs_m1_m2)
+        shuffled_crosscorrs_m2_m1 = np.array(shuffled_crosscorrs_m2_m1)
+
+        # Compute mean and std for each lag bin
+        mean_shuffled_m1_m2 = np.mean(shuffled_crosscorrs_m1_m2, axis=0)
+        std_shuffled_m1_m2 = np.std(shuffled_crosscorrs_m1_m2, axis=0)
+
+        mean_shuffled_m2_m1 = np.mean(shuffled_crosscorrs_m2_m1, axis=0)
+        std_shuffled_m2_m1 = np.std(shuffled_crosscorrs_m2_m1, axis=0)
+
+        # Store results
+        results.append({
+            "session_name": session,
+            "interaction_type": interaction,
+            "run_number": run,
+            "fixation_type": fixation_type,
+            "crosscorr_m1_m2": crosscorr_m1_m2,
+            "crosscorr_m2_m1": crosscorr_m2_m1,
+            "mean_shuffled_m1_m2": mean_shuffled_m1_m2,
+            "std_shuffled_m1_m2": std_shuffled_m1_m2,
+            "mean_shuffled_m2_m1": mean_shuffled_m2_m1,
+            "std_shuffled_m2_m1": std_shuffled_m2_m1
+        })
+
+    return pd.DataFrame(results)
+
+# Example usage
+# crosscorr_results_df = compute_crosscorr_and_shuffled_stats(fix_binary_vector_df, sigma=50, num_shuffles=100, num_cpus=8)
 
 
 
