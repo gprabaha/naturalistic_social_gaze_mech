@@ -36,12 +36,12 @@ def main():
     eye_mvm_behav_df_file_path = os.path.join(
         params['processed_data_dir'], 'eye_mvm_behav_df.pkl'
     )
-    monkeys_per_session_file_path = os.path.join(
+    monkeys_per_session_dict_file_path = os.path.join(
         params['processed_data_dir'], 'ephys_days_and_monkeys.pkl'
     )
     logger.info("Loading data files")
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-    monkeys_per_session_df = load_data.get_data_df(monkeys_per_session_file_path)
+    monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
     logger.info("Data loaded successfully")
 
     
@@ -66,8 +66,8 @@ def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
     
     grouped = list(eye_mvm_behav_df.groupby(["session_name", "interaction_type", "run_number"]))
     for (session, interaction, run), sub_df in tqdm(grouped, desc="Processing sessions"):
-        m1 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m1"]
-        m2 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m2"]
+        m1 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m1"].iloc[0]
+        m2 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m2"].iloc[0]
         m1_df = sub_df[sub_df["agent"] == "m1"]
         m2_df = sub_df[sub_df["agent"] == "m2"]
         
@@ -78,7 +78,7 @@ def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
         m2_fixations = categorize_fixations(m2_df["fixation_location"].values[0])
         run_length = m1_df["run_length"].values[0]
         
-        for category in ["eyes", "non_eye_face", "face"]:
+        for category in ["eyes", "non_eye_face", "face", "out_of_roi"]:
             if category != "face":
                 m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat == category]
                 m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat == category]
@@ -136,12 +136,12 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
     today_date += "_monkey_pair"
     root_dir = os.path.join(params['root_data_dir'], "plots", "inter_agent_fix_prob", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    pdb.set_trace()
+
     for monkey_pair, sub_df in tqdm(joint_prob_df.groupby("monkey_pair"), desc="Plotting monkey pair"):
-        fig, axes = plt.subplots(1, 3, figsize=(12, 10))
+        fig, axes = plt.subplots(1, 4, figsize=(8, 16))
         axes = axes.flatten()
         
-        for i, category in enumerate(["eyes", "non_eye_face", "face"]):
+        for i, category in enumerate(["eyes", "non_eye_face", "face", "out_of_roi"]):
             cat_data = sub_df[sub_df["fixation_category"] == category]
             
             if not cat_data.empty:
