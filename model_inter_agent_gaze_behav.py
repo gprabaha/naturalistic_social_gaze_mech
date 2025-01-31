@@ -241,21 +241,17 @@ def gaussian_smooth(vector, sigma=25):
 
 
 def fft_crosscorrelation_both(x, y):
-    """Compute cross-correlation between two signals using FFT and extract both directions."""
-    n = len(x)
-    x_fft = np.fft.fft(x, n * 2)  # Zero-padded FFT
-    y_fft = np.fft.fft(y, n * 2)
-    
-    full_corr = np.fft.ifft(x_fft * np.conj(y_fft)).real  # Compute IFFT
+    """Compute cross-correlation using fftconvolve and extract positive lags."""
+    full_corr = fftconvolve(x, y[::-1], mode='full')  # Full cross-correlation
 
-    # Use fftshift to center lags
-    full_corr = np.fft.fftshift(full_corr)  
+    n = len(x)  # Original length
+    mid = len(full_corr) // 2  # Midpoint (zero lag)
 
-    midpoint = len(full_corr) // 2
-    crosscorr_m1_m2 = full_corr[midpoint:]  # Positive lags: m1 → m2
-    crosscorr_m2_m1 = full_corr[:midpoint]  # Negative lags: m2 → m1
+    crosscorr_m1_m2 = full_corr[mid:mid + n]  # Positive lags for m1 → m2
+    crosscorr_m2_m1 = full_corr[:mid][::-1]   # Correctly extract and flip negative lags for m2 → m1
 
     return crosscorr_m1_m2, crosscorr_m2_m1
+
 
 
 
