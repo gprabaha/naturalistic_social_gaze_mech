@@ -240,13 +240,23 @@ def gaussian_smooth(vector, sigma=25):
     return convolve1d(vector, kernel, mode='constant')
 
 
-def fft_crosscorrelation(x, y):
-    """Compute cross-correlation between two signals using FFT."""
+def fft_crosscorrelation_both(x, y):
+    """Compute cross-correlation between two signals using FFT and extract both directions."""
     n = len(x)
-    x_fft = np.fft.fft(x, n*2)
-    y_fft = np.fft.fft(y, n*2)
-    corr = np.fft.ifft(x_fft * np.conj(y_fft)).real[:n]
-    return corr / np.max(corr)  # Normalize
+    x_fft = np.fft.fft(x, n * 2)  # Zero-padded FFT
+    y_fft = np.fft.fft(y, n * 2)
+    
+    full_corr = np.fft.ifft(x_fft * np.conj(y_fft)).real  # Compute IFFT
+
+    # Use fftshift to center lags
+    full_corr = np.fft.fftshift(full_corr)  
+
+    midpoint = len(full_corr) // 2
+    crosscorr_m1_m2 = full_corr[midpoint:]  # Positive lags: m1 → m2
+    crosscorr_m2_m1 = full_corr[:midpoint]  # Negative lags: m2 → m1
+
+    return crosscorr_m1_m2, crosscorr_m2_m1
+
 
 
 def generate_shuffled_vectors(original_vector, event_start_stop, num_shuffles=20):
@@ -267,21 +277,42 @@ def generate_shuffled_vectors(original_vector, event_start_stop, num_shuffles=20
     return shuffled_vectors
 
 
-def compute_shuffled_crosscorr(pair):
+def compute_shuffled_crosscorr_both(pair):
     """Helper function to compute cross-correlations for shuffled vectors."""
     m1_shuff, m2_shuff, sigma = pair
     smoothed_m1 = gaussian_smooth(m1_shuff, sigma)
     smoothed_m2 = gaussian_smooth(m2_shuff, sigma)
-    return fft_crosscorrelation(smoothed_m1, smoothed_m2)
+    return fft_crosscorrelation_both(smoothed_m1, smoothed_m2)
 
 
-def compute_crosscorr_and_shuffled_stats(df, sigma=25, num_shuffles=20, num_cpus=8):
+def extract_start_stops_for_category(start_stops, categories, target_category):
+    """
+    Filter fixation start-stop pairs to only those matching the target category.
+    
+    Args:
+        start_stops (list of lists): Original fixation start-stop pairs.
+        categories (list): Categories assigned to each start-stop pair.
+        target_category (str): The fixation type to filter for.
+
+    Returns:
+        list of lists: Filtered start-stop pairs matching the target category.
+    """
+    filtered_start_stops = [
+        (start, stop)
+        for (start, stop), category in zip(start_stops, categories)
+        if (category == target_category) or (target_category == "face" and category in ["eyes", "non_eye_face"])
+    ]
+    return filtered_start_stops
+
+
+def compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=25, num_shuffles=20, num_cpus=8):
     """
     Compute Gaussian-smoothed cross-correlation between m1 and m2's fixation behaviors,
     generate shuffled distributions in parallel, and store means & stds of shuffled cross-correlations.
 
     Args:
         df (pd.DataFrame): Dataframe containing binary fixation vectors.
+        eye_mvm_behav_df (pd.DataFrame): Dataframe containing fixation start-stop indices and categories.
         sigma (int): Gaussian smoothing sigma.
         num_shuffles (int): Number of shuffled samples.
         num_cpus (int): Number of CPUs for parallel processing.
@@ -304,32 +335,54 @@ def compute_crosscorr_and_shuffled_stats(df, sigma=25, num_shuffles=20, num_cpus
         m1_vector = np.array(m1_row["binary_vector"])
         m2_vector = np.array(m2_row["binary_vector"])
 
+        # Extract fixation start-stop times and categories from eye_mvm_behav_df
+        m1_events = eye_mvm_behav_df[
+            (eye_mvm_behav_df["session_name"] == session) &
+            (eye_mvm_behav_df["interaction_type"] == interaction) &
+            (eye_mvm_behav_df["run_number"] == run) &
+            (eye_mvm_behav_df["agent"] == "m1")
+        ].iloc[0]
+
+        m2_events = eye_mvm_behav_df[
+            (eye_mvm_behav_df["session_name"] == session) &
+            (eye_mvm_behav_df["interaction_type"] == interaction) &
+            (eye_mvm_behav_df["run_number"] == run) &
+            (eye_mvm_behav_df["agent"] == "m2")
+        ].iloc[0]
+
+        # Filter start-stop pairs to the current fixation type
+        m1_start_stops = extract_start_stops_for_category(
+            m1_events["fixation_start_stop"],
+            categorize_fixations(m1_events["fixation_location"]),
+            fixation_type
+        )
+        m2_start_stops = extract_start_stops_for_category(
+            m2_events["fixation_start_stop"],
+            categorize_fixations(m2_events["fixation_location"]),
+            fixation_type
+        )
+
         # Apply Gaussian smoothing
         m1_smooth = gaussian_smooth(m1_vector, sigma)
         m2_smooth = gaussian_smooth(m2_vector, sigma)
 
-        # Compute original cross-correlations
-        crosscorr_m1_m2 = fft_crosscorrelation(m1_smooth, m2_smooth)
-        crosscorr_m2_m1 = fft_crosscorrelation(m2_smooth, m1_smooth)
+        # Compute original cross-correlations using a single FFT
+        crosscorr_m1_m2, crosscorr_m2_m1 = fft_crosscorrelation_both(m1_smooth, m2_smooth)
 
-        # Generate shuffled vectors
-        shuffled_m1_vectors = generate_shuffled_vectors(m1_vector, m1_row["binary_vector"], num_shuffles)
-        shuffled_m2_vectors = generate_shuffled_vectors(m2_vector, m2_row["binary_vector"], num_shuffles)
+        # Generate shuffled vectors using the filtered start-stop pairs
+        shuffled_m1_vectors = generate_shuffled_vectors(m1_vector, m1_start_stops, num_shuffles)
+        shuffled_m2_vectors = generate_shuffled_vectors(m2_vector, m2_start_stops, num_shuffles)
 
         # Parallel processing for shuffled cross-correlations
         with Pool(num_cpus) as pool:
-            shuffled_crosscorrs_m1_m2 = pool.map(
-                compute_shuffled_crosscorr,
+            shuffled_crosscorrs = pool.map(
+                compute_shuffled_crosscorr_both,
                 [(m1_shuff, m2_shuff, sigma) for m1_shuff, m2_shuff in zip(shuffled_m1_vectors, shuffled_m2_vectors)]
-            )
-            shuffled_crosscorrs_m2_m1 = pool.map(
-                compute_shuffled_crosscorr,
-                [(m2_shuff, m1_shuff, sigma) for m1_shuff, m2_shuff in zip(shuffled_m1_vectors, shuffled_m2_vectors)]
             )
 
         # Convert results to numpy arrays
-        shuffled_crosscorrs_m1_m2 = np.array(shuffled_crosscorrs_m1_m2)
-        shuffled_crosscorrs_m2_m1 = np.array(shuffled_crosscorrs_m2_m1)
+        shuffled_crosscorrs_m1_m2 = np.array([s[0] for s in shuffled_crosscorrs])  # Extract m1 -> m2
+        shuffled_crosscorrs_m2_m1 = np.array([s[1] for s in shuffled_crosscorrs])  # Extract m2 -> m1
 
         # Compute mean and std for each lag bin
         mean_shuffled_m1_m2 = np.mean(shuffled_crosscorrs_m1_m2, axis=0)
@@ -353,6 +406,7 @@ def compute_crosscorr_and_shuffled_stats(df, sigma=25, num_shuffles=20, num_cpus
         })
 
     return pd.DataFrame(results)
+
 
 # Example usage
 # crosscorr_results_df = compute_crosscorr_and_shuffled_stats(fix_binary_vector_df, sigma=50, num_shuffles=100, num_cpus=8)
