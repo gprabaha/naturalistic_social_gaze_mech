@@ -72,9 +72,13 @@ def compute_fixation_statistics(df):
         m2_fixations = categorize_fixations(m2_df["fixation_location"].values[0])
         run_length = m1_df["run_length"].values[0]
         
-        for category in ["eyes", "non_eye_face", "object", "out_of_roi"]:
-            m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat == category]
-            m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat == category]
+        for category in ["eyes", "non_eye_face", "face"]:
+            if category != "face":
+                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat == category]
+                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat == category]
+            else:
+                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
+                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
             
             joint_duration = compute_joint_duration(m1_indices, m2_indices)
             p_m1 = sum(stop + 1 - start for start, stop in m1_indices) / run_length
@@ -93,8 +97,23 @@ def compute_fixation_statistics(df):
 
 def compute_joint_duration(m1_indices, m2_indices):
     """Compute the overlapping duration between m1 and m2 fixation events."""
-    return len(set(range(start, stop + 1) for start, stop in m1_indices) &
-               set(range(start, stop + 1) for start, stop in m2_indices))
+    
+    # Generate sets of all time indices for m1 fixations
+    m1_timepoints = set()
+    for start, stop in m1_indices:
+        m1_timepoints.update(range(start, stop + 1))
+
+    # Generate sets of all time indices for m2 fixations
+    m2_timepoints = set()
+    for start, stop in m2_indices:
+        m2_timepoints.update(range(start, stop + 1))
+    
+    # Compute the intersection of both sets
+    joint_timepoints = m1_timepoints & m2_timepoints
+
+    # Return the size of the intersection
+    return len(joint_timepoints)
+
 
 
 def categorize_fixations(fix_locations):
@@ -115,15 +134,15 @@ def plot_joint_fixation_distributions(joint_prob_df, params):
     os.makedirs(root_dir, exist_ok=True)
     
     for session, sub_df in tqdm(joint_prob_df.groupby("session_name"), desc="Plotting sessions"):
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        fig, axes = plt.subplots(1, 3, figsize=(12, 10))
         axes = axes.flatten()
         
-        for i, category in enumerate(["eyes", "non_eye_face", "object", "out_of_roi"]):
+        for i, category in enumerate(["eyes", "non_eye_face", "face"]):
             cat_data = sub_df[sub_df["fixation_category"] == category]
             
             if not cat_data.empty:
                 sns.violinplot(data=cat_data.melt(id_vars=["fixation_category"],
-                                                  value_vars=["P(m1)", "P(m2)", "P(m1)*P(m2)", "P(m1&m2)"],
+                                                  value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
                                                   var_name="Probability Type", value_name="Probability"),
                                x="Probability Type", y="Probability", ax=axes[i])
                 axes[i].set_title(f"{category} Fixation Probabilities")

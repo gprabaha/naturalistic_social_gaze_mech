@@ -31,8 +31,8 @@ def _initialize_params():
         'smooth_spike_counts': True,
         'gaussian_smoothing_sigma': 2,
         'time_window_before_and_after_event_for_psth': 0.5,
-        'min_consecutive_sig_bins': 9,
-        'min_total_sig_bins': 45
+        'min_consecutive_sig_bins': 5,
+        'min_total_sig_bins': 25
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -63,7 +63,7 @@ def main():
 def _compute_spiking_for_various_transitions(eye_mvm_behav_df, spike_times_df, sparse_nan_removed_sync_gaze_df, params):
     logger.info("Computing transition probabilities and spiking responses")
     today_date = datetime.now().strftime("%Y-%m-%d")
-    today_date += "_9-45_minbin"
+    today_date += "_5-25_minbin"
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_transition_spiking", today_date)
     os.makedirs(root_dir, exist_ok=True)
     all_statistical_summaries = []
@@ -87,7 +87,6 @@ def __process_session(session_name, session_behav_df, session_spike_df, session_
         if significant_results:
             statistical_summary.append((unit_uuid, brain_region, significant_results))
     return statistical_summary
-
 
 
 def __plot_fixation_transition_spiking(unit, session_behav_df, session_gaze_df, root_dir, params):
