@@ -45,7 +45,7 @@ def _initialize_params():
         'remake_eye_mvm_df_from_gaze_data': False,
         'try_using_single_run': False,
         'test_specific_runs': False,
-        'recompute_fix_and_saccades_through_hpc_jobs': True,
+        'recompute_fix_and_saccades_through_hpc_jobs': False,
         'recompute_fix_and_saccades': False,
         'plot_eye_mvm_behav': False,
         'plot_gaze_event_dur_dist': False,
@@ -101,6 +101,7 @@ def main():
         eye_mvm_behav_df = _update_fixation_and_saccade_locations_in_eye_mvm_dataframe(
             eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
         eye_mvm_behav_df = _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df)
+        eye_mvm_behav_df = _add_run_length_column_to_behav_df(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df)
         eye_mvm_behav_df.to_pickle(eye_mvm_behav_df_file_path)
         logger.info(f"Fix and saccade with positions annotated saved to combined df in {eye_mvm_behav_df_file_path}")
     else:
@@ -466,6 +467,19 @@ def _align_and_correct_consecutive_gaze_event_labels(eye_mvm_behav_df):
         eye_mvm_behav_df.at[idx, "fixation_location"] = fixation_locs
         eye_mvm_behav_df.at[idx, "saccade_from"] = saccade_froms
         eye_mvm_behav_df.at[idx, "saccade_to"] = saccade_tos
+    return eye_mvm_behav_df
+
+
+def _add_run_length_column_to_behav_df(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df):
+    # Create a lookup dictionary with keys as (session_name, run_number, agent) and values as run length
+    run_length_dict = {
+        (row.session_name, row.run_number, row.agent): len(row.positions)
+        for _, row in sparse_nan_removed_sync_gaze_df.iterrows()
+    }
+    # Map the run length to the behavioral dataframe using the lookup dictionary
+    eye_mvm_behav_df['run_length'] = eye_mvm_behav_df.apply(
+        lambda row: run_length_dict.get((row.session_name, row.run_number, row.agent), None), axis=1
+    )
     return eye_mvm_behav_df
 
 

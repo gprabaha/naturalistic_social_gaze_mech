@@ -33,8 +33,8 @@ def _initialize_params():
         'smooth_spike_counts': True,
         'time_window_before_and_after_event_for_psth': 0.5,
         'gaussian_smoothing_sigma': 2,
-        'min_consecutive_sig_bins': 5,
-        'min_total_sig_bins': 25
+        'min_consecutive_sig_bins': 9,
+        'min_total_sig_bins': 45
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -214,6 +214,7 @@ def plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_r
 
     # Set up plot save directory
     today_date = datetime.today().strftime('%Y-%m-%d')
+    today_date += '_2'
     root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
@@ -260,7 +261,7 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
     """
     Processes a single session, computing and plotting neural response for mutual face fixation periods.
     """
-    logger.info(f'Processing session {session_name}')
+    logger.debug(f'Processing session {session_name}')
     min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
     min_total_sig_bins = params.get('min_total_sig_bins', 25)
     high_density_fixations = []
@@ -333,7 +334,7 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
     for _, unit in session_spike_data.iterrows():
         unit_uuid = unit["unit_uuid"]
         brain_region = unit["region"]
-        logger.info(f'Plotting for {unit_uuid} in {brain_region}')
+        logger.debug(f'Plotting for {unit_uuid} in {brain_region}')
         spike_times = np.array(unit["spike_ts"])
         is_sig = 0
         # Compute spike counts per trial
@@ -345,9 +346,9 @@ def _process_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaz
         longest_run = max(len(g) for g in groups)  # Ensure last run is considered
         if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
             is_sig = 1
-            sig_units.setdefault(brain_region, {}).append(unit_uuid)
+            sig_units.setdefault(brain_region, []).append(unit_uuid)
         else:
-            non_sig_units.setdefault(brain_region, {}).append(unit_uuid)
+            non_sig_units.setdefault(brain_region, []).append(unit_uuid)
         # Plot results
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(timeline[:-1], np.mean(high_density_spike_counts, axis=0), label="High Mutual Density", color="blue")
@@ -391,6 +392,9 @@ def _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_
     """Performs t-test per bin and applies FDR correction."""
     num_bins = len(timeline) - 1
     p_values = []
+    # Define the time window for counting significant bins
+    time_window_start, time_window_end = -0.45, 0.45
+    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
     for bin_idx in range(num_bins):
         p_value = ttest_ind(
             high_density_spike_counts[:, bin_idx],
@@ -404,7 +408,7 @@ def _perform_ttest_and_fdr_correct(high_density_spike_counts, low_density_spike_
     else:
         corrected_p_values = np.array(p_values)
     # Identify significant bins
-    significant_bins = np.where(corrected_p_values < 0.05)[0]
+    significant_bins = np.where((corrected_p_values < 0.05) & (valid_bins))[0]
     return significant_bins
 
 
