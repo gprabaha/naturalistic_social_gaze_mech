@@ -21,7 +21,9 @@ logging.basicConfig(level=logging.INFO,
                     handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
+
 # ** Initiation and Main **
+
 
 def _initialize_params():
     logger.info("Initializing parameters")
@@ -130,7 +132,6 @@ def ___compute_joint_duration(m1_indices, m2_indices):
     joint_timepoints = m1_timepoints & m2_timepoints
 
     return len(joint_timepoints)
-
 
 
 def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pair"):
