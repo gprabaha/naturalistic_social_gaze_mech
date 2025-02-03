@@ -52,7 +52,7 @@ def main():
 
     if params.get('reanalyse_fixation_probabilities', False):
         logger.info("Analyzing fixation probabilities")
-        _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
+        _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="monkey_pair")
         logger.info("Analysis and plotting complete")
 
 
@@ -157,19 +157,19 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
                                             var_name="Probability Type", value_name="Probability")
 
                 # First row: Paired t-test
-                t_stat, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                t_stat_ttest, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
                 sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[0, i])
                 axes[0, i].set_title(f"{category} Fixation Probabilities (Paired t-test)")
                 axes[0, i].text(0.5, 0.9, f'p = {p_val_ttest:.4f}', ha='center', va='center', transform=axes[0, i].transAxes)
 
                 # Second row: Mann-Whitney U test (Ranksum test)
-                t_stat, p_val_ranksum = ranksums(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                t_stat_ranksum, p_val_ranksum = ranksums(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
                 sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[1, i])
                 axes[1, i].set_title(f"{category} Fixation Probabilities (Ranksum test)")
                 axes[1, i].text(0.5, 0.9, f'p = {p_val_ranksum:.4f}', ha='center', va='center', transform=axes[1, i].transAxes)
 
                 # Third row: Bayesian t-test (Bayes Factor)
-                bf = pg.bayesfactor_ttest(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"], paired=True)
+                bf = pg.bayesfactor_ttest(t_stat_ttest, cat_data.shape[0])
                 # Determine color for Bayes Factor significance
                 if bf < 3:
                     bf_color = "red"  # Weak evidence
