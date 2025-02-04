@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
+        'is_cluster', True,
+        'is_grace', True,
         'recompute_fix_binary_vector': True,
         'recompute_crosscorr': True
     }
