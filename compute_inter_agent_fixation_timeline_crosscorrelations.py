@@ -33,7 +33,7 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': True,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': False
+        'recompute_crosscorr': True
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -273,20 +273,20 @@ def ___generate_uniformly_distributed_partitions(total_duration, num_partitions)
     if num_partitions == 1:
         return [total_duration]  # Only one partition, so it gets all the time
 
-    # Step 1: Draw random values from a uniform distribution
-    random_values = np.random.uniform(0, 1, size=num_partitions)
-    
-    # Step 2: Normalize to ensure they sum to total_duration
-    partitions = (random_values / random_values.sum()) * total_duration
-    
-    # Step 3: Round to integers while maintaining the total sum
-    partitions = np.round(partitions).astype(int)
-    
-    # Step 4: Adjust rounding errors to ensure the sum matches total_duration
+    # Step 1: Generate `num_partitions - 1` random breakpoints in [0, total_duration]
+    cut_points = np.sort(np.random.uniform(0, total_duration, num_partitions - 1))
+
+    # Step 2: Compute partition sizes as the differences between consecutive breakpoints
+    partitions = np.diff(np.concatenate(([0], cut_points, [total_duration]))).astype(int)
+
+    # Step 3: Adjust rounding errors to ensure the exact sum
     diff = total_duration - partitions.sum()
-    for _ in range(abs(diff)):
-        idx = np.random.choice(len(partitions))
-        partitions[idx] += np.sign(diff)
+    
+    if diff != 0:
+        idx = np.random.choice(len(partitions), size=abs(diff), replace=True)
+        adjustment = np.sign(diff)
+        for i in idx:
+            partitions[i] += adjustment
 
     return partitions.tolist()
 
