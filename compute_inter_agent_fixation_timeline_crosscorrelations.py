@@ -6,6 +6,8 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 import pdb
 
@@ -78,8 +80,8 @@ def main():
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
-    pdb.set_trace()
-    return 0
+    _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                        group_by="session_name", plot_duration_seconds=60)
 
 
 # ** Sub-functions **
@@ -263,6 +265,98 @@ def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fix
 def __compute_shuffled_crosscorr_both_wrapper(pair):
     """Helper function to compute cross-correlations for shuffled vectors."""
     return __fft_crosscorrelation_both(pair[0], pair[1])
+
+
+
+def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                            group_by="session_name", plot_duration_seconds=60):
+    """
+    Plots the average (crosscorr - mean_shuffled) for both m1->m2 and m2->m1 
+    across all runs, grouping either by session name or monkey pair.
+    
+    Parameters:
+    - inter_agent_behav_cross_correlation_df: DataFrame containing cross-correlations.
+    - monkeys_per_session_df: DataFrame containing session-wise monkey pairs.
+    - params: Dictionary containing path parameters.
+    - group_by: "session_name" or "monkey_pair" to determine averaging method.
+    - plot_duration_seconds: Number of seconds to plot (default: 60s, assuming 1kHz sampling rate).
+    """
+
+    # Sampling rate (1kHz means 1000 time points per second)
+    sample_rate = 1000  
+    max_timepoints = plot_duration_seconds * sample_rate  
+
+    # Merge session-wise monkey data into correlation dataframe
+    merged_df = inter_agent_behav_cross_correlation_df.merge(monkeys_per_session_df, on="session_name")
+
+    # Define monkey pair column
+    merged_df["monkey_pair"] = merged_df["m1"] + "_" + merged_df["m2"]
+
+    # Choose grouping variable
+    group_column = "session_name" if group_by == "session_name" else "monkey_pair"
+
+    # Group by session or monkey pair
+    grouped = merged_df.groupby([group_column, "fixation_type"])
+
+    # Compute mean and std of cross-correlation difference (only for first `max_timepoints` samples)
+    results = grouped.apply(lambda x: pd.Series({
+        "mean_diff_m1_m2": np.mean(np.vstack(x["crosscorr_m1_m2"].values)[:, :max_timepoints] - 
+                                   np.vstack(x["mean_shuffled_m1_m2"].values)[:, :max_timepoints], axis=0),
+        "std_diff_m1_m2": np.std(np.vstack(x["crosscorr_m1_m2"].values)[:, :max_timepoints] - 
+                                 np.vstack(x["mean_shuffled_m1_m2"].values)[:, :max_timepoints], axis=0),
+        "mean_diff_m2_m1": np.mean(np.vstack(x["crosscorr_m2_m1"].values)[:, :max_timepoints] - 
+                                   np.vstack(x["mean_shuffled_m2_m1"].values)[:, :max_timepoints], axis=0),
+        "std_diff_m2_m1": np.std(np.vstack(x["crosscorr_m2_m1"].values)[:, :max_timepoints] - 
+                                 np.vstack(x["mean_shuffled_m2_m1"].values)[:, :max_timepoints], axis=0),
+    })).reset_index()
+
+    # Create plot directory
+    today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations", today_date)
+    os.makedirs(root_dir, exist_ok=True)
+
+    # Get unique fixation types
+    fixation_types = results["fixation_type"].unique()
+    num_subplots = len(fixation_types)
+
+    # Iterate over groups (sessions or monkey pairs)
+    for group_value, group_df in tqdm(results.groupby(group_column), desc=f"Plotting for {group_by}"):
+        fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4), sharey=True)
+
+        if num_subplots == 1:
+            axes = [axes]  # Ensure axes is iterable when there's only one fixation type
+
+        for ax, fixation_type in zip(axes, fixation_types):
+            subset = group_df[group_df["fixation_type"] == fixation_type]
+            if subset.empty:
+                continue
+
+            mean_m1_m2 = subset["mean_diff_m1_m2"].values[0]
+            std_m1_m2 = subset["std_diff_m1_m2"].values[0]
+            mean_m2_m1 = subset["mean_diff_m2_m1"].values[0]
+            std_m2_m1 = subset["std_diff_m2_m1"].values[0]
+
+            time_bins = np.arange(len(mean_m1_m2)) / sample_rate  # Convert to seconds
+
+            ax.plot(time_bins, mean_m1_m2, label="m1 -> m2", color="blue")
+            ax.fill_between(time_bins, mean_m1_m2 - std_m1_m2, mean_m1_m2 + std_m1_m2, color="blue", alpha=0.3)
+
+            ax.plot(time_bins, mean_m2_m1, label="m2 -> m1", color="red")
+            ax.fill_between(time_bins, mean_m2_m1 - std_m2_m1, mean_m2_m1 + std_m2_m1, color="red", alpha=0.3)
+
+            ax.set_title(f"{fixation_type}")
+            ax.set_xlabel("Time (seconds)")
+            ax.legend()
+
+        fig.suptitle(f"Fixation Cross-Correlation - Mean Shuffled ({group_by}: {group_value})")
+        fig.tight_layout()
+
+        # Save plot
+        plot_path = os.path.join(root_dir, f"{group_value}_fix_crosscorr_diff_from_shuffled.png")
+        plt.savefig(plot_path)
+        plt.close()
+
+    print(f"Plots saved in {root_dir}")
 
 
 # ** Call to main() **
