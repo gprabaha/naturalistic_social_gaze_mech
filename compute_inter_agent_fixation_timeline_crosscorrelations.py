@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster', True,
-        'is_grace', True,
-        'recompute_fix_binary_vector': True,
-        'recompute_crosscorr': True
+        'is_cluster': True,
+        'is_grace': True,
+        'recompute_fix_binary_vector': False,
+        'recompute_crosscorr': False
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
