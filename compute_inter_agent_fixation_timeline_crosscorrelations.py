@@ -22,7 +22,9 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
+
 # ** Initiation and Main **
+
 
 
 def _initialize_params():
@@ -37,6 +39,7 @@ def _initialize_params():
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
     return params
+
 
 
 def main():
@@ -80,11 +83,15 @@ def main():
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
+    logger.info("Plotting cross-correlation timecourse")
     _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
                         group_by="session_name", plot_duration_seconds=60)
+    logger.info("Finished cross-correlation timecourse plot generation")
+
 
 
 # ** Sub-functions **
+
 
 
 def _generate_fixation_binary_vectors(df):
@@ -139,6 +146,7 @@ def __categorize_fixations(fix_locations):
         "object" if set(fixes) & {"left_nonsocial_object", "right_nonsocial_object"} else "out_of_roi"
         for fixes in fix_locations
     ]
+
 
 
 def _compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=5, num_shuffles=20, num_cpus=16):
@@ -298,18 +306,9 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
     # Group by session or monkey pair
     grouped = merged_df.groupby([group_column, "fixation_type"])
 
-    # Compute mean and std of cross-correlation difference (only for first `max_timepoints` samples)
-    results = grouped.apply(lambda x: pd.Series({
-        "mean_diff_m1_m2": np.mean(np.vstack(x["crosscorr_m1_m2"].values)[:, :max_timepoints] - 
-                                   np.vstack(x["mean_shuffled_m1_m2"].values)[:, :max_timepoints], axis=0),
-        "std_diff_m1_m2": np.std(np.vstack(x["crosscorr_m1_m2"].values)[:, :max_timepoints] - 
-                                 np.vstack(x["mean_shuffled_m1_m2"].values)[:, :max_timepoints], axis=0),
-        "mean_diff_m2_m1": np.mean(np.vstack(x["crosscorr_m2_m1"].values)[:, :max_timepoints] - 
-                                   np.vstack(x["mean_shuffled_m2_m1"].values)[:, :max_timepoints], axis=0),
-        "std_diff_m2_m1": np.std(np.vstack(x["crosscorr_m2_m1"].values)[:, :max_timepoints] - 
-                                 np.vstack(x["mean_shuffled_m2_m1"].values)[:, :max_timepoints], axis=0),
-    })).reset_index()
-
+    # Compute mean and std of cross-correlation difference (trimming to `max_timepoints`)
+    results = grouped.apply(__compute_crosscorr_stats, max_timepoints=max_timepoints).reset_index()
+    pdb.set_trace()
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations", today_date)
@@ -320,7 +319,7 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
     num_subplots = len(fixation_types)
 
     # Iterate over groups (sessions or monkey pairs)
-    for group_value, group_df in tqdm(results.groupby(group_column), desc=f"Plotting for {group_by}"):
+    for group_value, group_df in results.groupby(group_column):
         fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4), sharey=True)
 
         if num_subplots == 1:
@@ -348,15 +347,40 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
             ax.set_xlabel("Time (seconds)")
             ax.legend()
 
-        fig.suptitle(f"Fixation Cross-Correlation - Mean Shuffled ({group_by}: {group_value})")
+        fig.suptitle(f"Fixation Cross-Correlation ({group_by}: {group_value})")
         fig.tight_layout()
 
         # Save plot
-        plot_path = os.path.join(root_dir, f"{group_value}_fix_crosscorr_diff_from_shuffled.png")
+        plot_path = os.path.join(root_dir, f"{group_value}.png")
         plt.savefig(plot_path)
         plt.close()
 
     print(f"Plots saved in {root_dir}")
+
+def __compute_crosscorr_stats(x, max_timepoints):
+    """
+    Computes mean and std of cross-correlation differences, ensuring all arrays are trimmed 
+    to `max_timepoints` before stacking.
+    
+    Parameters:
+    - x: DataFrame subset for a group.
+    - max_timepoints: Maximum number of timepoints to include.
+    
+    Returns:
+    - Pandas Series containing mean and std of (crosscorr - mean_shuffled).
+    """
+    crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m1_m2"].values])
+    mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m1_m2"].values])
+    crosscorr_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m2_m1"].values])
+    mean_shuffled_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m2_m1"].values])
+
+    return pd.Series({
+        "mean_diff_m1_m2": np.mean(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0),
+        "std_diff_m1_m2": np.std(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0),
+        "mean_diff_m2_m1": np.mean(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0),
+        "std_diff_m2_m1": np.std(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0),
+    })
+
 
 
 # ** Call to main() **
