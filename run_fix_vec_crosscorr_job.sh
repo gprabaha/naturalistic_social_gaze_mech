@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=crosscorr_fix_vec
-#SBATCH --partition=day
+#SBATCH --partition=psych_day
 #SBATCH --time=5:00:00                #6 hour time limit
-#SBATCH --cpus-per-task=8            # CPUs
-#SBATCH --mem=200G                     # total memory
+#SBATCH --cpus-per-task=16            # CPUs
+#SBATCH --mem=400G                     # total memory
 #SBATCH --output=crosscorr_fix_vec.out  # Output file
 #SBATCH --error=crosscorr_fix_vec.err   # Error file
 

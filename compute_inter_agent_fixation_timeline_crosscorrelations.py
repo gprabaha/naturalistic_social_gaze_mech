@@ -4,8 +4,6 @@ import os
 import logging
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
-from multiprocessing import Pool
-from functools import partial
 from tqdm import tqdm
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
@@ -13,10 +11,6 @@ from datetime import datetime
 import psutil
 import subprocess
 import re
-
-from multiprocessing import Pool
-from multiprocessing.pool import ThreadPool
-from functools import partial
 
 import pdb
 
@@ -40,7 +34,7 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'is_cluster': True,
-        'is_grace': True,
+        'is_grace': False,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': True
     }
@@ -86,7 +80,7 @@ def main():
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr_parallel(
-            fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=500, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
+            fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=1000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
         logger.info(f"Cross-correlations and shuffled statistics computed and saved to {inter_agent_cross_corr_file}")
@@ -95,11 +89,11 @@ def main():
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
     logger.info("Plotting cross-correlation timecourse averaged across sessions")
-    _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                        group_by="session_name", plot_duration_seconds=60)
+    plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                        group_by="session_name", plot_duration_seconds=90)
     logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
-    _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                        group_by="monkey_pair", plot_duration_seconds=60)
+    plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                        group_by="monkey_pair", plot_duration_seconds=90)
     logger.info("Finished cross-correlation timecourse plot generation")
 
 
@@ -173,7 +167,6 @@ def generate_fixation_binary_vectors(df):
 
     return pd.DataFrame(binary_vectors)
 
-
 def categorize_fixations(fix_locations):
     """Categorize fixation locations into predefined categories."""
     return [
@@ -222,12 +215,9 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, sigma, num_shuffl
     # Compute original cross-correlations
     crosscorr_m1_m2, crosscorr_m2_m1 = fft_crosscorrelation_both(m1_smooth, m2_smooth)
 
-    # Generate shuffled vectors in parallel
-    m1_shuffled_vectors, m2_shuffled_vectors = Parallel(n_jobs=num_threads)(
-        delayed(generate_shuffled_vectors)(
-            eye_mvm_behav_df, session, interaction, run, fixation_type, agent, num_shuffles
-        ) for agent in ["m1", "m2"]
-    )
+    # Generate shuffled vectors
+    m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, "m1", num_shuffles)
+    m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, "m2", num_shuffles)
 
     # Compute shuffled cross-correlations in parallel
     shuffled_crosscorrs = Parallel(n_jobs=num_threads)(
@@ -252,7 +242,6 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, sigma, num_shuffl
         "std_shuffled_m2_m1": np.std(shuffled_crosscorrs_m2_m1, axis=0)
     }
 
-
 def fft_crosscorrelation_both(x, y):
     """Compute cross-correlation using fftconvolve."""
     full_corr = fftconvolve(x, y[::-1], mode='full')
@@ -261,7 +250,6 @@ def fft_crosscorrelation_both(x, y):
     mid = len(full_corr) // 2
 
     return full_corr[mid:mid + n], full_corr[:mid][::-1]
-
 
 def generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, agent, num_shuffles):
     """
@@ -299,7 +287,6 @@ def generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixat
 
     return shuffled_vectors
 
-
 def generate_single_shuffled_vector(fixation_durations, available_non_fixation_duration, N, run_length):
     """
     Generates a single shuffled binary vector by redistributing fixation intervals.
@@ -312,7 +299,6 @@ def generate_single_shuffled_vector(fixation_durations, available_non_fixation_d
     shuffled_vector = construct_shuffled_vector(all_segments, run_length)
 
     return shuffled_vector
-
 
 def generate_uniformly_distributed_partitions(total_duration, num_partitions):
     """
@@ -343,7 +329,6 @@ def generate_uniformly_distributed_partitions(total_duration, num_partitions):
 
     return partitions.tolist()
 
-
 def create_labeled_segments(fixation_durations, non_fixation_durations):
     """
     Create labeled segments for fixation (1) and non-fixation (0) intervals.
@@ -351,7 +336,6 @@ def create_labeled_segments(fixation_durations, non_fixation_durations):
     fixation_labels = [(dur, 1) for dur in fixation_durations]
     non_fixation_labels = [(dur, 0) for dur in non_fixation_durations]
     return fixation_labels + non_fixation_labels
-
 
 def construct_shuffled_vector(segments, run_length):
     """
@@ -368,14 +352,13 @@ def construct_shuffled_vector(segments, run_length):
         index += duration
     return shuffled_vector
 
-
 def compute_shuffled_crosscorr_both_wrapper(pair):
     """Helper function to compute cross-correlations for shuffled vectors."""
     return fft_crosscorrelation_both(pair[0], pair[1])
 
 
 
-def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
                             group_by="session_name", plot_duration_seconds=60):
     """
     Plots the average (crosscorr - mean_shuffled) for both m1->m2 and m2->m1 
@@ -456,7 +439,7 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
 
     logger.info(f"Plots saved in {root_dir}")
 
-def __compute_crosscorr_stats(x, max_timepoints):
+def compute_crosscorr_stats(x, max_timepoints):
     """
     Computes mean and std of cross-correlation differences, ensuring all arrays are trimmed 
     to `max_timepoints` before stacking.
@@ -492,119 +475,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-'''
-def _compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=5, num_shuffles=20, num_cpus=16):
-    """
-    Compute Gaussian-smoothed cross-correlation between m1 and m2's fixation behaviors.
-    """
-    results = []
-    grouped = df.groupby(["session_name", "interaction_type", "run_number", "fixation_type"])
-    
-    for (session, interaction, run, fixation_type), group in tqdm(grouped, desc="Processing fix-type for runs"):
-        if len(group) != 2:
-            continue  # Skip if both m1 and m2 aren't present
-        
-        m1_row = group[group["agent"] == "m1"].iloc[0]
-        m2_row = group[group["agent"] == "m2"].iloc[0]
-
-        m1_vector = np.array(m1_row["binary_vector"])
-        m2_vector = np.array(m2_row["binary_vector"])
-        
-        m1_smooth = gaussian_filter1d(m1_vector, sigma)
-        m2_smooth = gaussian_filter1d(m2_vector, sigma)
-
-        # Compute original cross-correlations
-        crosscorr_m1_m2, crosscorr_m2_m1 = __fft_crosscorrelation_both(m1_smooth, m2_smooth)
-        
-        # Generate shuffled vectors
-        m1_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, 'm1', num_shuffles, num_cpus)
-        m2_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, 'm2', num_shuffles, num_cpus)
-        
-        # Parallel processing for shuffled cross-correlations
-        ## num_processes = min(16, num_cpus)
-        num_processes=num_cpus
-        with Pool(num_processes) as pool:
-            shuffled_crosscorrs = pool.map(
-                __compute_shuffled_crosscorr_both_wrapper,
-                [(gaussian_filter1d(m1_shuff, sigma), gaussian_filter1d(m2_shuff, sigma)) 
-                 for m1_shuff, m2_shuff in zip(m1_shuffled_vectors, m2_shuffled_vectors)]
-            )
-        
-        shuffled_crosscorrs_m1_m2 = np.array([s[0] for s in shuffled_crosscorrs])
-        shuffled_crosscorrs_m2_m1 = np.array([s[1] for s in shuffled_crosscorrs])
-        
-        results.append({
-            "session_name": session,
-            "interaction_type": interaction,
-            "run_number": run,
-            "fixation_type": fixation_type,
-            "crosscorr_m1_m2": crosscorr_m1_m2,
-            "crosscorr_m2_m1": crosscorr_m2_m1,
-            "mean_shuffled_m1_m2": np.mean(shuffled_crosscorrs_m1_m2, axis=0),
-            "std_shuffled_m1_m2": np.std(shuffled_crosscorrs_m1_m2, axis=0),
-            "mean_shuffled_m2_m1": np.mean(shuffled_crosscorrs_m2_m1, axis=0),
-            "std_shuffled_m2_m1": np.std(shuffled_crosscorrs_m2_m1, axis=0)
-        })
-        
-    return pd.DataFrame(results)
-
-
-def __fft_crosscorrelation_both(x, y):
-    """Compute cross-correlation using fftconvolve."""
-    full_corr = fftconvolve(x, y[::-1], mode='full')
-
-    n = len(x)
-    mid = len(full_corr) // 2
-
-    return full_corr[mid:mid + n], full_corr[:mid][::-1]
-
-
-def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, agent, num_shuffles=20, num_workers=4):
-    """
-    Generate shuffled versions of a binary fixation vector by randomly redistributing fixation intervals.
-    Parallelized using multiprocessing Pool.
-    """
-    row = eye_mvm_behav_df[(eye_mvm_behav_df["session_name"] == session) &
-                            (eye_mvm_behav_df["interaction_type"] == interaction) &
-                            (eye_mvm_behav_df["run_number"] == run) & 
-                            (eye_mvm_behav_df["agent"] == agent)].iloc[0]
-    
-    run_length = row["run_length"]
-    categories = __categorize_fixations(row["fixation_location"])
-    fixation_start_stop = row["fixation_start_stop"]
-    
-    # Define which categories to include based on the requested fixation_type
-    if fixation_type == "face":
-        valid_categories = {"eyes", "non_eye_face"}
-    else:
-        valid_categories = {fixation_type}
-    
-    # Get only the fixations of the requested type(s)
-    fixation_intervals = [
-        (start, stop) for (start, stop), category in zip(fixation_start_stop, categories) if category in valid_categories
-    ]
-    fixation_durations = [stop - start + 1 for start, stop in fixation_intervals]
-    total_fixation_duration = sum(fixation_durations)
-    N = len(fixation_durations)
-    
-    # Compute total available non-fixation duration
-    available_non_fixation_duration = run_length - total_fixation_duration
-
-    # Partial function to pass extra parameters
-    shuffle_func = partial(
-        __generate_single_shuffled_vector,
-        fixation_durations=fixation_durations,
-        available_non_fixation_duration=available_non_fixation_duration,
-        N=N,
-        run_length=run_length
-    )
-
-    # Parallel execution using Pool
-    with Pool(num_workers) as pool:
-        shuffled_vectors = pool.map(shuffle_func, range(num_shuffles))
-
-    return shuffled_vectors
-'''
