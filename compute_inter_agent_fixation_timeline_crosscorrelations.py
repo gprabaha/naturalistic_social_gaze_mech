@@ -5,6 +5,7 @@ import logging
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
 from multiprocessing import Pool, cpu_count
+from functools import partial
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -176,12 +177,12 @@ def _compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=5, num_shu
         crosscorr_m1_m2, crosscorr_m2_m1 = __fft_crosscorrelation_both(m1_smooth, m2_smooth)
         
         # Generate shuffled vectors
-        m1_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles)
-        m2_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles)
+        m1_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles, num_cpus)
+        m2_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles, num_cpus)
         
         # Parallel processing for shuffled cross-correlations
         ## num_processes = min(16, num_cpus)
-        num_processes =num_cpus
+        num_processes=num_cpus
         with Pool(num_processes) as pool:
             shuffled_crosscorrs = pool.map(
                 __compute_shuffled_crosscorr_both_wrapper,
@@ -218,9 +219,10 @@ def __fft_crosscorrelation_both(x, y):
     return full_corr[mid:mid + n], full_corr[:mid][::-1]
 
 
-def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles=20):
+def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles=20, num_workers=4):
     """
     Generate shuffled versions of a binary fixation vector by randomly redistributing fixation intervals.
+    Parallelized using multiprocessing Pool.
     """
     row = eye_mvm_behav_df[(eye_mvm_behav_df["session_name"] == session) &
                             (eye_mvm_behav_df["interaction_type"] == interaction) &
@@ -246,26 +248,41 @@ def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fix
     
     # Compute total available non-fixation duration
     available_non_fixation_duration = run_length - total_fixation_duration
-    
-    shuffled_vectors = []
-    for _ in range(num_shuffles):
-        # Generate N+1 random non-fixation partitions that sum to available duration using uniform distribution
-        non_fixation_durations = ___generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
-        
-        # Create labeled segments for fixation and non-fixation intervals
-        all_segments = ___create_labeled_segments(fixation_durations, non_fixation_durations)
 
-        # Shuffle the segments
-        np.random.shuffle(all_segments)
-        
-        # Construct the shuffled binary vector
-        shuffled_vector = ___construct_shuffled_vector(all_segments, run_length)
-        
-        shuffled_vectors.append(shuffled_vector)
-    
+    # Partial function to pass extra parameters
+    shuffle_func = partial(
+        __generate_single_shuffled_vector,
+        fixation_durations=fixation_durations,
+        available_non_fixation_duration=available_non_fixation_duration,
+        N=N,
+        run_length=run_length
+    )
+
+    # Parallel execution using Pool
+    with Pool(num_workers) as pool:
+        shuffled_vectors = pool.map(shuffle_func, range(num_shuffles))
+
     return shuffled_vectors
 
-def ___generate_uniformly_distributed_partitions(total_duration, num_partitions):
+def __generate_single_shuffled_vector(_, fixation_durations, available_non_fixation_duration, N, run_length):
+    """
+    Generates a single shuffled binary vector by redistributing fixation intervals.
+    """
+    # Generate N+1 random non-fixation partitions that sum to available duration using uniform distribution
+    non_fixation_durations = __generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
+    
+    # Create labeled segments for fixation and non-fixation intervals
+    all_segments = __create_labeled_segments(fixation_durations, non_fixation_durations)
+
+    # Shuffle the segments
+    np.random.shuffle(all_segments)
+    
+    # Construct the shuffled binary vector
+    shuffled_vector = __construct_shuffled_vector(all_segments, run_length)
+
+    return shuffled_vector
+
+def __generate_uniformly_distributed_partitions(total_duration, num_partitions):
     """
     Generate partitions where each partition size follows a uniform distribution 
     and the sum equals total_duration.
@@ -290,7 +307,7 @@ def ___generate_uniformly_distributed_partitions(total_duration, num_partitions)
 
     return partitions.tolist()
 
-def ___create_labeled_segments(fixation_durations, non_fixation_durations):
+def __create_labeled_segments(fixation_durations, non_fixation_durations):
     """
     Create labeled segments for fixation (1) and non-fixation (0) intervals.
     """
@@ -298,7 +315,7 @@ def ___create_labeled_segments(fixation_durations, non_fixation_durations):
     non_fixation_labels = [(dur, 0) for dur in non_fixation_durations]
     return fixation_labels + non_fixation_labels
 
-def ___construct_shuffled_vector(segments, run_length):
+def __construct_shuffled_vector(segments, run_length):
     """
     Construct a binary vector from shuffled fixation and non-fixation segments.
     """
