@@ -214,9 +214,15 @@ def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fix
     categories = __categorize_fixations(row["fixation_location"])
     fixation_start_stop = row["fixation_start_stop"]
     
-    # Get only the fixations of the requested type
+    # Define which categories to include based on the requested fixation_type
+    if fixation_type == "face":
+        valid_categories = {"eyes", "non_eye_face"}
+    else:
+        valid_categories = {fixation_type}
+    
+    # Get only the fixations of the requested type(s)
     fixation_intervals = [
-        (start, stop) for (start, stop), category in zip(fixation_start_stop, categories) if category == fixation_type
+        (start, stop) for (start, stop), category in zip(fixation_start_stop, categories) if category in valid_categories
     ]
     fixation_durations = [stop - start + 1 for start, stop in fixation_intervals]
     total_fixation_duration = sum(fixation_durations)
