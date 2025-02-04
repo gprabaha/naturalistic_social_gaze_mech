@@ -75,7 +75,7 @@ def main():
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = _compute_crosscorr_and_shuffled_stats(
-            fix_binary_vector_df, eye_mvm_behav_df, sigma=5, num_shuffles=50, num_cpus=cpu_count()
+            fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=500, num_cpus=cpu_count()
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
         logger.info(f"Cross-correlations and shuffled statistics computed and saved to {inter_agent_cross_corr_file}")
@@ -83,9 +83,12 @@ def main():
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
-    logger.info("Plotting cross-correlation timecourse")
+    logger.info("Plotting cross-correlation timecourse averaged across sessions")
     _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
                         group_by="session_name", plot_duration_seconds=60)
+    logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
+    _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                        group_by="monkey_pair", plot_duration_seconds=60)
     logger.info("Finished cross-correlation timecourse plot generation")
 
 
@@ -177,7 +180,8 @@ def _compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=5, num_shu
         m2_shuffled_vectors = __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles)
         
         # Parallel processing for shuffled cross-correlations
-        num_processes = min(16, num_cpus)
+        ## num_processes = min(16, num_cpus)
+        num_processes =num_cpus
         with Pool(num_processes) as pool:
             shuffled_crosscorrs = pool.map(
                 __compute_shuffled_crosscorr_both_wrapper,
@@ -203,6 +207,7 @@ def _compute_crosscorr_and_shuffled_stats(df, eye_mvm_behav_df, sigma=5, num_shu
         
     return pd.DataFrame(results)
 
+
 def __fft_crosscorrelation_both(x, y):
     """Compute cross-correlation using fftconvolve."""
     full_corr = fftconvolve(x, y[::-1], mode='full')
@@ -211,6 +216,7 @@ def __fft_crosscorrelation_both(x, y):
     mid = len(full_corr) // 2
 
     return full_corr[mid:mid + n], full_corr[:mid][::-1]
+
 
 def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fixation_type, num_shuffles=20):
     """
@@ -243,32 +249,70 @@ def __generate_shuffled_vectors(eye_mvm_behav_df, session, interaction, run, fix
     
     shuffled_vectors = []
     for _ in range(num_shuffles):
-        # Generate N+1 random non-fixation partitions that sum to available duration
-        non_fixation_durations = np.random.multinomial(
-            available_non_fixation_duration, 
-            np.ones(N + 1) / (N + 1)
-        )
+        # Generate N+1 random non-fixation partitions that sum to available duration using uniform distribution
+        non_fixation_durations = ___generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
         
-        # Label fixation and non-fixation segments to ensure correct placement
-        fixation_labels = [(dur, 1) for dur in fixation_durations]
-        non_fixation_labels = [(dur, 0) for dur in non_fixation_durations]
-        all_segments = fixation_labels + non_fixation_labels
+        # Create labeled segments for fixation and non-fixation intervals
+        all_segments = ___create_labeled_segments(fixation_durations, non_fixation_durations)
+
+        # Shuffle the segments
         np.random.shuffle(all_segments)
         
         # Construct the shuffled binary vector
-        shuffled_vector = np.zeros(run_length, dtype=int)
-        index = 0
-        for duration, label in all_segments:
-            if index >= run_length:
-                logging.warning("Index exceeded run length during shuffle generation")
-                break
-            if label == 1:
-                shuffled_vector[index: index + duration] = 1  # Fixation interval
-            index += duration
+        shuffled_vector = ___construct_shuffled_vector(all_segments, run_length)
         
         shuffled_vectors.append(shuffled_vector)
     
     return shuffled_vectors
+
+def ___generate_uniformly_distributed_partitions(total_duration, num_partitions):
+    """
+    Generate partitions where each partition size follows a uniform distribution 
+    and the sum equals total_duration.
+    """
+    if num_partitions == 1:
+        return [total_duration]  # Only one partition, so it gets all the time
+
+    # Step 1: Draw random values from a uniform distribution
+    random_values = np.random.uniform(0, 1, size=num_partitions)
+    
+    # Step 2: Normalize to ensure they sum to total_duration
+    partitions = (random_values / random_values.sum()) * total_duration
+    
+    # Step 3: Round to integers while maintaining the total sum
+    partitions = np.round(partitions).astype(int)
+    
+    # Step 4: Adjust rounding errors to ensure the sum matches total_duration
+    diff = total_duration - partitions.sum()
+    for _ in range(abs(diff)):
+        idx = np.random.choice(len(partitions))
+        partitions[idx] += np.sign(diff)
+
+    return partitions.tolist()
+
+def ___create_labeled_segments(fixation_durations, non_fixation_durations):
+    """
+    Create labeled segments for fixation (1) and non-fixation (0) intervals.
+    """
+    fixation_labels = [(dur, 1) for dur in fixation_durations]
+    non_fixation_labels = [(dur, 0) for dur in non_fixation_durations]
+    return fixation_labels + non_fixation_labels
+
+def ___construct_shuffled_vector(segments, run_length):
+    """
+    Construct a binary vector from shuffled fixation and non-fixation segments.
+    """
+    shuffled_vector = np.zeros(run_length, dtype=int)
+    index = 0
+    for duration, label in segments:
+        if index >= run_length:
+            logging.warning("Index exceeded run length during shuffle generation")
+            break
+        if label == 1:
+            shuffled_vector[index: index + duration] = 1  # Fixation interval
+        index += duration
+    return shuffled_vector
+
 
 def __compute_shuffled_crosscorr_both_wrapper(pair):
     """Helper function to compute cross-correlations for shuffled vectors."""
@@ -308,7 +352,7 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
 
     # Compute mean and std of cross-correlation difference (trimming to `max_timepoints`)
     results = grouped.apply(__compute_crosscorr_stats, max_timepoints=max_timepoints).reset_index()
-    pdb.set_trace()
+
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations", today_date)
@@ -319,8 +363,8 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
     num_subplots = len(fixation_types)
 
     # Iterate over groups (sessions or monkey pairs)
-    for group_value, group_df in results.groupby(group_column):
-        fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4), sharey=True)
+    for group_value, group_df in tqdm(results.groupby(group_column), desc=f"Plotting for diff {group_by}"):
+        fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4))
 
         if num_subplots == 1:
             axes = [axes]  # Ensure axes is iterable when there's only one fixation type
@@ -355,7 +399,7 @@ def _plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_
         plt.savefig(plot_path)
         plt.close()
 
-    print(f"Plots saved in {root_dir}")
+    logger.info(f"Plots saved in {root_dir}")
 
 def __compute_crosscorr_stats(x, max_timepoints):
     """
@@ -384,6 +428,7 @@ def __compute_crosscorr_stats(x, max_timepoints):
 
 
 # ** Call to main() **
+
 
 
 if __name__ == "__main__":
