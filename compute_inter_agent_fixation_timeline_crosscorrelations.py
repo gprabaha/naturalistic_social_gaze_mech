@@ -2,15 +2,16 @@ import numpy as np
 import pandas as pd
 import os
 import logging
+import psutil
+import subprocess
+import re
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
 from tqdm import tqdm
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from datetime import datetime
-import psutil
-import subprocess
-import re
+from scipy.stats import sem
 
 import pdb
 
@@ -36,7 +37,8 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': True
+        'recompute_crosscorr': True,
+        'remake_plots': False
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -80,7 +82,7 @@ def main():
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr_parallel(
-            fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=1000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
+            fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=5000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
         logger.info(f"Cross-correlations and shuffled statistics computed and saved to {inter_agent_cross_corr_file}")
@@ -88,19 +90,20 @@ def main():
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
-    logger.info("Plotting cross-correlation timecourse averaged across sessions")
-    plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                        group_by="session_name", plot_duration_seconds=90)
-    logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
-    plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                        group_by="monkey_pair", plot_duration_seconds=90)
-    logger.info("Finished cross-correlation timecourse plot generation")
+    if params.get('remake_plots', False):
+        logger.info("Plotting cross-correlation timecourse averaged across sessions")
+        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                            group_by="session_name", plot_duration_seconds=90)
+        logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
+        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                            group_by="monkey_pair", plot_duration_seconds=90)
+        logger.info("Finished cross-correlation timecourse plot generation")
 
 
 
 # ** Sub-functions **
 
-
+## Count available CPUs and threads
 def get_slurm_cpus_and_threads():
     """Returns the number of allocated CPUs and threads per CPU using psutil."""
     
@@ -122,7 +125,7 @@ def get_slurm_cpus_and_threads():
     return num_cpus, threads_per_cpu
 
 
-
+## Fixation timeline binary vector generation
 def generate_fixation_binary_vectors(df):
     """
     Generate a long-format dataframe with binary vectors for each fixation category.
@@ -177,7 +180,7 @@ def categorize_fixations(fix_locations):
     ]
 
 
-
+## Compute crosscorrelation between m1 and m2 fixation events
 def compute_regular_and_shuffled_crosscorr_parallel(fix_binary_vector_df, eye_mvm_behav_df, sigma=3, num_shuffles=100, num_cpus=16, threads_per_cpu=8):
     """
     Optimized parallelized computation of Gaussian-smoothed cross-correlation
@@ -357,13 +360,13 @@ def compute_shuffled_crosscorr_both_wrapper(pair):
     return fft_crosscorrelation_both(pair[0], pair[1])
 
 
-
+# Plot difference between fix-vector crosscorr and shuffled vec crosscorr
 def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                            group_by="session_name", plot_duration_seconds=60):
+                                           group_by="session_name", plot_duration_seconds=60):
     """
     Plots the average (crosscorr - mean_shuffled) for both m1->m2 and m2->m1 
     across all runs, grouping either by session name or monkey pair.
-    
+
     Parameters:
     - inter_agent_behav_cross_correlation_df: DataFrame containing cross-correlations.
     - monkeys_per_session_df: DataFrame containing session-wise monkey pairs.
@@ -388,8 +391,8 @@ def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_d
     # Group by session or monkey pair
     grouped = merged_df.groupby([group_column, "fixation_type"])
 
-    # Compute mean and std of cross-correlation difference (trimming to `max_timepoints`)
-    results = grouped.apply(__compute_crosscorr_stats, max_timepoints=max_timepoints).reset_index()
+    # Compute mean and SEM of cross-correlation difference (trimming to `max_timepoints`)
+    results = grouped.apply(compute_crosscorr_stats, max_timepoints=max_timepoints).reset_index()
 
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
@@ -413,17 +416,17 @@ def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_d
                 continue
 
             mean_m1_m2 = subset["mean_diff_m1_m2"].values[0]
-            std_m1_m2 = subset["std_diff_m1_m2"].values[0]
+            sem_m1_m2 = subset["sem_diff_m1_m2"].values[0]  # Updated to SEM
             mean_m2_m1 = subset["mean_diff_m2_m1"].values[0]
-            std_m2_m1 = subset["std_diff_m2_m1"].values[0]
+            sem_m2_m1 = subset["sem_diff_m2_m1"].values[0]  # Updated to SEM
 
             time_bins = np.arange(len(mean_m1_m2)) / sample_rate  # Convert to seconds
 
             ax.plot(time_bins, mean_m1_m2, label="m1 -> m2", color="blue")
-            ax.fill_between(time_bins, mean_m1_m2 - std_m1_m2, mean_m1_m2 + std_m1_m2, color="blue", alpha=0.3)
+            ax.fill_between(time_bins, mean_m1_m2 - sem_m1_m2, mean_m1_m2 + sem_m1_m2, color="blue", alpha=0.3)
 
             ax.plot(time_bins, mean_m2_m1, label="m2 -> m1", color="red")
-            ax.fill_between(time_bins, mean_m2_m1 - std_m2_m1, mean_m2_m1 + std_m2_m1, color="red", alpha=0.3)
+            ax.fill_between(time_bins, mean_m2_m1 - sem_m2_m1, mean_m2_m1 + sem_m2_m1, color="red", alpha=0.3)
 
             ax.set_title(f"{fixation_type}")
             ax.set_xlabel("Time (seconds)")
@@ -441,7 +444,7 @@ def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_d
 
 def compute_crosscorr_stats(x, max_timepoints):
     """
-    Computes mean and std of cross-correlation differences, ensuring all arrays are trimmed 
+    Computes mean and SEM of cross-correlation differences, ensuring all arrays are trimmed 
     to `max_timepoints` before stacking.
     
     Parameters:
@@ -449,7 +452,7 @@ def compute_crosscorr_stats(x, max_timepoints):
     - max_timepoints: Maximum number of timepoints to include.
     
     Returns:
-    - Pandas Series containing mean and std of (crosscorr - mean_shuffled).
+    - Pandas Series containing mean and SEM of (crosscorr - mean_shuffled).
     """
     crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m1_m2"].values])
     mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m1_m2"].values])
@@ -458,9 +461,9 @@ def compute_crosscorr_stats(x, max_timepoints):
 
     return pd.Series({
         "mean_diff_m1_m2": np.mean(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0),
-        "std_diff_m1_m2": np.std(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0),
+        "sem_diff_m1_m2": sem(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0, nan_policy='omit'),
         "mean_diff_m2_m1": np.mean(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0),
-        "std_diff_m2_m1": np.std(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0),
+        "sem_diff_m2_m1": sem(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0, nan_policy='omit'),
     })
 
 
