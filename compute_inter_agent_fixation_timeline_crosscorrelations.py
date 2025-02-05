@@ -12,6 +12,7 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.stats import sem
+import random
 from scipy.stats import wilcoxon, ttest_rel, shapiro
 
 import pdb
@@ -39,7 +40,8 @@ def _initialize_params():
         'is_grace': False,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': False,
-        'remake_plots': True
+        'remake_crosscorr_plots': False,
+        'remake_sig_crosscorr_plots': True
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -67,7 +69,7 @@ def main():
     
     # Fix-related binary vectors
     fix_binary_vector_file = os.path.join(processed_data_dir, 'fix_binary_vector_df.pkl')
-        
+    
     if params.get('recompute_fix_binary_vector', False):
         logger.info("Generating fix-related binary vectors")
         fix_binary_vector_df = generate_fixation_binary_vectors(eye_mvm_behav_df)
@@ -91,19 +93,19 @@ def main():
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
-    if params.get('remake_plots', False):
+    if params.get('remake_crosscorr_plots', False):
+        logger.info("Plotting cross-correlation timecourse averaged across sessions")
+        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                            group_by="session_name", plot_duration_seconds=90)
+        logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
+        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                            group_by="monkey_pair", plot_duration_seconds=90)
 
-        # logger.info("Plotting cross-correlation timecourse averaged across sessions")
-        # plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-        #                     group_by="session_name", plot_duration_seconds=90)
-        # logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
-        # plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-        #                     group_by="monkey_pair", plot_duration_seconds=90)
-
-        # logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
-        # plot_significant_fixation_crosscorr_minus_shuffled(
-        #     inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-        #     params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
+    if params.get('remake_sig_crosscorr_plots', False):
+        logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
+        plot_significant_fixation_crosscorr_minus_shuffled(
+            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
+            params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
         logger.info("Plotting significant cross-correlation timecourse averaged across monkey-pairs")
         plot_significant_fixation_crosscorr_minus_shuffled(
             inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
@@ -524,10 +526,10 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Extract dictionary columns back into separate columns
     stats_df = pd.concat([results_df.drop(columns=["computed_stats"]), results_df["computed_stats"].apply(pd.Series)], axis=1)
-    pdb.set_trace()
+
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
-    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant_parallel", today_date)
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
     # Get unique fixation types
@@ -554,16 +556,16 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
             time_bins = np.arange(len(mean_m1_m2)) / sample_rate  # Convert to seconds
 
             # Define colors
-            sig_color_m1_m2, non_sig_color_m1_m2 = "blue", "lightblue"
-            sig_color_m2_m1, non_sig_color_m2_m1 = "red", "lightcoral"
+            sig_color_m1_m2, non_sig_color_m1_m2 = "blue", "blue"
+            sig_color_m2_m1, non_sig_color_m2_m1 = "red", "red"
 
             # Check if there are significant bins
             any_sig_m1_m2 = np.any(significant_bins_m1_m2)
             any_sig_m2_m1 = np.any(significant_bins_m2_m1)
 
             # Plot non-significant bins first (thinner, lighter)
-            ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=0.75, alpha=0.5, label="m1 → m2 (non-sig)")
-            ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=0.75, alpha=0.5, label="m2 → m1 (non-sig)")
+            ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=1, alpha=0.7, label="m1 → m2 (non-sig)")
+            ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=1, alpha=0.7, label="m2 → m1 (non-sig)")
 
             # Mask for significant bins (only plot if they exist)
             if any_sig_m1_m2:
@@ -662,12 +664,12 @@ def compute_significant_crosscorr_stats_auto(x, max_timepoints, alpha=0.05, use_
     if is_normal_m1_m2:
         p_values_m1_m2 = ttest_rel(crosscorr_m1_m2, mean_shuffled_m1_m2, axis=0, nan_policy='omit')[1]
     else:
-        _, p_values_m1_m2 = wilcoxon(diff_m1_m2, alternative='two-sided', zero_method='pratt', nan_policy='omit', axis=0)
+        _, p_values_m1_m2 = wilcoxon(diff_m1_m2, alternative='two-sided', zero_method='zsplit', nan_policy='omit', axis=0)
 
     if is_normal_m2_m1:
         p_values_m2_m1 = ttest_rel(crosscorr_m2_m1, mean_shuffled_m2_m1, axis=0, nan_policy='omit')[1]
     else:
-        _, p_values_m2_m1 = wilcoxon(diff_m2_m1, alternative='two-sided', zero_method='pratt', nan_policy='omit', axis=0)
+        _, p_values_m2_m1 = wilcoxon(diff_m2_m1, alternative='two-sided', zero_method='zsplit', nan_policy='omit', axis=0)
 
     # Determine significant time bins
     significant_bins_m1_m2 = p_values_m1_m2 < alpha
