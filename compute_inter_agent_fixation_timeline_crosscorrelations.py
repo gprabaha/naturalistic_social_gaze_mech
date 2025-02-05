@@ -12,6 +12,7 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.stats import sem
+from scipy.stats import ttest_1samp
 
 import pdb
 
@@ -37,8 +38,8 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': True,
-        'remake_plots': False
+        'recompute_crosscorr': False,
+        'remake_plots': True
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -91,12 +92,23 @@ def main():
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
 
     if params.get('remake_plots', False):
+
         logger.info("Plotting cross-correlation timecourse averaged across sessions")
         plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
                             group_by="session_name", plot_duration_seconds=90)
         logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
         plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
                             group_by="monkey_pair", plot_duration_seconds=90)
+
+        logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
+        plot_significant_fixation_crosscorr_minus_shuffled(
+            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
+            params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
+        logger.info("Plotting significant cross-correlation timecourse averaged across monkey-pairs")
+        plot_significant_fixation_crosscorr_minus_shuffled(
+            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
+            params, group_by="monkey_pair", plot_duration_seconds=90, alpha=0.05)
+        
         logger.info("Finished cross-correlation timecourse plot generation")
 
 
@@ -464,6 +476,176 @@ def compute_crosscorr_stats(x, max_timepoints):
         "sem_diff_m1_m2": sem(crosscorr_m1_m2 - mean_shuffled_m1_m2, axis=0, nan_policy='omit'),
         "mean_diff_m2_m1": np.mean(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0),
         "sem_diff_m2_m1": sem(crosscorr_m2_m1 - mean_shuffled_m2_m1, axis=0, nan_policy='omit'),
+    })
+
+
+## Plot significant crosscorr time bins
+def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
+                                                       group_by="session_name", plot_duration_seconds=60, alpha=0.05):
+    """
+    Plots the average (crosscorr - mean_shuffled) with only significant time bins colored,
+    grouping either by session name or monkey pair.
+
+    Parameters:
+    - inter_agent_behav_cross_correlation_df: DataFrame containing cross-correlations.
+    - monkeys_per_session_df: DataFrame containing session-wise monkey pairs.
+    - params: Dictionary containing path parameters.
+    - group_by: "session_name" or "monkey_pair" to determine averaging method.
+    - plot_duration_seconds: Number of seconds to plot (default: 60s, assuming 1kHz sampling rate).
+    - alpha: Significance level for determining significant time bins.
+    """
+
+    # Sampling rate (1kHz means 1000 time points per second)
+    sample_rate = 1000  
+    max_timepoints = plot_duration_seconds * sample_rate  
+
+    # Merge session-wise monkey data into correlation dataframe
+    merged_df = inter_agent_behav_cross_correlation_df.merge(monkeys_per_session_df, on="session_name")
+
+    # Define monkey pair column
+    merged_df["monkey_pair"] = merged_df["m1"] + "_" + merged_df["m2"]
+
+    # Choose grouping variable
+    group_column = "session_name" if group_by == "session_name" else "monkey_pair"
+
+    # Group by session or monkey pair
+    grouped = merged_df.groupby([group_column, "fixation_type"])
+
+    # Compute mean and significance of cross-correlation difference
+    results = grouped.apply(compute_significant_crosscorr_stats, max_timepoints=max_timepoints, alpha=alpha).reset_index()
+
+    # Create plot directory
+    today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant", today_date)
+    os.makedirs(root_dir, exist_ok=True)
+
+    # Get unique fixation types
+    fixation_types = results["fixation_type"].unique()
+    num_subplots = len(fixation_types)
+
+    # Iterate over groups (sessions or monkey pairs)
+    for group_value, group_df in tqdm(results.groupby(group_column), desc=f"Plotting for {group_by}"):
+        fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4))
+
+        if num_subplots == 1:
+            axes = [axes]  # Ensure axes is iterable when there's only one fixation type
+
+        for ax, fixation_type in zip(axes, fixation_types):
+            subset = group_df[group_df["fixation_type"] == fixation_type]
+            if subset.empty:
+                continue
+
+            mean_m1_m2 = subset["mean_diff_m1_m2"].values[0]
+            significant_bins_m1_m2 = subset["significant_bins_m1_m2"].values[0]
+            mean_m2_m1 = subset["mean_diff_m2_m1"].values[0]
+            significant_bins_m2_m1 = subset["significant_bins_m2_m1"].values[0]
+
+            time_bins = np.arange(len(mean_m1_m2)) / sample_rate  # Convert to seconds
+
+            # Plot significant bins in color, non-significant bins in black
+            for i in range(len(time_bins) - 1):
+                color_m1_m2 = "blue" if significant_bins_m1_m2[i] else "black"
+                color_m2_m1 = "red" if significant_bins_m2_m1[i] else "black"
+                
+                ax.plot(time_bins[i:i+2], mean_m1_m2[i:i+2], color=color_m1_m2, linewidth=1.5)
+                ax.plot(time_bins[i:i+2], mean_m2_m1[i:i+2], color=color_m2_m1, linewidth=1.5)
+
+            ax.set_title(f"{fixation_type}")
+            ax.set_xlabel("Time (seconds)")
+            ax.legend(["m1 -> m2", "m2 -> m1"])
+
+        fig.suptitle(f"Fixation Cross-Correlation (Significant Time Bins) ({group_by}: {group_value})")
+        fig.tight_layout()
+
+        # Save plot
+        plot_path = os.path.join(root_dir, f"{group_value}.png")
+        plt.savefig(plot_path)
+        plt.close()
+
+    logger.info(f"Plots saved in {root_dir}")
+
+
+from scipy.stats import wilcoxon
+
+def compute_significant_crosscorr_stats_nonparametric(x, max_timepoints, alpha=0.05):
+    """
+    Computes mean cross-correlation differences and determines significant time bins 
+    using the Wilcoxon signed-rank test instead of a t-test (for non-normal distributions).
+    
+    Parameters:
+    - x: DataFrame subset for a group.
+    - max_timepoints: Maximum number of timepoints to include.
+    - alpha: Significance level for determining significant bins.
+    
+    Returns:
+    - Pandas Series containing mean difference and significance mask for (crosscorr - mean_shuffled).
+    """
+    crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m1_m2"].values])
+    mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m1_m2"].values])
+    crosscorr_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m2_m1"].values])
+    mean_shuffled_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m2_m1"].values])
+
+    diff_m1_m2 = crosscorr_m1_m2 - mean_shuffled_m1_m2
+    diff_m2_m1 = crosscorr_m2_m1 - mean_shuffled_m2_m1
+
+    p_values_m1_m2 = np.ones(diff_m1_m2.shape[1])  # Default to 1 (not significant)
+    p_values_m2_m1 = np.ones(diff_m2_m1.shape[1])
+
+    # Run Wilcoxon test only if there are at least 2 valid (non-NaN) values in a bin
+    for t in range(diff_m1_m2.shape[1]):
+        valid_vals_m1_m2 = diff_m1_m2[:, t][~np.isnan(diff_m1_m2[:, t])]
+        valid_vals_m2_m1 = diff_m2_m1[:, t][~np.isnan(diff_m2_m1[:, t])]
+        
+        if len(valid_vals_m1_m2) > 1:  # At least 2 non-NaN values needed
+            p_values_m1_m2[t] = wilcoxon(valid_vals_m1_m2, alternative='two-sided')[1]
+        
+        if len(valid_vals_m2_m1) > 1:
+            p_values_m2_m1[t] = wilcoxon(valid_vals_m2_m1, alternative='two-sided')[1]
+
+    # Determine significant time bins
+    significant_bins_m1_m2 = p_values_m1_m2 < alpha
+    significant_bins_m2_m1 = p_values_m2_m1 < alpha
+
+    return pd.Series({
+        "mean_diff_m1_m2": np.mean(diff_m1_m2, axis=0),
+        "significant_bins_m1_m2": significant_bins_m1_m2,
+        "mean_diff_m2_m1": np.mean(diff_m2_m1, axis=0),
+        "significant_bins_m2_m1": significant_bins_m2_m1,
+    })
+
+def compute_significant_crosscorr_stats(x, max_timepoints, alpha=0.05):
+    """
+    Computes mean cross-correlation differences and determines significant time bins.
+    
+    Parameters:
+    - x: DataFrame subset for a group.
+    - max_timepoints: Maximum number of timepoints to include.
+    - alpha: Significance level for t-test.
+    
+    Returns:
+    - Pandas Series containing mean difference and significance mask for (crosscorr - mean_shuffled).
+    """
+    crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m1_m2"].values])
+    mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m1_m2"].values])
+    crosscorr_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m2_m1"].values])
+    mean_shuffled_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m2_m1"].values])
+
+    diff_m1_m2 = crosscorr_m1_m2 - mean_shuffled_m1_m2
+    diff_m2_m1 = crosscorr_m2_m1 - mean_shuffled_m2_m1
+
+    # Perform one-sample t-test against zero for each time bin
+    t_stat_m1_m2, p_values_m1_m2 = ttest_1samp(diff_m1_m2, 0, axis=0, nan_policy='omit')
+    t_stat_m2_m1, p_values_m2_m1 = ttest_1samp(diff_m2_m1, 0, axis=0, nan_policy='omit')
+
+    # Determine significant time bins
+    significant_bins_m1_m2 = p_values_m1_m2 < alpha
+    significant_bins_m2_m1 = p_values_m2_m1 < alpha
+
+    return pd.Series({
+        "mean_diff_m1_m2": np.mean(diff_m1_m2, axis=0),
+        "significant_bins_m1_m2": significant_bins_m1_m2,
+        "mean_diff_m2_m1": np.mean(diff_m2_m1, axis=0),
+        "significant_bins_m2_m1": significant_bins_m2_m1,
     })
 
 
