@@ -101,10 +101,10 @@ def main():
         # plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
         #                     group_by="monkey_pair", plot_duration_seconds=90)
 
-        logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
-        plot_significant_fixation_crosscorr_minus_shuffled(
-            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-            params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
+        # logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
+        # plot_significant_fixation_crosscorr_minus_shuffled(
+        #     inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
+        #     params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
         logger.info("Plotting significant cross-correlation timecourse averaged across monkey-pairs")
         plot_significant_fixation_crosscorr_minus_shuffled(
             inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
@@ -558,19 +558,29 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
             sig_color_m1_m2, non_sig_color_m1_m2 = "blue", "lightblue"
             sig_color_m2_m1, non_sig_color_m2_m1 = "red", "lightcoral"
 
-            # Plot all bins but label then non-sig since we will overlay sig bins with heavier markers
+            # Check if there are significant bins
+            any_sig_m1_m2 = np.any(significant_bins_m1_m2)
+            any_sig_m2_m1 = np.any(significant_bins_m2_m1)
+
+            # Plot non-significant bins first (thinner, lighter)
             ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=0.75, alpha=0.5, label="m1 → m2 (non-sig)")
             ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=0.75, alpha=0.5, label="m2 → m1 (non-sig)")
 
-            # Mask for significant bins
-            sig_time_bins_m1_m2 = np.where(significant_bins_m1_m2, time_bins, np.nan)
-            sig_time_bins_m2_m1 = np.where(significant_bins_m2_m1, time_bins, np.nan)
+            # Mask for significant bins (only plot if they exist)
+            if any_sig_m1_m2:
+                sig_time_bins_m1_m2 = np.where(significant_bins_m1_m2, time_bins, np.nan)
+                ax.plot(sig_time_bins_m1_m2, mean_m1_m2, color=sig_color_m1_m2, linewidth=1.5, label="m1 → m2 (sig)")
 
-            # Plot significant bins (thicker lines)
-            ax.plot(sig_time_bins_m1_m2, mean_m1_m2, color=sig_color_m1_m2, linewidth=1.5, label="m1 → m2 (sig)")
-            ax.plot(sig_time_bins_m2_m1, mean_m2_m1, color=sig_color_m2_m1, linewidth=1.5, label="m2 → m1 (sig)")
+            if any_sig_m2_m1:
+                sig_time_bins_m2_m1 = np.where(significant_bins_m2_m1, time_bins, np.nan)
+                ax.plot(sig_time_bins_m2_m1, mean_m2_m1, color=sig_color_m2_m1, linewidth=1.5, label="m2 → m1 (sig)")
 
-            ax.set_title(f"{fixation_type}")
+            # Add a note if no significant bins
+            if not any_sig_m1_m2 and not any_sig_m2_m1:
+                ax.set_title(f"{fixation_type} (No Significant Bins)")
+            else:
+                ax.set_title(f"{fixation_type}")
+
             ax.set_xlabel("Time (seconds)")
             ax.legend()
 
@@ -598,7 +608,8 @@ def compute_group_crosscorr_stats(group_key, group_df, max_timepoints, alpha):
     - Tuple of (group_key, fixation_type, computed statistics).
     """
     result = compute_significant_crosscorr_stats_nonparametric(group_df, max_timepoints=max_timepoints, alpha=alpha)
-    return (group_key, group_df["fixation_type"].iloc[0], result)
+    group_val, fix_type = group_key
+    return (group_val, fix_type, result)
 
 def compute_significant_crosscorr_stats_nonparametric(group_df, max_timepoints, alpha=0.05):
     """
