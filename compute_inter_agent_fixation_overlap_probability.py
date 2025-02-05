@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
-from scipy.stats import ttest_rel, ranksums
+from scipy.stats import ttest_rel, ranksums, normaltest
 import pingouin as pg
 
 import pdb
@@ -54,7 +54,7 @@ def main():
 
     if params.get('reanalyse_fixation_probabilities', False):
         logger.info("Analyzing fixation probabilities")
-        _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="monkey_pair")
+        _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
         logger.info("Analysis and plotting complete")
 
 
@@ -135,20 +135,19 @@ def ___compute_joint_duration(m1_indices, m2_indices):
 
 
 def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pair"):
-    """Generate subplot comparisons for fixation probability distributions with multiple statistical tests."""
+    """Generate subplot comparisons for fixation probability distributions with a single statistical test."""
     logger.info("Generating fixation probability plots")
     today_date = datetime.today().strftime('%Y-%m-%d')
     today_date += f"_{group_by}"
     root_dir = os.path.join(params['root_data_dir'], "plots", "inter_agent_fix_prob", today_date)
     os.makedirs(root_dir, exist_ok=True)
-
+    
+    violin_colors = ["#1f77b4", "#ff7f0e"]
     for grouping_name, sub_df in tqdm(joint_prob_df.groupby(group_by), desc=f"Plotting {group_by}"):
-        fig, axes = plt.subplots(3, 4, figsize=(16, 18))  # 3 rows, 4 columns layout
-        axes = axes.reshape(3, 4)  # Ensure proper row-column alignment
+        fig, axes = plt.subplots(1, 4, figsize=(16, 6))  # 1 row, 4 columns layout
 
         categories = ["eyes", "non_eye_face", "face", "out_of_roi"]
 
-        # Loop through each category for plotting
         for i, category in enumerate(categories):
             cat_data = sub_df[sub_df["fixation_category"] == category]
 
@@ -157,35 +156,22 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
                                             value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
                                             var_name="Probability Type", value_name="Probability")
 
-                # First row: Paired t-test
-                t_stat_ttest, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
-                sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[0, i])
-                axes[0, i].set_title(f"{category} Fixation Probabilities (Paired t-test)")
-                axes[0, i].text(0.5, 0.9, f'p = {p_val_ttest:.4f}', ha='center', va='center', transform=axes[0, i].transAxes)
+                # Perform t-test and Bayesian t-test
+                t_stat, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                bf = pg.bayesfactor_ttest(t_stat, cat_data.shape[0])
+                test_result_text = f"T-test p = {p_val_ttest:.4f}\nBF = {bf:.2f}"
 
-                # Second row: Mann-Whitney U test (Ranksum test)
-                t_stat_ranksum, p_val_ranksum = ranksums(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
-                sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[1, i])
-                axes[1, i].set_title(f"{category} Fixation Probabilities (Ranksum test)")
-                axes[1, i].text(0.5, 0.9, f'p = {p_val_ranksum:.4f}', ha='center', va='center', transform=axes[1, i].transAxes)
+                # Plot violin plots with test result annotations
+                sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[i], hue="Probability Type")
+                axes[i].set_title(f"{category} Fixation Probabilities")
+                axes[i].text(0.5, 0.9, test_result_text, ha='center', va='center', 
+                             transform=axes[i].transAxes, fontsize=10)
 
-                # Third row: Bayesian t-test (Bayes Factor)
-                bf = pg.bayesfactor_ttest(t_stat_ttest, cat_data.shape[0])
-                # Determine color for Bayes Factor significance
-                if bf < 3:
-                    bf_color = "red"  # Weak evidence
-                elif 3 <= bf < 10:
-                    bf_color = "orange"  # Moderate evidence
-                else:
-                    bf_color = "green"  # Strong evidence
-                sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[2, i])
-                axes[2, i].set_title(f"{category} Fixation Probabilities (Bayesian t-test)")
-                axes[2, i].text(0.5, 0.9, f'BF = {bf:.2f}', ha='center', va='center', transform=axes[2, i].transAxes, color=bf_color)
-        
         plt.suptitle(f"{group_by.capitalize()}: {grouping_name} Fixation Probability Distributions")
         plt.tight_layout()
         plt.savefig(os.path.join(root_dir, f"{grouping_name}_fixation_probabilities.png"))
         plt.close()
+
 
 
 # ** Call to main() **

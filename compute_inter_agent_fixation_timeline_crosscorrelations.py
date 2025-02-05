@@ -564,17 +564,17 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
             any_sig_m2_m1 = np.any(significant_bins_m2_m1)
 
             # Plot non-significant bins first (thinner, lighter)
-            ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=1, alpha=0.7, label="m1 → m2 (non-sig)")
-            ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=1, alpha=0.7, label="m2 → m1 (non-sig)")
+            ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=0.7, alpha=0.5, label="m1 → m2 (non-sig)")
+            ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=0.7, alpha=0.5, label="m2 → m1 (non-sig)")
 
             # Mask for significant bins (only plot if they exist)
             if any_sig_m1_m2:
                 sig_time_bins_m1_m2 = np.where(significant_bins_m1_m2, time_bins, np.nan)
-                ax.plot(sig_time_bins_m1_m2, mean_m1_m2, color=sig_color_m1_m2, linewidth=1.5, label="m1 → m2 (sig)")
+                ax.plot(sig_time_bins_m1_m2, mean_m1_m2, color=sig_color_m1_m2, linewidth=2, label="m1 → m2 (sig)")
 
             if any_sig_m2_m1:
                 sig_time_bins_m2_m1 = np.where(significant_bins_m2_m1, time_bins, np.nan)
-                ax.plot(sig_time_bins_m2_m1, mean_m2_m1, color=sig_color_m2_m1, linewidth=1.5, label="m2 → m1 (sig)")
+                ax.plot(sig_time_bins_m2_m1, mean_m2_m1, color=sig_color_m2_m1, linewidth=2, label="m2 → m1 (sig)")
 
             # Add a note if no significant bins
             if not any_sig_m1_m2 and not any_sig_m2_m1:
