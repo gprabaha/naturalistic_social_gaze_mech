@@ -12,8 +12,7 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.stats import sem
-from scipy.stats import ttest_1samp
-from scipy.stats import wilcoxon
+from scipy.stats import wilcoxon, ttest_rel, shapiro
 
 import pdb
 
@@ -525,7 +524,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Extract dictionary columns back into separate columns
     stats_df = pd.concat([results_df.drop(columns=["computed_stats"]), results_df["computed_stats"].apply(pd.Series)], axis=1)
-
+    pdb.set_trace()
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant_parallel", today_date)
@@ -607,43 +606,77 @@ def compute_group_crosscorr_stats(group_key, group_df, max_timepoints, alpha):
     Returns:
     - Tuple of (group_key, fixation_type, computed statistics).
     """
-    result = compute_significant_crosscorr_stats_nonparametric(group_df, max_timepoints=max_timepoints, alpha=alpha)
+    result = compute_significant_crosscorr_stats_auto(group_df, max_timepoints=max_timepoints, alpha=alpha)
     group_val, fix_type = group_key
     return (group_val, fix_type, result)
 
-def compute_significant_crosscorr_stats_nonparametric(group_df, max_timepoints, alpha=0.05):
+def compute_significant_crosscorr_stats_auto(x, max_timepoints, alpha=0.05, use_ttest_if_normal=True):
     """
     Computes mean cross-correlation differences and determines significant time bins 
-    using the Wilcoxon signed-rank test instead of a t-test (for non-normal distributions).
-    
+    using either the Wilcoxon signed-rank test (for non-normal distributions) or 
+    the paired t-test (for normal distributions), based on a quick normality check.
+
     Parameters:
     - x: DataFrame subset for a group.
     - max_timepoints: Maximum number of timepoints to include.
     - alpha: Significance level for determining significant bins.
-    
+    - use_ttest_if_normal: Whether to use the t-test if data appears normally distributed.
+
     Returns:
     - Pandas Series containing mean difference and significance mask for (crosscorr - mean_shuffled).
     """
-    crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in group_df["crosscorr_m1_m2"].values])
-    mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in group_df["mean_shuffled_m1_m2"].values])
-    crosscorr_m2_m1 = np.vstack([arr[:max_timepoints] for arr in group_df["crosscorr_m2_m1"].values])
-    mean_shuffled_m2_m1 = np.vstack([arr[:max_timepoints] for arr in group_df["mean_shuffled_m2_m1"].values])
+
+    crosscorr_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m1_m2"].values])
+    mean_shuffled_m1_m2 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m1_m2"].values])
+    crosscorr_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["crosscorr_m2_m1"].values])
+    mean_shuffled_m2_m1 = np.vstack([arr[:max_timepoints] for arr in x["mean_shuffled_m2_m1"].values])
 
     diff_m1_m2 = crosscorr_m1_m2 - mean_shuffled_m1_m2
     diff_m2_m1 = crosscorr_m2_m1 - mean_shuffled_m2_m1
-    
-    # Fully vectorized Wilcoxon test along time bins (axis=0)
-    p_values_m1_m2 = wilcoxon(diff_m1_m2, alternative='two-sided', axis=0)[1]  # Extract only p-values
-    p_values_m2_m1 = wilcoxon(diff_m2_m1, alternative='two-sided', axis=0)[1]
+
+    # Compute mean differences
+    mean_diff_m1_m2 = np.mean(diff_m1_m2, axis=0)
+    mean_diff_m2_m1 = np.mean(diff_m2_m1, axis=0)
+
+    # Randomly select 10 columns for normality testing
+    num_timepoints = mean_diff_m1_m2.shape[0]
+    sample_columns = random.sample(range(num_timepoints), min(10, num_timepoints))
+
+    # Perform Shapiro-Wilk test on the sampled columns
+    if use_ttest_if_normal:
+        shapiro_tests_m1_m2 = [shapiro(diff_m1_m2[:, col])[1] for col in sample_columns]
+        shapiro_tests_m2_m1 = [shapiro(diff_m2_m1[:, col])[1] for col in sample_columns]
+
+        # Use t-test if **all** sampled columns pass the normality test (p > 0.05)
+        is_normal_m1_m2 = all(p > 0.05 for p in shapiro_tests_m1_m2)
+        is_normal_m2_m1 = all(p > 0.05 for p in shapiro_tests_m2_m1)
+    else:
+        is_normal_m1_m2 = is_normal_m2_m1 = False  # Always use Wilcoxon if disabled
+
+    # Log which test is being used
+    test_m1_m2 = "t-test" if is_normal_m1_m2 else "Wilcoxon"
+    test_m2_m1 = "t-test" if is_normal_m2_m1 else "Wilcoxon"
+    logger.info(f"Using {test_m1_m2} for m1 → m2 and {test_m2_m1} for m2 → m1")
+
+    # Apply the appropriate statistical test
+    if is_normal_m1_m2:
+        p_values_m1_m2 = ttest_rel(crosscorr_m1_m2, mean_shuffled_m1_m2, axis=0, nan_policy='omit')[1]
+    else:
+        _, p_values_m1_m2 = wilcoxon(diff_m1_m2, alternative='two-sided', zero_method='pratt', nan_policy='omit', axis=0)
+
+    if is_normal_m2_m1:
+        p_values_m2_m1 = ttest_rel(crosscorr_m2_m1, mean_shuffled_m2_m1, axis=0, nan_policy='omit')[1]
+    else:
+        _, p_values_m2_m1 = wilcoxon(diff_m2_m1, alternative='two-sided', zero_method='pratt', nan_policy='omit', axis=0)
 
     # Determine significant time bins
     significant_bins_m1_m2 = p_values_m1_m2 < alpha
     significant_bins_m2_m1 = p_values_m2_m1 < alpha
 
     return pd.Series({
-        "mean_diff_m1_m2": np.mean(diff_m1_m2, axis=0),
+        "mean_diff_m1_m2": mean_diff_m1_m2,
         "significant_bins_m1_m2": significant_bins_m1_m2,
-        "mean_diff_m2_m1": np.mean(diff_m2_m1, axis=0),
+        "mean_diff_m2_m1": mean_diff_m2_m1,
         "significant_bins_m2_m1": significant_bins_m2_m1,
     })
 
