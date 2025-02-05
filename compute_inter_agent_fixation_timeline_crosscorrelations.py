@@ -492,7 +492,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
     - monkeys_per_session_df: DataFrame containing session-wise monkey pairs.
     - params: Dictionary containing path parameters and `num_cpus` for parallel processing.
     - group_by: "session_name" or "monkey_pair" to determine averaging method.
-    - plot_duration_seconds: Number of seconds to plot (default: 60s, assuming 1kHz sampling rate).
+    - plot_duration_seconds: Number of seconds to plot (default: 90s, assuming 1kHz sampling rate).
     - alpha: Significance level for determining significant time bins.
     """
 
@@ -515,6 +515,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
     # Parallelize the computation of significance stats
     num_cpus = params.get("num_cpus", -1)  # Use all available CPUs if not set
 
+    logger.info("Computing bins with significant crosscorr compared to shuffled")
     results = Parallel(n_jobs=num_cpus, backend="loky")(
         delayed(compute_group_crosscorr_stats)(group_key, group_df, max_timepoints, alpha) for group_key, group_df in tqdm(grouped, desc="Computing statistics in parallel")
     )
@@ -527,7 +528,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Create plot directory
     today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
-    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant", today_date)
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant_parallel", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
     # Get unique fixation types
@@ -536,7 +537,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Iterate over groups (sessions or monkey pairs) for plotting
     for group_value, group_df in tqdm(stats_df.groupby("group_value"), desc=f"Plotting for {group_by}"):
-        fig, axes = plt.subplots(1, num_subplots, figsize=(5 * num_subplots, 4))
+        fig, axes = plt.subplots(num_subplots, 1, figsize=(8, 3 * num_subplots), sharex=True)
 
         if num_subplots == 1:
             axes = [axes]  # Ensure axes is iterable when there's only one fixation type
@@ -553,17 +554,25 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
             time_bins = np.arange(len(mean_m1_m2)) / sample_rate  # Convert to seconds
 
-            # Plot significant bins in color, non-significant bins in black
-            for i in range(len(time_bins) - 1):
-                color_m1_m2 = "blue" if significant_bins_m1_m2[i] else "black"
-                color_m2_m1 = "red" if significant_bins_m2_m1[i] else "black"
-                
-                ax.plot(time_bins[i:i+2], mean_m1_m2[i:i+2], color=color_m1_m2, linewidth=1.5)
-                ax.plot(time_bins[i:i+2], mean_m2_m1[i:i+2], color=color_m2_m1, linewidth=1.5)
+            # Define colors
+            sig_color_m1_m2, non_sig_color_m1_m2 = "blue", "lightblue"
+            sig_color_m2_m1, non_sig_color_m2_m1 = "red", "lightcoral"
+
+            # Plot all bins but label then non-sig since we will overlay sig bins with heavier markers
+            ax.plot(time_bins, mean_m1_m2, color=non_sig_color_m1_m2, linewidth=0.75, alpha=0.5, label="m1 → m2 (non-sig)")
+            ax.plot(time_bins, mean_m2_m1, color=non_sig_color_m2_m1, linewidth=0.75, alpha=0.5, label="m2 → m1 (non-sig)")
+
+            # Mask for significant bins
+            sig_time_bins_m1_m2 = np.where(significant_bins_m1_m2, time_bins, np.nan)
+            sig_time_bins_m2_m1 = np.where(significant_bins_m2_m1, time_bins, np.nan)
+
+            # Plot significant bins (thicker lines)
+            ax.plot(sig_time_bins_m1_m2, mean_m1_m2, color=sig_color_m1_m2, linewidth=1.5, label="m1 → m2 (sig)")
+            ax.plot(sig_time_bins_m2_m1, mean_m2_m1, color=sig_color_m2_m1, linewidth=1.5, label="m2 → m1 (sig)")
 
             ax.set_title(f"{fixation_type}")
             ax.set_xlabel("Time (seconds)")
-            ax.legend(["m1 -> m2", "m2 -> m1"])
+            ax.legend()
 
         fig.suptitle(f"Fixation Cross-Correlation (Significant Time Bins) ({group_by}: {group_value})")
         fig.tight_layout()
