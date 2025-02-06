@@ -12,6 +12,7 @@ import ssm  # Import Switching State-Space Models
 from hpc_slds_fitter import HPCSLDSFitter
 import pickle
 import glob
+import warnings
 
 import pdb
 
@@ -250,7 +251,7 @@ def fit_slds_to_timeline_pair(df):
     Fit an SLDS model separately for each agent (m1, m2) and jointly for both.
     One-hot encodes categorical data before fitting.
     Computes ELBOs, AIC, and BIC.
-    
+
     Args:
         df (pd.DataFrame): A dataframe containing fixation timelines for both agents
                            in the same session, interaction type, and run.
@@ -258,108 +259,143 @@ def fit_slds_to_timeline_pair(df):
     Returns:
         dict: A dictionary with ELBOs, AIC, BIC, and inferred latent states.
     """
-    timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
-    timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
+    try:
+        logger.info("Starting SLDS fitting for session: %s, interaction_type: %s, run: %s",
+                    df["session_name"].iloc[0], df["interaction_type"].iloc[0], df["run_number"].iloc[0])
 
-    T = timeline_m1.shape[0]  # Number of time points
+        timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
+        timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
 
-    # Check if the timeline contains only one unique state or NaN values
-    if len(np.unique(timeline_m1)) < 2 or np.isnan(timeline_m1).any():
-        return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
+        T = timeline_m1.shape[0]  # Number of time points
+        logger.info("Number of time points in fixation timeline: %d", T)
 
-    if len(np.unique(timeline_m2)) < 2 or np.isnan(timeline_m2).any():
-        return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
+        # Check if the timeline contains only one unique state or NaN values
+        if len(np.unique(timeline_m1)) < 2 or np.isnan(timeline_m1).any():
+            logger.warning("Skipping SLDS fitting: m1 timeline contains insufficient variance or NaN values.")
+            return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
 
-    num_states = 2
-    latent_dim = 1
+        if len(np.unique(timeline_m2)) < 2 or np.isnan(timeline_m2).any():
+            logger.warning("Skipping SLDS fitting: m2 timeline contains insufficient variance or NaN values.")
+            return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
 
-    # One-hot encode fixation timelines
-    timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
-    timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
-    timeline_m1_onehot = timeline_m1_onehot.astype(int)
-    timeline_m2_onehot = timeline_m2_onehot.astype(int)
+        num_states = 2
+        latent_dim = 1
 
-    # Dynamically determine the observation dimension after encoding
-    obs_dim_m1 = timeline_m1_onehot.shape[1]
-    obs_dim_m2 = timeline_m2_onehot.shape[1]
+        # One-hot encode fixation timelines
+        timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
+        timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
+        logger.info("One-hot encoding completed. Shapes - m1: %s, m2: %s", timeline_m1_onehot.shape, timeline_m2_onehot.shape)
+
+        obs_dim_m1 = timeline_m1_onehot.shape[1]
+        obs_dim_m2 = timeline_m2_onehot.shape[1]
+
+        # Fit SLDS for m1
+        logger.info("Fitting SLDS model for m1.")
+        slds_m1 = ssm.SLDS(obs_dim_m1, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+        slds_m1.inputs = None
+        slds_m1.initialize([timeline_m1_onehot], inputs=None)
+        q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
+        elbo_m1 = q_elbos_m1[-1]
+
+        # Fit SLDS for m2
+        logger.info("Fitting SLDS model for m2.")
+        slds_m2 = ssm.SLDS(obs_dim_m2, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+        slds_m2.inputs = None
+        slds_m2.initialize([timeline_m2_onehot], inputs=None)
+        q_elbos_m2, _ = slds_m2.fit([timeline_m2_onehot], num_iters=50)
+        elbo_m2 = q_elbos_m2[-1]
+
+        # Fit SLDS jointly
+        timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
+        obs_dim_joint = timeline_joint_onehot.shape[1]
+        logger.info("Fitting joint SLDS model with observation dimension: %d", obs_dim_joint)
+
+        slds_joint = ssm.SLDS(obs_dim_joint, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+        slds_joint.inputs = None
+        slds_joint.initialize([timeline_joint_onehot], inputs=None)
+        q_elbos_joint, _ = slds_joint.fit([timeline_joint_onehot], num_iters=50)
+        elbo_joint = q_elbos_joint[-1]
+
+        # Compute model parameters
+        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)
+        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)
+
+        aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
+        aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
+        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)
+
+        logger.info("SLDS fitting completed successfully.")
+
+        return {
+            "ELBO_m1": elbo_m1,
+            "ELBO_m2": elbo_m2,
+            "ELBO_joint": elbo_joint,
+            "AIC_m1": aic_m1,
+            "AIC_m2": aic_m2,
+            "AIC_joint": aic_joint,
+            "BIC_m1": bic_m1,
+            "BIC_m2": bic_m2,
+            "BIC_joint": bic_joint,
+            "Latent_m1": slds_m1.most_likely_states([timeline_m1_onehot]),
+            "Latent_m2": slds_m2.most_likely_states([timeline_m2_onehot]),
+            "Latent_joint": slds_joint.most_likely_states([timeline_joint_onehot]),
+        }
     
-    # Fit SLDS for m1
-    slds_m1 = ssm.SLDS(obs_dim_m1, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-    slds_m1.inputs = None
-    slds_m1.initialize([timeline_m1_onehot], inputs=None)
-    q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
-    elbo_m1 = q_elbos_m1[-1]  # NO NORMALIZATION
+    except Exception as e:
+        logger.error("Error during SLDS fitting: %s", e, exc_info=True)
+        return {}
 
-    # Fit SLDS for m2
-    slds_m2 = ssm.SLDS(obs_dim_m2, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-    slds_m2.inputs = None
-    slds_m2.initialize([timeline_m2_onehot], inputs=None)
-    q_elbos_m2, _ = slds_m2.fit([timeline_m2_onehot], num_iters=50)
-    elbo_m2 = q_elbos_m2[-1]  # NO NORMALIZATION
-
-    # Fit SLDS jointly (obs_dim = sum of both one-hot encoded dimensions)
-    timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))  # Shape (T, obs_dim_m1 + obs_dim_m2)
-    obs_dim_joint = timeline_joint_onehot.shape[1]
-
-    slds_joint = ssm.SLDS(obs_dim_joint, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-    slds_joint.inputs = None
-    slds_joint.initialize([timeline_joint_onehot], inputs=None)
-    q_elbos_joint, _ = slds_joint.fit([timeline_joint_onehot], num_iters=50)
-    elbo_joint = q_elbos_joint[-1]  # NO NORMALIZATION
-
-    # Compute number of model parameters correctly
-    K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
-    K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
-
-    aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
-    aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
-    aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)
-
-    return {
-        "ELBO_m1": elbo_m1,
-        "ELBO_m2": elbo_m2,
-        "ELBO_joint": elbo_joint,
-        "AIC_m1": aic_m1,
-        "AIC_m2": aic_m2,
-        "AIC_joint": aic_joint,
-        "BIC_m1": bic_m1,
-        "BIC_m2": bic_m2,
-        "BIC_joint": bic_joint,
-        "Latent_m1": slds_m1.most_likely_states([timeline_m1_onehot]),
-        "Latent_m2": slds_m2.most_likely_states([timeline_m2_onehot]),
-        "Latent_joint": slds_joint.most_likely_states([timeline_joint_onehot]),
-    }
 
 def one_hot_encode_timeline(timeline):
     """
     Convert categorical timeline into a one-hot encoded matrix.
     Handles cases where some categories might be missing in the sequence.
-    
+
     Args:
         timeline (np.ndarray): A 1D array of categorical observations.
 
     Returns:
         np.ndarray: One-hot encoded matrix of shape (T, num_categories).
     """
-    num_categories = len(np.unique(timeline))  # Count unique categories in the data
-    encoder = OneHotEncoder(sparse=False, categories=[list(range(num_categories))])
-    return encoder.fit_transform(timeline.reshape(-1, 1))  # One-hot encode timeline
+    try:
+        num_categories = len(np.unique(timeline))
+        logger.info("One-hot encoding timeline with %d categories.", num_categories)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            encoder = OneHotEncoder(sparse=False, categories=[list(range(num_categories))])
+            encoded_timeline = encoder.fit_transform(timeline.reshape(-1, 1))
+            encoded_timeline = encoded_timeline.astype(int)
+
+        logger.info("One-hot encoding successful. Output shape: %s", encoded_timeline.shape)
+        return encoded_timeline
+
+    except Exception as e:
+        logger.error("Error during one-hot encoding: %s", e, exc_info=True)
+        return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
+
 
 def compute_aic_bic(elbo, T, K):
     """
     Compute AIC and BIC scores.
-    
+
     Args:
         elbo (float): ELBO value.
         T (int): Number of observations.
         K (int): Number of model parameters.
-    
+
     Returns:
         tuple: (AIC, BIC)
     """
-    aic = -2 * elbo + 2 * K
-    bic = -2 * elbo + K * np.log(T)
-    return aic, bic
+    try:
+        aic = -2 * elbo + 2 * K
+        bic = -2 * elbo + K * np.log(T)
+        logger.info("Computed AIC: %.2f, BIC: %.2f", aic, bic)
+        return aic, bic
+
+    except Exception as e:
+        logger.error("Error computing AIC/BIC: %s", e, exc_info=True)
+        return np.nan, np.nan
 
 
 
