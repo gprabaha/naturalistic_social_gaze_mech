@@ -52,7 +52,7 @@ class HPCSLDSFitter:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task 3 --mem-per-cpu 4000 -t 01:00:00 --mail-type FAIL',
+                f'--cpus-per-task 3 --mem-per-cpu 8G -t 01:00:00 --mail-type FAIL',
                 shell=True, check=True, executable='/bin/bash'
             )
 
@@ -85,8 +85,8 @@ class HPCSLDSFitter:
         """
         logger.info("Tracking progress of job array with ID: %s", job_id)
         start_time = time.time()
-        check_interval = 30  # Check the job status every 30 seconds
-        print_every_n_mins = 1
+        check_interval = 60  # Check the job status every 30 seconds
+        print_every_n_mins = 3
         print_interval = print_every_n_mins * 60  # Print job status every 1 minute
         last_print_time = start_time
 

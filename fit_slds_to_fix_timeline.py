@@ -38,7 +38,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'remake_fixation_timeline': True,
+        'remake_fixation_timeline': False,
         'test_single_task': True  # Set to True to test a single random task
     }
     
@@ -178,40 +178,30 @@ def generate_slds_models(fixation_timeline_df, params):
     """
     Submits SLDS fitting tasks to the HPC using job arrays, waits for completion, 
     and then loads and concatenates the results into a single DataFrame.
-    
-    If `params['test_single_task']` is True, runs a single random task instead of all.
-    
+
     Returns:
         pd.DataFrame: A DataFrame containing all SLDS fitting results.
     """
     logger.info("Preparing SLDS fitting tasks.")
 
-    # Group data by session, interaction type, and run
     grouped = fixation_timeline_df.groupby(["session_name", "interaction_type", "run_number"])
-
-    # Generate task keys
     task_keys = [f"{session},{interaction_type},{run}" for (session, interaction_type, run), _ in grouped]
 
-    # Option to run a single random task for testing
     if params.get("test_single_task", False):
         task_keys = [random.choice(task_keys)]
         logger.info(f"Running a single test task: {task_keys[0]}")
 
     logger.info(f"Generated {len(task_keys)} SLDS tasks.")
 
-    # Initialize HPC job submission class
     hpc_fitter = HPCSLDSFitter(params)
-    
-    # Save params to be used by individual job scripts
     params_file_path = os.path.join(params['processed_data_dir'], "params.pkl")
     with open(params_file_path, 'wb') as f:
         pickle.dump(params, f)
 
-    # Generate and submit job file
     job_file_path = hpc_fitter.generate_job_file(task_keys, params_file_path)
     hpc_fitter.submit_job_array(job_file_path)
 
-    # Wait for jobs to complete and collect results
+    # Collect and process SLDS results
     logger.info("Collecting SLDS results.")
     results_dir = params["slds_results_dir"]
     result_files = glob.glob(os.path.join(results_dir, "slds_*.pkl"))
@@ -221,16 +211,6 @@ def generate_slds_models(fixation_timeline_df, params):
         try:
             with open(file, "rb") as f:
                 result = pickle.load(f)
-                # Extract session details from the filename
-                filename = os.path.basename(file)
-                parts = filename.replace("slds_", "").replace(".pkl", "").split("_")
-                session_name, interaction_type, run_number = parts[0], parts[1], int(parts[2])
-                
-                # Add grouping columns
-                result["session_name"] = session_name
-                result["interaction_type"] = interaction_type
-                result["run_number"] = run_number
-
                 results_list.append(result)
         except Exception as e:
             logger.error(f"Error loading {file}: {e}")
@@ -239,7 +219,6 @@ def generate_slds_models(fixation_timeline_df, params):
         logger.warning("No SLDS results were found. Returning an empty DataFrame.")
         return pd.DataFrame()
 
-    # Convert results into a DataFrame
     slds_results_df = pd.DataFrame(results_list)
 
     logger.info(f"Successfully loaded {len(slds_results_df)} SLDS results.")
@@ -250,89 +229,89 @@ def generate_slds_models(fixation_timeline_df, params):
 def fit_slds_to_timeline_pair(df):
     """
     Fit an SLDS model separately for each agent (m1, m2) and jointly for both.
-    One-hot encodes categorical data before fitting.
-    Computes ELBOs, AIC, and BIC.
+    Stores ELBO, AIC, BIC, Latent States, Transition Matrices, and Emission Parameters.
 
     Args:
-        df (pd.DataFrame): A dataframe containing fixation timelines for both agents
-                           in the same session, interaction type, and run.
+        df (pd.DataFrame): A dataframe containing fixation timelines.
 
     Returns:
-        dict: A dictionary with ELBOs, AIC, BIC, and inferred latent states.
+        dict: Minimal SLDS output with transition matrices and emission parameters.
     """
     try:
         session_name = df["session_name"].iloc[0]
         interaction_type = df["interaction_type"].iloc[0]
         run_number = df["run_number"].iloc[0]
-        logger.info("Starting SLDS fitting for session: %s, interaction_type: %s, run: %s",
-                    session_name, interaction_type, run_number)
+
+        logger.info(f"Starting SLDS fitting for session: {session_name}, interaction_type: {interaction_type}, run: {run_number}")
 
         timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
         timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
 
-        T = timeline_m1.shape[0]  # Number of time points
-        logger.info("Number of time points in fixation timeline: %d", T)
-
-        # Check if the timeline contains only one unique state or NaN values
-        if len(np.unique(timeline_m1)) < 2 or np.isnan(timeline_m1).any():
-            logger.warning("Skipping SLDS fitting: m1 timeline contains insufficient variance or NaN values.")
-            return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
-
-        if len(np.unique(timeline_m2)) < 2 or np.isnan(timeline_m2).any():
-            logger.warning("Skipping SLDS fitting: m2 timeline contains insufficient variance or NaN values.")
-            return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
-
+        T = timeline_m1.shape[0]  # Number of observations
         num_states = 2
         latent_dim = 1
 
         # One-hot encode fixation timelines
         timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
         timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
-        logger.info("One-hot encoding completed. Shapes - m1: %s, m2: %s", timeline_m1_onehot.shape, timeline_m2_onehot.shape)
 
         obs_dim_m1 = timeline_m1_onehot.shape[1]
         obs_dim_m2 = timeline_m2_onehot.shape[1]
-
-        # Prepare joint data
         timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
         obs_dim_joint = timeline_joint_onehot.shape[1]
 
         # Fit SLDS for m1, m2, and joint in parallel
         results = Parallel(n_jobs=3)(
-            delayed(fit_slds)(obs_dim_m1, timeline_m1_onehot, "m1"),
-            delayed(fit_slds)(obs_dim_m2, timeline_m2_onehot, "m2"),
-            delayed(fit_slds)(obs_dim_joint, timeline_joint_onehot, "joint")
+            delayed(fit_slds)(obs_dim, timeline, label)
+            for obs_dim, timeline, label in [
+                (obs_dim_m1, timeline_m1_onehot, "m1"),
+                (obs_dim_m2, timeline_m2_onehot, "m2"),
+                (obs_dim_joint, timeline_joint_onehot, "joint")
+            ]
         )
 
-        (elbo_m1, latent_m1), (elbo_m2, latent_m2), (elbo_joint, latent_joint) = results
+        # Extract ELBOs
+        elbo_m1, elbo_m2, elbo_joint = results[0]["ELBO"], results[1]["ELBO"], results[2]["ELBO"]
 
-        # Compute model parameters
-        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)
-        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)
+        # Compute number of model parameters correctly
+        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
+        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
 
+        # Corrected AIC/BIC calculation
         aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
         aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
-        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)
-
-        logger.info("SLDS fitting completed successfully.")
+        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)  # Joint model uses 2T
 
         return {
+            "session_name": session_name,
+            "interaction_type": interaction_type,
+            "run_number": run_number,
+
+            # Corrected SLDS results
             "ELBO_m1": elbo_m1,
-            "ELBO_m2": elbo_m2,
-            "ELBO_joint": elbo_joint,
             "AIC_m1": aic_m1,
-            "AIC_m2": aic_m2,
-            "AIC_joint": aic_joint,
             "BIC_m1": bic_m1,
+            "Latent_States_m1": results[0]["Latent_States"],
+            "Transition_Matrices_m1": results[0]["Transition_Matrices"],
+            "Emission_Parameters_m1": results[0]["Emission_Parameters"],
+
+            "ELBO_m2": elbo_m2,
+            "AIC_m2": aic_m2,
             "BIC_m2": bic_m2,
+            "Latent_States_m2": results[1]["Latent_States"],
+            "Transition_Matrices_m2": results[1]["Transition_Matrices"],
+            "Emission_Parameters_m2": results[1]["Emission_Parameters"],
+
+            "ELBO_joint": elbo_joint,
+            "AIC_joint": aic_joint,
             "BIC_joint": bic_joint,
-            "Latent_m1": latent_m1,
-            "Latent_m2": latent_m2,
-            "Latent_joint": latent_joint,
+            "Latent_States_joint": results[2]["Latent_States"],
+            "Transition_Matrices_joint": results[2]["Transition_Matrices"],
+            "Emission_Parameters_joint": results[2]["Emission_Parameters"],
         }
 
     except Exception as e:
-        logger.error("Error during SLDS fitting: %s", e, exc_info=True)
+        logger.error(f"Error during SLDS fitting: {e}", exc_info=True)
         return {}
 
 
@@ -377,7 +356,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         latent_dim (int): Number of continuous latent dimensions.
 
     Returns:
-        tuple: (ELBO, Latent states)
+        dict: Contains ELBO, Latent states, Transition matrices, and Emission parameters.
     """
     try:
         logger.info(f"Fitting SLDS model for {label}.")
@@ -386,11 +365,33 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         slds.initialize([onehot_data], inputs=None)
         q_elbos, _ = slds.fit([onehot_data], num_iters=50)
         elbo = q_elbos[-1]
-        latent_states = slds.most_likely_states([onehot_data])
-        return elbo, latent_states
+
+        # Compute variational mean using the smoothed posterior
+        variational_mean = slds.smooth(onehot_data)  # This step is REQUIRED
+
+        # Call most_likely_states with correct arguments
+        latent_states = slds.most_likely_states(variational_mean, onehot_data)
+
+        # Extract learned parameters
+        transition_matrices = slds.transitions.transition_matrices_
+        emission_params = slds.emissions.parameters
+
+        return {
+            "ELBO": elbo,
+            "Latent_States": latent_states,
+            "Transition_Matrices": transition_matrices,
+            "Emission_Parameters": emission_params
+        }
+
     except Exception as e:
         logger.error(f"Error fitting SLDS for {label}: {e}", exc_info=True)
-        return -np.inf, []
+        return {
+            "ELBO": -np.inf,
+            "Latent_States": [],
+            "Transition_Matrices": None,
+            "Emission_Parameters": None
+        }
+
 
 
 def compute_aic_bic(elbo, T, K):
