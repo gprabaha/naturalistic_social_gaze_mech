@@ -187,7 +187,11 @@ def fit_slds_to_timeline_pair(df):
     # One-hot encode fixation timelines
     timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
     timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
-    
+    assert timeline_m1_onehot.dtype == np.int32 or timeline_m1_onehot.dtype == np.int64, "timeline_m1_onehot is not integer"
+    assert timeline_m2_onehot.dtype == np.int32 or timeline_m2_onehot.dtype == np.int64, "timeline_m2_onehot is not integer"
+    assert timeline_m1_onehot.min() == 0 and timeline_m1_onehot.max() == 1, "timeline_m1_onehot has non-binary values!"
+    assert timeline_m2_onehot.min() == 0 and timeline_m2_onehot.max() == 1, "timeline_m2_onehot has non-binary values!"
+
     # Dynamically determine the observation dimension after encoding
     obs_dim_m1 = timeline_m1_onehot.shape[1]
     obs_dim_m2 = timeline_m2_onehot.shape[1]
