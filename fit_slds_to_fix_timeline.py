@@ -7,7 +7,10 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
 from sklearn.preprocessing import OneHotEncoder
+import random
 import ssm  # Import Switching State-Space Models
+from hpc_slds_fitter import HPCSLDSFitter
+import pickle
 
 import pdb
 
@@ -24,30 +27,48 @@ logger = logging.getLogger(__name__)
 # ** Initiation and Main **
 
 def _initialize_params():
+    """
+    Initializes parameters and adds root and processed data directories.
+    """
     logger.info("Initializing parameters")
+    
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'slds_results_out_path': 'slds_results'
+        'test_single_task': False  # Set to True to test a single random task
     }
+    
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
+
+    # Define processed data directory
+    processed_data_dir = params['processed_data_dir']
+    
+    # Set SLDS results directory
+    params['slds_results_dir'] = os.path.join(processed_data_dir, params['slds_results_out_path'])
+    os.makedirs(params['slds_results_dir'], exist_ok=True)
+
+    # Path to the fixation timeline dataframe
+    params['fixation_timeline_df_path'] = os.path.join(processed_data_dir, "fixation_timeline_df.pkl")
+
     logger.info("Parameters initialized successfully")
     return params
 
 
-
 def main():
+    """
+    Main function to load data, generate fixation timeline, and submit SLDS fitting jobs.
+    """
     logger.info("Starting the script")
     params = _initialize_params()
-
-    num_cpus, threads_per_cpu = get_slurm_cpus_and_threads()
 
     processed_data_dir = params['processed_data_dir']
     os.makedirs(processed_data_dir, exist_ok=True)  # Ensure the directory exists
 
+    # Define paths
     eye_mvm_behav_df_file_path = os.path.join(processed_data_dir, 'eye_mvm_behav_df.pkl')
     monkeys_per_session_dict_file_path = os.path.join(processed_data_dir, 'ephys_days_and_monkeys.pkl')
+    fixation_timeline_path = params['fixation_timeline_df_path']  # Now stored in params
 
     logger.info("Loading data files")
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
@@ -57,16 +78,18 @@ def main():
     # Merge monkey names into behavioral data
     eye_mvm_behav_df = eye_mvm_behav_df.merge(monkeys_per_session_df, on="session_name", how="left")
 
-    # Generate fixation timeline
-    fixation_timeline_df = generate_fixation_timeline(eye_mvm_behav_df)
-    fixation_timeline_df.to_pickle(os.path.join(processed_data_dir, 'fixation_timeline.pkl'))
+    # Generate fixation timeline if not already saved
+    if not os.path.exists(fixation_timeline_path):
+        logger.info("Generating fixation timeline")
+        fixation_timeline_df = generate_fixation_timeline(eye_mvm_behav_df)
+        fixation_timeline_df.to_pickle(fixation_timeline_path)
+    else:
+        logger.info("Loading existing fixation timeline")
+        fixation_timeline_df = pd.read_pickle(fixation_timeline_path)
 
-    # Fit SLDS models for all cases
-    fixation_timeline_slds_results_df = generate_slds_models(fixation_timeline_df)
-    fixation_timeline_slds_results_df = fixation_timeline_slds_results_df.merge(monkeys_per_session_df, on="session_name", how="left")
+    # Submit SLDS fitting jobs
+    generate_slds_models(fixation_timeline_df, params)
 
-    # Save results
-    fixation_timeline_slds_results_df.to_pickle(os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl'))
 
     pdb.set_trace()
     logger.info("SLDS model fitting complete. Results saved.")
@@ -140,24 +163,41 @@ def categorize_fixations(fix_locations):
 
 
 
-def generate_slds_models(fixation_timeline_df):
+def generate_slds_models(fixation_timeline_df, params):
     """
-    Fit SLDS models for m1, m2, and joint cases for all session-run combinations.
-    Uses tqdm for progress tracking.
-    Returns a dataframe with ELBO, AIC, BIC, and latent states.
-    """
-    logger.info("Fitting SLDS models for all sessions and runs")
+    Submits SLDS fitting tasks to the HPC using job arrays.
     
-    tqdm.pandas()
-    grouped_results = fixation_timeline_df.groupby(["session_name", "interaction_type", "run_number"]) \
-                                          .progress_apply(fit_slds_to_timeline_pair)
+    If `params['test_single_task']` is True, runs a single random task instead of all.
+    """
+    logger.info("Preparing SLDS fitting tasks.")
 
-    logger.info("SLDS fitting complete. Converting results to dataframe.")
+    # Group data by session, interaction type, and run
+    grouped = fixation_timeline_df.groupby(["session_name", "interaction_type", "run_number"])
+
+    # Generate task keys
+    task_keys = [f"{session},{interaction_type},{run}" for (session, interaction_type, run), _ in grouped]
+
+    # Option to run a single random task for testing
+    if params.get("test_single_task", False):
+        task_keys = [random.choice(task_keys)]
+        logger.info(f"Running a single test task: {task_keys[0]}")
+
+    logger.info(f"Generated {len(task_keys)} SLDS tasks.")
+
+    # Initialize HPC job submission class
+    hpc_fitter = HPCSLDSFitter(params)
     
-    # Convert results to a DataFrame and reset index to retain group identifiers
-    slds_results_df = pd.DataFrame(grouped_results.tolist(), index=grouped_results.index).reset_index()
-    
-    return slds_results_df
+    # Save params to be used by individual job scripts
+    params_file_path = os.path.join(params['processed_data_dir'], "params.pkl")
+    with open(params_file_path, 'wb') as f:
+        pickle.dump(params, f)
+
+    # Generate and submit job file
+    job_file_path = hpc_fitter.generate_job_file(task_keys, params_file_path)
+    hpc_fitter.submit_job_array(job_file_path)
+
+    logger.info("SLDS jobs submitted successfully.")
+
 
 def fit_slds_to_timeline_pair(df):
     """

@@ -19,20 +19,17 @@ class HPCSLDSFitter:
         self.job_script_out_dir = './job_scripts/'
         self.python_script_path = 'run_single_slds_fitting_task.py'  # New Python script for SLDS fitting
 
-    def generate_job_file(self, fixation_timeline_df, params_file_path):
+    def generate_job_file(self, task_keys, params_file_path):
         """
-        Generates a job file for submitting array jobs, where each task processes one session-run group.
+        Generates a job file for submitting array jobs using the provided task keys.
         """
         job_file_path = os.path.join(self.job_script_out_dir, 'slds_joblist.txt')
         os.makedirs(self.job_script_out_dir, exist_ok=True)
 
         env_name = 'gaze_otnal' if self.params['is_grace'] else 'gaze_processing'
 
-        grouped = fixation_timeline_df.groupby(["session_name", "interaction_type", "run_number"])
-        
         with open(job_file_path, 'w') as file:
-            for (session, interaction_type, run), _ in grouped:
-                task_key = f"{session},{interaction_type},{run}"
+            for task_key in task_keys:
                 command = (
                     f"module load miniconda; "
                     f"conda activate {env_name}; "
@@ -40,7 +37,7 @@ class HPCSLDSFitter:
                 )
                 file.write(command + "\n")
 
-        logger.info("Generated SLDS job file at %s", job_file_path)
+        logger.info(f"Generated SLDS job file with {len(task_keys)} tasks at {job_file_path}.")
         return job_file_path
 
     def submit_job_array(self, job_file_path):
