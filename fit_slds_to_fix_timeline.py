@@ -11,6 +11,7 @@ import random
 import ssm  # Import Switching State-Space Models
 from hpc_slds_fitter import HPCSLDSFitter
 import pickle
+import glob
 
 import pdb
 
@@ -35,7 +36,8 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'test_single_task': False  # Set to True to test a single random task
+        'remake_fixation_timeline': True,
+        'test_single_task': True  # Set to True to test a single random task
     }
     
     params = curate_data.add_root_data_to_params(params)
@@ -45,7 +47,7 @@ def _initialize_params():
     processed_data_dir = params['processed_data_dir']
     
     # Set SLDS results directory
-    params['slds_results_dir'] = os.path.join(processed_data_dir, params['slds_results_out_path'])
+    params['slds_results_dir'] = os.path.join(processed_data_dir, 'slds_results')
     os.makedirs(params['slds_results_dir'], exist_ok=True)
 
     # Path to the fixation timeline dataframe
@@ -79,7 +81,7 @@ def main():
     eye_mvm_behav_df = eye_mvm_behav_df.merge(monkeys_per_session_df, on="session_name", how="left")
 
     # Generate fixation timeline if not already saved
-    if not os.path.exists(fixation_timeline_path):
+    if params.get('remake_fixation_timeline', False):
         logger.info("Generating fixation timeline")
         fixation_timeline_df = generate_fixation_timeline(eye_mvm_behav_df)
         fixation_timeline_df.to_pickle(fixation_timeline_path)
@@ -87,12 +89,19 @@ def main():
         logger.info("Loading existing fixation timeline")
         fixation_timeline_df = pd.read_pickle(fixation_timeline_path)
 
-    # Submit SLDS fitting jobs
-    generate_slds_models(fixation_timeline_df, params)
+    # Submit SLDS fitting jobs and retrieve results
+    fixation_timeline_slds_results_df = generate_slds_models(fixation_timeline_df, params)
 
+    # Merge SLDS results with monkey session data
+    if not fixation_timeline_slds_results_df.empty:
+        fixation_timeline_slds_results_df = fixation_timeline_slds_results_df.merge(
+            monkeys_per_session_df, on="session_name", how="left"
+        )
 
-    pdb.set_trace()
-    logger.info("SLDS model fitting complete. Results saved.")
+    # Save results
+    final_output_path = os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl')
+    fixation_timeline_slds_results_df.to_pickle(final_output_path)
+    logger.info(f"Saved final SLDS results to {final_output_path}")
 
 
 
@@ -165,9 +174,13 @@ def categorize_fixations(fix_locations):
 
 def generate_slds_models(fixation_timeline_df, params):
     """
-    Submits SLDS fitting tasks to the HPC using job arrays.
+    Submits SLDS fitting tasks to the HPC using job arrays, waits for completion, 
+    and then loads and concatenates the results into a single DataFrame.
     
     If `params['test_single_task']` is True, runs a single random task instead of all.
+    
+    Returns:
+        pd.DataFrame: A DataFrame containing all SLDS fitting results.
     """
     logger.info("Preparing SLDS fitting tasks.")
 
@@ -196,7 +209,40 @@ def generate_slds_models(fixation_timeline_df, params):
     job_file_path = hpc_fitter.generate_job_file(task_keys, params_file_path)
     hpc_fitter.submit_job_array(job_file_path)
 
-    logger.info("SLDS jobs submitted successfully.")
+    # Wait for jobs to complete and collect results
+    logger.info("Collecting SLDS results.")
+    results_dir = params["slds_results_dir"]
+    result_files = glob.glob(os.path.join(results_dir, "slds_*.pkl"))
+
+    results_list = []
+    for file in result_files:
+        try:
+            with open(file, "rb") as f:
+                result = pickle.load(f)
+                # Extract session details from the filename
+                filename = os.path.basename(file)
+                parts = filename.replace("slds_", "").replace(".pkl", "").split("_")
+                session_name, interaction_type, run_number = parts[0], parts[1], int(parts[2])
+                
+                # Add grouping columns
+                result["session_name"] = session_name
+                result["interaction_type"] = interaction_type
+                result["run_number"] = run_number
+
+                results_list.append(result)
+        except Exception as e:
+            logger.error(f"Error loading {file}: {e}")
+
+    if not results_list:
+        logger.warning("No SLDS results were found. Returning an empty DataFrame.")
+        return pd.DataFrame()
+
+    # Convert results into a DataFrame
+    slds_results_df = pd.DataFrame(results_list)
+
+    logger.info(f"Successfully loaded {len(slds_results_df)} SLDS results.")
+    
+    return slds_results_df
 
 
 def fit_slds_to_timeline_pair(df):

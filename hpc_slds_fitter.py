@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class HPCSLDSFitter:
     def __init__(self, params):
         self.params = params
-        self.job_script_out_dir = './job_scripts/'
+        self.job_script_out_dir = './job_scripts_slds/'
         self.python_script_path = 'run_single_slds_fitting_task.py'  # New Python script for SLDS fitting
 
     def generate_job_file(self, task_keys, params_file_path):
@@ -26,7 +26,7 @@ class HPCSLDSFitter:
         job_file_path = os.path.join(self.job_script_out_dir, 'slds_joblist.txt')
         os.makedirs(self.job_script_out_dir, exist_ok=True)
 
-        env_name = 'gaze_otnal' if self.params['is_grace'] else 'gaze_processing'
+        env_name = 'gaze_processing'
 
         with open(job_file_path, 'w') as file:
             for task_key in task_keys:
