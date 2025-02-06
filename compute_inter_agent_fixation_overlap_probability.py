@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
-from scipy.stats import ttest_rel, ranksums, normaltest
+from scipy.stats import ttest_rel, wilcoxon, shapiro
 import pingouin as pg
 
 import pdb
@@ -156,10 +156,18 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
                                             value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
                                             var_name="Probability Type", value_name="Probability")
 
-                # Perform t-test and Bayesian t-test
-                t_stat, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
-                bf = pg.bayesfactor_ttest(t_stat, cat_data.shape[0])
-                test_result_text = f"T-test p = {p_val_ttest:.4f}\nBF = {bf:.2f}"
+                shapiro_tests_m1_times_m2 = shapiro(cat_data["P(m1)*P(m2)"])[1]
+                shapiro_tests_m1_and_m2 = shapiro(cat_data["P(m1&m2)"])[1]
+                is_normal = (shapiro_tests_m1_times_m2 > 0.05) & (shapiro_tests_m1_and_m2 > 0.05)
+
+                if is_normal:
+                    # Perform t-test and Bayesian t-test
+                    t_stat, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                    bf = pg.bayesfactor_ttest(t_stat, cat_data.shape[0])
+                    test_result_text = f"T-test p = {p_val_ttest:.4f}\nBF = {bf:.2f}"
+                else:
+                    _, p_val_wilcoxon = wilcoxon(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                    test_result_text = f"Wilcoxon p = {p_val_wilcoxon:.4f}"
 
                 # Plot violin plots with test result annotations
                 sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[i], hue="Probability Type")

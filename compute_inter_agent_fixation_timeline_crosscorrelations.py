@@ -40,7 +40,7 @@ def _initialize_params():
         'is_grace': False,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': False,
-        'remake_crosscorr_plots': False,
+        'remake_crosscorr_plots': True,
         'remake_sig_crosscorr_plots': True
     }
     params = curate_data.add_root_data_to_params(params)
@@ -96,20 +96,20 @@ def main():
     if params.get('remake_crosscorr_plots', False):
         logger.info("Plotting cross-correlation timecourse averaged across sessions")
         plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                            group_by="session_name", plot_duration_seconds=90)
+                            group_by="session_name", plot_duration_seconds=60)
         logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
         plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                            group_by="monkey_pair", plot_duration_seconds=90)
+                            group_by="monkey_pair", plot_duration_seconds=60)
 
     if params.get('remake_sig_crosscorr_plots', False):
         logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
         plot_significant_fixation_crosscorr_minus_shuffled(
             inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-            params, group_by="session_name", plot_duration_seconds=90, alpha=0.05)
+            params, group_by="session_name", plot_duration_seconds=60, alpha=0.05)
         logger.info("Plotting significant cross-correlation timecourse averaged across monkey-pairs")
         plot_significant_fixation_crosscorr_minus_shuffled(
             inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-            params, group_by="monkey_pair", plot_duration_seconds=90, alpha=0.05)
+            params, group_by="monkey_pair", plot_duration_seconds=60, alpha=0.05)
         
         logger.info("Finished cross-correlation timecourse plot generation")
 
@@ -117,18 +117,13 @@ def main():
 
 # ** Sub-functions **
 
+
 ## Count available CPUs and threads
 def get_slurm_cpus_and_threads():
     """Returns the number of allocated CPUs and threads per CPU using psutil."""
     
     # Get number of CPUs allocated by SLURM
-    num_cpus = 1  # Default if not in a SLURM job
-    job_id = os.getenv("SLURM_JOB_ID")
-    if job_id:
-        result = subprocess.run(["scontrol", "show", "job", job_id], capture_output=True, text=True)
-        match = re.search(r"NumCPUs=(\d+)", result.stdout)
-        if match:
-            num_cpus = int(match.group(1))
+    num_cpus = os.getenv("SLURM_CPUS_PER_TASK")
 
     # Get total virtual CPUs (logical cores)
     total_logical_cpus = psutil.cpu_count(logical=True)
@@ -538,7 +533,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Iterate over groups (sessions or monkey pairs) for plotting
     for group_value, group_df in tqdm(stats_df.groupby("group_value"), desc=f"Plotting for {group_by}"):
-        fig, axes = plt.subplots(num_subplots, 1, figsize=(8, 3 * num_subplots), sharex=True)
+        fig, axes = plt.subplots(1, num_subplots, figsize=(4 * num_subplots, 5), sharex=True)
 
         if num_subplots == 1:
             axes = [axes]  # Ensure axes is iterable when there's only one fixation type
