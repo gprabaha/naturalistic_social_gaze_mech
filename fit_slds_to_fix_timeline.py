@@ -187,20 +187,22 @@ def fit_slds_to_timeline_pair(df):
     # One-hot encode fixation timelines
     timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
     timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
-
+    
     # Dynamically determine the observation dimension after encoding
     obs_dim_m1 = timeline_m1_onehot.shape[1]
     obs_dim_m2 = timeline_m2_onehot.shape[1]
-
+    pdb.set_trace()
     # Fit SLDS for m1
-    slds_m1 = ssm.SLDS(num_states, latent_dim, obs_dim_m1, emissions="bernoulli", transitions="recurrent_only")
-    slds_m1.initialize([timeline_m1_onehot])
+    slds_m1 = ssm.SLDS(obs_dim_m1, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+    slds_m1.inputs = None
+    slds_m1.initialize([timeline_m1_onehot], inputs=None)
     q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
     elbo_m1 = q_elbos_m1[-1]  # NO NORMALIZATION
-
+    pdb.set_trace()
     # Fit SLDS for m2
-    slds_m2 = ssm.SLDS(num_states, latent_dim, obs_dim_m2, emissions="bernoulli", transitions="recurrent_only")
-    slds_m2.initialize([timeline_m2_onehot])
+    slds_m2 = ssm.SLDS(obs_dim_m2, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+    slds_m2.inputs = None
+    slds_m2.initialize([timeline_m2_onehot], inputs=None)
     q_elbos_m2, _ = slds_m2.fit([timeline_m2_onehot], num_iters=50)
     elbo_m2 = q_elbos_m2[-1]  # NO NORMALIZATION
 
@@ -208,8 +210,9 @@ def fit_slds_to_timeline_pair(df):
     timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))  # Shape (T, obs_dim_m1 + obs_dim_m2)
     obs_dim_joint = timeline_joint_onehot.shape[1]
 
-    slds_joint = ssm.SLDS(num_states, latent_dim, obs_dim_joint, emissions="bernoulli", transitions="recurrent_only")
-    slds_joint.initialize([timeline_joint_onehot])
+    slds_joint = ssm.SLDS(obs_dim_joint, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+    slds_joint.inputs = None
+    slds_joint.initialize([timeline_joint_onehot], inputs=None)
     q_elbos_joint, _ = slds_joint.fit([timeline_joint_onehot], num_iters=50)
     elbo_joint = q_elbos_joint[-1]  # NO NORMALIZATION
 
