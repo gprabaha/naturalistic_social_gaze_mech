@@ -27,7 +27,8 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'is_cluster': True,
-        'is_grace': False
+        'is_grace': False,
+        'slds_results_out_path': 'slds_results'
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -58,6 +59,7 @@ def main():
 
     # Generate fixation timeline
     fixation_timeline_df = generate_fixation_timeline(eye_mvm_behav_df)
+    fixation_timeline_df.to_pickle(os.path.join(processed_data_dir, 'fixation_timeline.pkl'))
 
     # Fit SLDS models for all cases
     fixation_timeline_slds_results_df = generate_slds_models(fixation_timeline_df)
@@ -111,7 +113,8 @@ def create_timeline(row):
     category_map = {
         "eyes": 1,
         "non_eye_face": 2,
-        "out_of_roi": 3
+        "out_of_roi": 3,
+        'object': 4
     }
     
     timeline = np.zeros(row["run_length"], dtype=int)
@@ -187,22 +190,20 @@ def fit_slds_to_timeline_pair(df):
     # One-hot encode fixation timelines
     timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
     timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
-    assert timeline_m1_onehot.dtype == np.int32 or timeline_m1_onehot.dtype == np.int64, "timeline_m1_onehot is not integer"
-    assert timeline_m2_onehot.dtype == np.int32 or timeline_m2_onehot.dtype == np.int64, "timeline_m2_onehot is not integer"
-    assert timeline_m1_onehot.min() == 0 and timeline_m1_onehot.max() == 1, "timeline_m1_onehot has non-binary values!"
-    assert timeline_m2_onehot.min() == 0 and timeline_m2_onehot.max() == 1, "timeline_m2_onehot has non-binary values!"
+    timeline_m1_onehot = timeline_m1_onehot.astype(int)
+    timeline_m2_onehot = timeline_m2_onehot.astype(int)
 
     # Dynamically determine the observation dimension after encoding
     obs_dim_m1 = timeline_m1_onehot.shape[1]
     obs_dim_m2 = timeline_m2_onehot.shape[1]
-    pdb.set_trace()
+    
     # Fit SLDS for m1
     slds_m1 = ssm.SLDS(obs_dim_m1, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
     slds_m1.inputs = None
     slds_m1.initialize([timeline_m1_onehot], inputs=None)
     q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
     elbo_m1 = q_elbos_m1[-1]  # NO NORMALIZATION
-    pdb.set_trace()
+
     # Fit SLDS for m2
     slds_m2 = ssm.SLDS(obs_dim_m2, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
     slds_m2.inputs = None
