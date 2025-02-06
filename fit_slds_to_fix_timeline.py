@@ -9,6 +9,7 @@ from tqdm import tqdm
 from sklearn.preprocessing import OneHotEncoder
 import random
 import ssm  # Import Switching State-Space Models
+from ssm.util import find_permutation
 from hpc_slds_fitter import HPCSLDSFitter
 import pickle
 import glob
@@ -351,7 +352,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=50):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     
@@ -361,36 +362,58 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         label (str): Identifier for logging.
         num_states (int): Number of discrete latent states.
         latent_dim (int): Number of continuous latent dimensions.
+        num_iters (int): Number of iterations for fitting.
 
     Returns:
-        dict: Contains ELBO, Latent states, Smoothed Latents, Transition Matrices, and Emission Parameters.
+        dict: Contains ELBO, Smoothed Latents, Most Likely Discrete States, Transition Matrices, and Emission Parameters.
     """
     try:
-        logger.info(f"Fitting SLDS model for {label}.")
-        slds = ssm.SLDS(obs_dim, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-        slds.inputs = None
+        logger.info(f"Fitting SLDS model for {label} with obs_dim={obs_dim}, num_states={num_states}, latent_dim={latent_dim}")
+
+        # Initialize the SLDS model
+        slds = ssm.SLDS(
+            obs_dim=obs_dim,
+            num_states=num_states,
+            latent_dim=latent_dim,
+            emissions="bernoulli",
+            transitions="recurrent_only"
+        )
         slds.initialize([onehot_data], inputs=None)
-        q_elbos, _ = slds.fit([onehot_data], num_iters=5)
+
+        logger.info(f"Starting SLDS fitting for {label}. Data shape: {onehot_data.shape}")
+
+        # Fit the SLDS using BBVI and mean-field variational inference
+        q_elbos, q_mf = slds.fit(
+            [onehot_data], method="bbvi",
+            variational_posterior="mf",
+            initialize=False, num_iters=num_iters
+        )
+
         elbo = q_elbos[-1]
+        logger.info(f"SLDS fitting completed for {label}. Final ELBO: {elbo:.2f}")
 
-        # Compute variational posterior (returns ELBOs and posterior object)
-        _, posterior = slds.approximate_posterior([onehot_data])  # Compute posterior
-        variational_mean = posterior.mean[0]  # Extract variational mean
+        # Extract smoothed latent variables
+        smoothed_latents = q_mf.mean[0]
+        logger.info(f"Extracted smoothed latent states for {label}. Shape: {smoothed_latents.shape}")
 
-        # Now, call smooth using the correct variational mean
-        smoothed_latents = slds.smooth(variational_mean, onehot_data)
+        # Extract most likely discrete latent states
+        latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
+        logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
 
-        # Call most_likely_states with correct arguments
-        latent_states = slds.most_likely_states(variational_mean, onehot_data)
+        # Align discrete states using permutation if needed
+        slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
 
         # Extract learned parameters
         transition_matrices = slds.transitions.transition_matrices_
         emission_params = slds.emissions.parameters
 
+        logger.info(f"Extracted transition matrices for {label}. Shape: {transition_matrices.shape}")
+        logger.info(f"Extracted emission parameters for {label}. Type: {type(emission_params)}")
+
         return {
             "ELBO": elbo,
-            "Latent_States": latent_states,
             "Smoothed_Latents": smoothed_latents,
+            "Latent_States": latent_states,
             "Transition_Matrices": transition_matrices,
             "Emission_Parameters": emission_params
         }
@@ -399,12 +422,11 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         logger.error(f"Error fitting SLDS for {label}: {e}", exc_info=True)
         return {
             "ELBO": -np.inf,
-            "Latent_States": [],
             "Smoothed_Latents": [],
+            "Latent_States": [],
             "Transition_Matrices": None,
             "Emission_Parameters": None
         }
-
 
 
 
