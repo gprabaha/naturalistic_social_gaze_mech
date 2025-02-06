@@ -65,9 +65,8 @@ def main():
     # Save results
     fixation_timeline_slds_results_df.to_pickle(os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl'))
 
-    logger.info("SLDS model fitting complete. Results saved.")
-
     pdb.set_trace()
+    logger.info("SLDS model fitting complete. Results saved.")
 
 
 
@@ -183,20 +182,23 @@ def fit_slds_to_timeline_pair(df):
     latent_dim = 1
 
     # Fit SLDS for m1
-    slds_m1 = ssm.SLDS(num_states, latent_dim, obs_dim=1, emissions="gaussian", transitions="recurrent_only")
+    obs_dim = 1
+    slds_m1 = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
     slds_m1.initialize([timeline_m1])
     q_elbos_m1, _ = slds_m1.fit([timeline_m1], num_iters=50)
     elbo_m1 = q_elbos_m1[-1]  # NO NORMALIZATION
 
     # Fit SLDS for m2
-    slds_m2 = ssm.SLDS(num_states, latent_dim, obs_dim=1, emissions="gaussian", transitions="recurrent_only")
+    obs_dim = 1
+    slds_m2 = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
     slds_m2.initialize([timeline_m2])
     q_elbos_m2, _ = slds_m2.fit([timeline_m2], num_iters=50)
     elbo_m2 = q_elbos_m2[-1]  # NO NORMALIZATION
 
     # Fit SLDS jointly (obs_dim = 2)
+    obs_dim = 2
     timeline_joint = np.hstack((timeline_m1, timeline_m2))  # Shape (T, 2)
-    slds_joint = ssm.SLDS(num_states, latent_dim, obs_dim=2, emissions="gaussian", transitions="recurrent_only")
+    slds_joint = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
     slds_joint.initialize([timeline_joint])
     q_elbos_joint, _ = slds_joint.fit([timeline_joint], num_iters=50)
     elbo_joint = q_elbos_joint[-1]  # NO NORMALIZATION
