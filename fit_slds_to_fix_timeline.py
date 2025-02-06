@@ -37,6 +37,8 @@ def main():
     logger.info("Starting the script")
     params = _initialize_params()
 
+    num_cpus, threads_per_cpu = get_slurm_cpus_and_threads()
+
     processed_data_dir = params['processed_data_dir']
     os.makedirs(processed_data_dir, exist_ok=True)  # Ensure the directory exists
 
@@ -57,7 +59,6 @@ def main():
     # Save results
     fixation_timeline_df.to_pickle(os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl'))
     
-    num_cpus, threads_per_cpu = get_slurm_cpus_and_threads()
     pdb.set_trace()
 
 
@@ -152,10 +153,11 @@ def fit_slds_to_timeline(row):
         return np.zeros_like(timeline)  # No transitions if only one state is present
     
     num_states = 3  # Three fixation states (eyes, non_eye_face, out_of_roi)
-    obs_dim = 1  # Observed dimension is just the timeline sequence
+    obs_dim = 1  # Observed dimension (timeline sequence)
+    latent_dim = 1  # Dimensionality of latent dynamics
     
-    # Define SLDS model
-    slds = ssm.SLDS(num_states, obs_dim, transitions="recurrent_only")
+    # Define SLDS model with correct parameters
+    slds = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="gaussian", transitions="recurrent_only")
     
     # Fit SLDS model
     slds.initialize(timeline.reshape(-1, 1))
