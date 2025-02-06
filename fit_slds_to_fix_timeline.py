@@ -103,6 +103,7 @@ def main():
     # Save results
     final_output_path = os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl')
     fixation_timeline_slds_results_df.to_pickle(final_output_path)
+    pdb.set_trace()
     logger.info(f"Saved final SLDS results to {final_output_path}")
 
 
@@ -287,28 +288,34 @@ def fit_slds_to_timeline_pair(df):
             "interaction_type": interaction_type,
             "run_number": run_number,
 
-            # Corrected SLDS results
+            # Corrected SLDS results for m1
             "ELBO_m1": elbo_m1,
             "AIC_m1": aic_m1,
             "BIC_m1": bic_m1,
             "Latent_States_m1": results[0]["Latent_States"],
+            "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],  # Added
             "Transition_Matrices_m1": results[0]["Transition_Matrices"],
             "Emission_Parameters_m1": results[0]["Emission_Parameters"],
 
+            # Corrected SLDS results for m2
             "ELBO_m2": elbo_m2,
             "AIC_m2": aic_m2,
             "BIC_m2": bic_m2,
             "Latent_States_m2": results[1]["Latent_States"],
+            "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],  # Added
             "Transition_Matrices_m2": results[1]["Transition_Matrices"],
             "Emission_Parameters_m2": results[1]["Emission_Parameters"],
 
+            # Corrected SLDS results for joint model
             "ELBO_joint": elbo_joint,
             "AIC_joint": aic_joint,
             "BIC_joint": bic_joint,
             "Latent_States_joint": results[2]["Latent_States"],
+            "Smoothed_Latents_joint": results[2]["Smoothed_Latents"],  # Added
             "Transition_Matrices_joint": results[2]["Transition_Matrices"],
             "Emission_Parameters_joint": results[2]["Emission_Parameters"],
         }
+
 
     except Exception as e:
         logger.error(f"Error during SLDS fitting: {e}", exc_info=True)
@@ -356,18 +363,22 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         latent_dim (int): Number of continuous latent dimensions.
 
     Returns:
-        dict: Contains ELBO, Latent states, Transition matrices, and Emission parameters.
+        dict: Contains ELBO, Latent states, Smoothed Latents, Transition Matrices, and Emission Parameters.
     """
     try:
         logger.info(f"Fitting SLDS model for {label}.")
         slds = ssm.SLDS(obs_dim, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
         slds.inputs = None
         slds.initialize([onehot_data], inputs=None)
-        q_elbos, _ = slds.fit([onehot_data], num_iters=50)
+        q_elbos, _ = slds.fit([onehot_data], num_iters=5)
         elbo = q_elbos[-1]
 
-        # Compute variational mean using the smoothed posterior
-        variational_mean = slds.smooth(onehot_data)  # This step is REQUIRED
+        # Compute variational posterior (returns ELBOs and posterior object)
+        _, posterior = slds.approximate_posterior([onehot_data])  # Compute posterior
+        variational_mean = posterior.mean[0]  # Extract variational mean
+
+        # Now, call smooth using the correct variational mean
+        smoothed_latents = slds.smooth(variational_mean, onehot_data)
 
         # Call most_likely_states with correct arguments
         latent_states = slds.most_likely_states(variational_mean, onehot_data)
@@ -379,6 +390,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         return {
             "ELBO": elbo,
             "Latent_States": latent_states,
+            "Smoothed_Latents": smoothed_latents,
             "Transition_Matrices": transition_matrices,
             "Emission_Parameters": emission_params
         }
@@ -388,9 +400,11 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
         return {
             "ELBO": -np.inf,
             "Latent_States": [],
+            "Smoothed_Latents": [],
             "Transition_Matrices": None,
             "Emission_Parameters": None
         }
+
 
 
 
