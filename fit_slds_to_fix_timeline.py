@@ -13,6 +13,7 @@ from hpc_slds_fitter import HPCSLDSFitter
 import pickle
 import glob
 import warnings
+from joblib import Parallel, delayed
 
 import pdb
 
@@ -260,8 +261,11 @@ def fit_slds_to_timeline_pair(df):
         dict: A dictionary with ELBOs, AIC, BIC, and inferred latent states.
     """
     try:
+        session_name = df["session_name"].iloc[0]
+        interaction_type = df["interaction_type"].iloc[0]
+        run_number = df["run_number"].iloc[0]
         logger.info("Starting SLDS fitting for session: %s, interaction_type: %s, run: %s",
-                    df["session_name"].iloc[0], df["interaction_type"].iloc[0], df["run_number"].iloc[0])
+                    session_name, interaction_type, run_number)
 
         timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
         timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
@@ -289,32 +293,18 @@ def fit_slds_to_timeline_pair(df):
         obs_dim_m1 = timeline_m1_onehot.shape[1]
         obs_dim_m2 = timeline_m2_onehot.shape[1]
 
-        # Fit SLDS for m1
-        logger.info("Fitting SLDS model for m1.")
-        slds_m1 = ssm.SLDS(obs_dim_m1, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-        slds_m1.inputs = None
-        slds_m1.initialize([timeline_m1_onehot], inputs=None)
-        q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
-        elbo_m1 = q_elbos_m1[-1]
-
-        # Fit SLDS for m2
-        logger.info("Fitting SLDS model for m2.")
-        slds_m2 = ssm.SLDS(obs_dim_m2, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-        slds_m2.inputs = None
-        slds_m2.initialize([timeline_m2_onehot], inputs=None)
-        q_elbos_m2, _ = slds_m2.fit([timeline_m2_onehot], num_iters=50)
-        elbo_m2 = q_elbos_m2[-1]
-
-        # Fit SLDS jointly
+        # Prepare joint data
         timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
         obs_dim_joint = timeline_joint_onehot.shape[1]
-        logger.info("Fitting joint SLDS model with observation dimension: %d", obs_dim_joint)
 
-        slds_joint = ssm.SLDS(obs_dim_joint, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
-        slds_joint.inputs = None
-        slds_joint.initialize([timeline_joint_onehot], inputs=None)
-        q_elbos_joint, _ = slds_joint.fit([timeline_joint_onehot], num_iters=50)
-        elbo_joint = q_elbos_joint[-1]
+        # Fit SLDS for m1, m2, and joint in parallel
+        results = Parallel(n_jobs=3)(
+            delayed(fit_slds)(obs_dim_m1, timeline_m1_onehot, "m1"),
+            delayed(fit_slds)(obs_dim_m2, timeline_m2_onehot, "m2"),
+            delayed(fit_slds)(obs_dim_joint, timeline_joint_onehot, "joint")
+        )
+
+        (elbo_m1, latent_m1), (elbo_m2, latent_m2), (elbo_joint, latent_joint) = results
 
         # Compute model parameters
         K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)
@@ -336,11 +326,11 @@ def fit_slds_to_timeline_pair(df):
             "BIC_m1": bic_m1,
             "BIC_m2": bic_m2,
             "BIC_joint": bic_joint,
-            "Latent_m1": slds_m1.most_likely_states([timeline_m1_onehot]),
-            "Latent_m2": slds_m2.most_likely_states([timeline_m2_onehot]),
-            "Latent_joint": slds_joint.most_likely_states([timeline_joint_onehot]),
+            "Latent_m1": latent_m1,
+            "Latent_m2": latent_m2,
+            "Latent_joint": latent_joint,
         }
-    
+
     except Exception as e:
         logger.error("Error during SLDS fitting: %s", e, exc_info=True)
         return {}
@@ -373,6 +363,34 @@ def one_hot_encode_timeline(timeline):
     except Exception as e:
         logger.error("Error during one-hot encoding: %s", e, exc_info=True)
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
+
+
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1):
+    """
+    Fit an SLDS model for a given observation dimension and one-hot encoded data.
+    
+    Args:
+        obs_dim (int): Observation dimension.
+        onehot_data (np.ndarray): One-hot encoded input data.
+        label (str): Identifier for logging.
+        num_states (int): Number of discrete latent states.
+        latent_dim (int): Number of continuous latent dimensions.
+
+    Returns:
+        tuple: (ELBO, Latent states)
+    """
+    try:
+        logger.info(f"Fitting SLDS model for {label}.")
+        slds = ssm.SLDS(obs_dim, num_states, latent_dim, emissions="bernoulli", transitions="recurrent_only")
+        slds.inputs = None
+        slds.initialize([onehot_data], inputs=None)
+        q_elbos, _ = slds.fit([onehot_data], num_iters=50)
+        elbo = q_elbos[-1]
+        latent_states = slds.most_likely_states([onehot_data])
+        return elbo, latent_states
+    except Exception as e:
+        logger.error(f"Error fitting SLDS for {label}: {e}", exc_info=True)
+        return -np.inf, []
 
 
 def compute_aic_bic(elbo, T, K):
