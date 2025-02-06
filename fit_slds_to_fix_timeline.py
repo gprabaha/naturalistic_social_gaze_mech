@@ -6,6 +6,7 @@ import logging
 import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
+from sklearn.preprocessing import OneHotEncoder
 import ssm  # Import Switching State-Space Models
 
 import pdb
@@ -158,7 +159,8 @@ def generate_slds_models(fixation_timeline_df):
 def fit_slds_to_timeline_pair(df):
     """
     Fit an SLDS model separately for each agent (m1, m2) and jointly for both.
-    Compare ELBOs, compute AIC and BIC.
+    One-hot encodes categorical data before fitting.
+    Computes ELBOs, AIC, and BIC.
     
     Args:
         df (pd.DataFrame): A dataframe containing fixation timelines for both agents
@@ -169,9 +171,10 @@ def fit_slds_to_timeline_pair(df):
     """
     timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
     timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
-    
+
     T = timeline_m1.shape[0]  # Number of time points
 
+    # Check if the timeline contains only one unique state or NaN values
     if len(np.unique(timeline_m1)) < 2 or np.isnan(timeline_m1).any():
         return {"ELBO_m1": -np.inf, "ELBO_m2": -np.inf, "ELBO_joint": -np.inf}
 
@@ -181,31 +184,38 @@ def fit_slds_to_timeline_pair(df):
     num_states = 2
     latent_dim = 1
 
+    # One-hot encode fixation timelines
+    timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
+    timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
+
+    # Dynamically determine the observation dimension after encoding
+    obs_dim_m1 = timeline_m1_onehot.shape[1]
+    obs_dim_m2 = timeline_m2_onehot.shape[1]
+
     # Fit SLDS for m1
-    obs_dim = 1
-    slds_m1 = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
-    slds_m1.initialize([timeline_m1])
-    q_elbos_m1, _ = slds_m1.fit([timeline_m1], num_iters=50)
+    slds_m1 = ssm.SLDS(num_states, latent_dim, obs_dim_m1, emissions="bernoulli", transitions="recurrent_only")
+    slds_m1.initialize([timeline_m1_onehot])
+    q_elbos_m1, _ = slds_m1.fit([timeline_m1_onehot], num_iters=50)
     elbo_m1 = q_elbos_m1[-1]  # NO NORMALIZATION
 
     # Fit SLDS for m2
-    obs_dim = 1
-    slds_m2 = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
-    slds_m2.initialize([timeline_m2])
-    q_elbos_m2, _ = slds_m2.fit([timeline_m2], num_iters=50)
+    slds_m2 = ssm.SLDS(num_states, latent_dim, obs_dim_m2, emissions="bernoulli", transitions="recurrent_only")
+    slds_m2.initialize([timeline_m2_onehot])
+    q_elbos_m2, _ = slds_m2.fit([timeline_m2_onehot], num_iters=50)
     elbo_m2 = q_elbos_m2[-1]  # NO NORMALIZATION
 
-    # Fit SLDS jointly (obs_dim = 2)
-    obs_dim = 2
-    timeline_joint = np.hstack((timeline_m1, timeline_m2))  # Shape (T, 2)
-    slds_joint = ssm.SLDS(num_states, latent_dim, obs_dim, emissions="categorical", transitions="recurrent_only")
-    slds_joint.initialize([timeline_joint])
-    q_elbos_joint, _ = slds_joint.fit([timeline_joint], num_iters=50)
+    # Fit SLDS jointly (obs_dim = sum of both one-hot encoded dimensions)
+    timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))  # Shape (T, obs_dim_m1 + obs_dim_m2)
+    obs_dim_joint = timeline_joint_onehot.shape[1]
+
+    slds_joint = ssm.SLDS(num_states, latent_dim, obs_dim_joint, emissions="bernoulli", transitions="recurrent_only")
+    slds_joint.initialize([timeline_joint_onehot])
+    q_elbos_joint, _ = slds_joint.fit([timeline_joint_onehot], num_iters=50)
     elbo_joint = q_elbos_joint[-1]  # NO NORMALIZATION
 
-    # Compute AIC and BIC
-    K_individual = num_states * latent_dim  # Parameters for single-agent model
-    K_joint = num_states * latent_dim * 2  # Parameters for joint model
+    # Compute number of model parameters correctly
+    K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
+    K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
 
     aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
     aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
@@ -221,10 +231,25 @@ def fit_slds_to_timeline_pair(df):
         "BIC_m1": bic_m1,
         "BIC_m2": bic_m2,
         "BIC_joint": bic_joint,
-        "Latent_m1": slds_m1.most_likely_states([timeline_m1]),
-        "Latent_m2": slds_m2.most_likely_states([timeline_m2]),
-        "Latent_joint": slds_joint.most_likely_states([timeline_joint]),
+        "Latent_m1": slds_m1.most_likely_states([timeline_m1_onehot]),
+        "Latent_m2": slds_m2.most_likely_states([timeline_m2_onehot]),
+        "Latent_joint": slds_joint.most_likely_states([timeline_joint_onehot]),
     }
+
+def one_hot_encode_timeline(timeline):
+    """
+    Convert categorical timeline into a one-hot encoded matrix.
+    Handles cases where some categories might be missing in the sequence.
+    
+    Args:
+        timeline (np.ndarray): A 1D array of categorical observations.
+
+    Returns:
+        np.ndarray: One-hot encoded matrix of shape (T, num_categories).
+    """
+    num_categories = len(np.unique(timeline))  # Count unique categories in the data
+    encoder = OneHotEncoder(sparse=False, categories=[list(range(num_categories))])
+    return encoder.fit_transform(timeline.reshape(-1, 1))  # One-hot encode timeline
 
 def compute_aic_bic(elbo, T, K):
     """
