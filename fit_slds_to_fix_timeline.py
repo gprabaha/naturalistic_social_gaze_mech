@@ -270,7 +270,7 @@ def fit_slds_to_timeline_pair(df, params):
 
         T = timeline_m1.shape[0]
         num_states = 2
-        latent_dim = 1
+        latent_dim = 2
 
         # One-hot encode fixation timelines
         timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
@@ -284,44 +284,59 @@ def fit_slds_to_timeline_pair(df, params):
         if params.get("run_locally", False):
             logger.info("Running SLDS fitting in serial mode.")
             results = [
-                fit_slds(obs_dim_m1, timeline_m1_onehot, "m1"),
-                fit_slds(obs_dim_m2, timeline_m2_onehot, "m2"),
-                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint")
+                fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim),
+                fit_slds(obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim),
+                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim)
             ]
         else:
             logger.info("Running SLDS fitting in parallel.")
             results = Parallel(n_jobs=3)(
                 delayed(fit_slds)(obs_dim, timeline, label)
                 for obs_dim, timeline, label in [
-                    (obs_dim_m1, timeline_m1_onehot, "m1"),
-                    (obs_dim_m2, timeline_m2_onehot, "m2"),
-                    (obs_dim_joint, timeline_joint_onehot, "joint")
+                    (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim)),
+                    (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim)),
+                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim))
                 ]
             )
+        # Extract ELBOs
+        elbo_m1, elbo_m2, elbo_joint = results[0]["ELBO"], results[1]["ELBO"], results[2]["ELBO"]
+
+        # Compute number of model parameters correctly
+        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
+        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
+
+        # Corrected AIC/BIC calculation
+        aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
+        aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
+        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)  # Joint model uses 2T
 
         return {
             "session_name": session_name,
             "interaction_type": interaction_type,
             "run_number": run_number,
 
-            "ELBO_m1": results[0]["ELBO"],
-            "AIC_m1": results[0]["AIC"],
-            "BIC_m1": results[0]["BIC"],
+            # Corrected SLDS results for m1
+            "ELBO_m1": elbo_m1,
+            "AIC_m1": aic_m1,
+            "BIC_m1": bic_m1,
             "Latent_States_m1": results[0]["Latent_States"],
             "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],
 
-            "ELBO_m2": results[1]["ELBO"],
-            "AIC_m2": results[1]["AIC"],
-            "BIC_m2": results[1]["BIC"],
+            # Corrected SLDS results for m2
+            "ELBO_m2": elbo_m2,
+            "AIC_m2": aic_m2,
+            "BIC_m2": bic_m2,
             "Latent_States_m2": results[1]["Latent_States"],
             "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],
 
-            "ELBO_joint": results[2]["ELBO"],
-            "AIC_joint": results[2]["AIC"],
-            "BIC_joint": results[2]["BIC"],
+            # Corrected SLDS results for joint model
+            "ELBO_joint": elbo_joint,
+            "AIC_joint": aic_joint,
+            "BIC_joint": bic_joint,
             "Latent_States_joint": results[2]["Latent_States"],
             "Smoothed_Latents_joint": results[2]["Smoothed_Latents"]
         }
+
     except Exception as e:
         logger.error(f"Error during SLDS fitting: {e}", exc_info=True)
         return {}
@@ -356,7 +371,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=5):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=25):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     
@@ -406,6 +421,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         
         # Align discrete states using permutation if needed
         slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
+        latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         
         return {
             "ELBO": elbo,
