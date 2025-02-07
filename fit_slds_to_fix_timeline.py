@@ -40,7 +40,7 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'remake_fixation_timeline': False,
-        'test_single_task': True  # Set to True to test a single random task
+        'test_single_task': False  # Set to True to test a single random task
     }
     
     params = curate_data.add_root_data_to_params(params)
@@ -346,7 +346,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=50):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=50):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     

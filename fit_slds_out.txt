@@ -1,0 +1,2 @@
+Batch script generated. To submit your jobs, run:
+ sbatch ./job_scripts_slds/dsq-joblist_slds.sh
