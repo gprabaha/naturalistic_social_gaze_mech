@@ -40,6 +40,7 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'remake_fixation_timeline': False,
+        'run_locally': True,
         'test_single_task': False  # Set to True to test a single random task
     }
     
@@ -178,8 +179,8 @@ def categorize_fixations(fix_locations):
 
 def generate_slds_models(fixation_timeline_df, params):
     """
-    Submits SLDS fitting tasks to the HPC using job arrays, waits for completion, 
-    and then loads and concatenates the results into a single DataFrame.
+    Submits SLDS fitting tasks to the HPC using job arrays or runs them locally in serial,
+    waits for completion, and then loads and concatenates the results into a single DataFrame.
 
     Returns:
         pd.DataFrame: A DataFrame containing all SLDS fitting results.
@@ -195,46 +196,64 @@ def generate_slds_models(fixation_timeline_df, params):
 
     logger.info(f"Generated {len(task_keys)} SLDS tasks.")
 
-    hpc_fitter = HPCSLDSFitter(params)
-    params_file_path = os.path.join(params['processed_data_dir'], "params.pkl")
-    with open(params_file_path, 'wb') as f:
-        pickle.dump(params, f)
-
-    job_file_path = hpc_fitter.generate_job_file(task_keys, params_file_path)
-    hpc_fitter.submit_job_array(job_file_path)
-
-    # Collect and process SLDS results
-    logger.info("Collecting SLDS results.")
-    results_dir = params["slds_results_dir"]
-    result_files = glob.glob(os.path.join(results_dir, "slds_*.pkl"))
-
-    results_list = []
-    for file in result_files:
-        try:
-            with open(file, "rb") as f:
-                result = pickle.load(f)
+    if params.get("run_locally", False):
+        logger.info("Running SLDS fitting tasks locally in serial mode.")
+        results_list = []
+        for task_key in tqdm(task_keys, desc="Processing SLDS tasks"):
+            session_name, interaction_type, run_number = task_key.split(',')
+            run_number = int(run_number)
+            group_df = fixation_timeline_df[
+                (fixation_timeline_df['session_name'] == session_name) &
+                (fixation_timeline_df['interaction_type'] == interaction_type) &
+                (fixation_timeline_df['run_number'] == run_number)
+            ]
+            try:
+                result = fit_slds_to_timeline_pair(group_df, params)
                 results_list.append(result)
-        except Exception as e:
-            logger.error(f"Error loading {file}: {e}")
+            except Exception as e:
+                logger.error(f"Error processing {task_key}: {e}")
+
+    else:
+        logger.info("Submitting SLDS fitting tasks to HPC.")
+        hpc_fitter = HPCSLDSFitter(params)
+        params_file_path = os.path.join(params['processed_data_dir'], "params.pkl")
+        with open(params_file_path, 'wb') as f:
+            pickle.dump(params, f)
+
+        job_file_path = hpc_fitter.generate_job_file(task_keys, params_file_path)
+        hpc_fitter.submit_job_array(job_file_path)
+
+        # Collect and process SLDS results
+        logger.info("Collecting SLDS results from HPC.")
+        results_dir = params["slds_results_dir"]
+        result_files = glob.glob(os.path.join(results_dir, "slds_*.pkl"))
+        results_list = []
+        for file in result_files:
+            try:
+                with open(file, "rb") as f:
+                    result = pickle.load(f)
+                    results_list.append(result)
+            except Exception as e:
+                logger.error(f"Error loading {file}: {e}")
 
     if not results_list:
         logger.warning("No SLDS results were found. Returning an empty DataFrame.")
         return pd.DataFrame()
 
     slds_results_df = pd.DataFrame(results_list)
-
     logger.info(f"Successfully loaded {len(slds_results_df)} SLDS results.")
     
     return slds_results_df
 
 
-def fit_slds_to_timeline_pair(df):
+def fit_slds_to_timeline_pair(df, params):
     """
     Fit an SLDS model separately for each agent (m1, m2) and jointly for both.
     Stores ELBO, AIC, BIC, Latent States, Transition Matrices, and Emission Parameters.
 
     Args:
         df (pd.DataFrame): A dataframe containing fixation timelines.
+        params (dict): Configuration parameters including parallelization settings.
 
     Returns:
         dict: Minimal SLDS output with transition matrices and emission parameters.
@@ -249,7 +268,7 @@ def fit_slds_to_timeline_pair(df):
         timeline_m1 = np.asarray(df[df["agent"] == "m1"]["fixation_timeline"].values[0]).reshape(-1, 1)
         timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
 
-        T = timeline_m1.shape[0]  # Number of observations
+        T = timeline_m1.shape[0]
         num_states = 2
         latent_dim = 1
 
@@ -262,56 +281,44 @@ def fit_slds_to_timeline_pair(df):
         timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
         obs_dim_joint = timeline_joint_onehot.shape[1]
 
-        # Fit SLDS for m1, m2, and joint in parallel
-        results = Parallel(n_jobs=3)(
-            delayed(fit_slds)(obs_dim, timeline, label)
-            for obs_dim, timeline, label in [
-                (obs_dim_m1, timeline_m1_onehot, "m1"),
-                (obs_dim_m2, timeline_m2_onehot, "m2"),
-                (obs_dim_joint, timeline_joint_onehot, "joint")
+        if params.get("run_locally", False):
+            logger.info("Running SLDS fitting in serial mode.")
+            results = [
+                fit_slds(obs_dim_m1, timeline_m1_onehot, "m1"),
+                fit_slds(obs_dim_m2, timeline_m2_onehot, "m2"),
+                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint")
             ]
-        )
-
-        # Extract ELBOs
-        elbo_m1, elbo_m2, elbo_joint = results[0]["ELBO"], results[1]["ELBO"], results[2]["ELBO"]
-
-        # Compute number of model parameters correctly
-        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
-        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
-
-        # Corrected AIC/BIC calculation
-        aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
-        aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
-        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)  # Joint model uses 2T
+        else:
+            logger.info("Running SLDS fitting in parallel.")
+            results = Parallel(n_jobs=3)(
+                delayed(fit_slds)(obs_dim, timeline, label)
+                for obs_dim, timeline, label in [
+                    (obs_dim_m1, timeline_m1_onehot, "m1"),
+                    (obs_dim_m2, timeline_m2_onehot, "m2"),
+                    (obs_dim_joint, timeline_joint_onehot, "joint")
+                ]
+            )
 
         return {
             "session_name": session_name,
             "interaction_type": interaction_type,
             "run_number": run_number,
-
-            # Corrected SLDS results for m1
-            "ELBO_m1": elbo_m1,
-            "AIC_m1": aic_m1,
-            "BIC_m1": bic_m1,
+            "ELBO_m1": results[0]["ELBO"],
+            "AIC_m1": results[0]["AIC"],
+            "BIC_m1": results[0]["BIC"],
             "Latent_States_m1": results[0]["Latent_States"],
             "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],
-
-            # Corrected SLDS results for m2
-            "ELBO_m2": elbo_m2,
-            "AIC_m2": aic_m2,
-            "BIC_m2": bic_m2,
+            "ELBO_m2": results[1]["ELBO"],
+            "AIC_m2": results[1]["AIC"],
+            "BIC_m2": results[1]["BIC"],
             "Latent_States_m2": results[1]["Latent_States"],
             "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],
-
-            # Corrected SLDS results for joint model
-            "ELBO_joint": elbo_joint,
-            "AIC_joint": aic_joint,
-            "BIC_joint": bic_joint,
+            "ELBO_joint": results[2]["ELBO"],
+            "AIC_joint": results[2]["AIC"],
+            "BIC_joint": results[2]["BIC"],
             "Latent_States_joint": results[2]["Latent_States"],
             "Smoothed_Latents_joint": results[2]["Smoothed_Latents"]
         }
-
-
     except Exception as e:
         logger.error(f"Error during SLDS fitting: {e}", exc_info=True)
         return {}
@@ -382,18 +389,18 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             variational_posterior="structured_meanfield",
             initialize=False, num_iters=num_iters
         )
-
+        
         elbo = q_elbos[-1]
         logger.info(f"SLDS fitting completed for {label}. Final ELBO: {elbo:.2f}")
 
         # Extract smoothed latent variables
         smoothed_latents = q_mf.mean[0]
         logger.info(f"Extracted smoothed latent states for {label}. Smoothed latents: {smoothed_latents}")
-
+        pdb.set_trace()
         # Extract most likely discrete latent states
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
-
+        pdb.set_trace()
         # Align discrete states using permutation if needed
         slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
 

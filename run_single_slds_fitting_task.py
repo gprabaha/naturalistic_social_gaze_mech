@@ -58,7 +58,7 @@ try:
 
     # Fit SLDS
     logger.info("Fitting SLDS model.")
-    results = fit_slds_to_timeline_pair(group_df)
+    results = fit_slds_to_timeline_pair(group_df, params)
 
     # Save results
     output_dir = params.get('slds_results_dir')
