@@ -40,8 +40,9 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'remake_fixation_timeline': False,
-        'run_locally': False,
-        'test_single_task': False  # Set to True to test a single random task
+        'run_locally': True,
+        'fit_slds_for_agents_in_serial': False,
+        'test_single_task': True  # Set to True to test a single random task
     }
     
     params = curate_data.add_root_data_to_params(params)
@@ -281,7 +282,7 @@ def fit_slds_to_timeline_pair(df, params):
         timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
         obs_dim_joint = timeline_joint_onehot.shape[1]
 
-        if params.get("run_locally", False):
+        if params.get("run_locally", False) & params.get("fit_slds_for_agents_in_serial", False):
             logger.info("Running SLDS fitting in serial mode.")
             results = [
                 fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim),
@@ -291,11 +292,11 @@ def fit_slds_to_timeline_pair(df, params):
         else:
             logger.info("Running SLDS fitting in parallel.")
             results = Parallel(n_jobs=3)(
-                delayed(fit_slds)(obs_dim, timeline, label)
-                for obs_dim, timeline, label in [
-                    (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim)),
-                    (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim)),
-                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim))
+                delayed(fit_slds)(obs_dim, timeline, label, discrete_states, latents)
+                for obs_dim, timeline, label, discrete_states, latents in [
+                    (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim),
+                    (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim),
+                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim)
                 ]
             )
         # Extract ELBOs
