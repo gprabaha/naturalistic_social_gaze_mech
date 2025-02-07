@@ -274,8 +274,8 @@ def fit_slds_to_timeline_pair(df, params):
         latent_dim = 2
 
         # One-hot encode fixation timelines
-        timeline_m1_onehot = one_hot_encode_timeline(timeline_m1)
-        timeline_m2_onehot = one_hot_encode_timeline(timeline_m2)
+        timeline_m1_onehot = one_hot_encode_timeline(timeline_m1).astype(int)
+        timeline_m2_onehot = one_hot_encode_timeline(timeline_m2).astype(int)
 
         obs_dim_m1 = timeline_m1_onehot.shape[1]
         obs_dim_m2 = timeline_m2_onehot.shape[1]
@@ -421,7 +421,10 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
         
         # Align discrete states using permutation if needed
-        slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
+        perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
+        while len(set(perm)) < slds.K:
+            perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
+        slds.permute(perm)
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         
         return {
