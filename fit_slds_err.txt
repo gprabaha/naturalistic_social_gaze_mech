@@ -1,28 +1,22 @@
-2025-02-07 11:37:18,478 - __main__ - INFO - Starting the script
-2025-02-07 11:37:18,478 - __main__ - INFO - Initializing parameters
-2025-02-07 11:37:18,478 - curate_data - INFO - Setting root data directory based on whether on the cluster or not and whether on Grace or Milgram.
-2025-02-07 11:37:18,478 - curate_data - INFO - Root data directory set to: /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/
-2025-02-07 11:37:18,478 - curate_data - INFO - Processed data directory set to: /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates
-2025-02-07 11:37:18,478 - __main__ - INFO - Parameters initialized successfully
-2025-02-07 11:37:18,478 - __main__ - INFO - Loading data files
-2025-02-07 11:37:19,193 - __main__ - INFO - Data loaded successfully
-2025-02-07 11:37:19,196 - __main__ - INFO - Loading existing fixation timeline
-2025-02-07 11:37:21,531 - __main__ - INFO - Preparing SLDS fitting tasks.
-2025-02-07 11:37:21,548 - __main__ - INFO - Generated 417 SLDS tasks.
-2025-02-07 11:37:21,552 - hpc_slds_fitter - INFO - Generated SLDS job file with 417 tasks at ./job_scripts_slds/slds_joblist.txt.
-2025-02-07 11:37:21,553 - hpc_slds_fitter - INFO - Generating the dSQ job script
-2025-02-07 11:37:22,658 - hpc_slds_fitter - INFO - Successfully generated the dSQ job script.
-2025-02-07 11:37:22,659 - hpc_slds_fitter - INFO - Submitting jobs using dSQ job script: ./job_scripts_slds/dsq-joblist_slds.sh
-2025-02-07 11:37:22,704 - hpc_slds_fitter - INFO - Successfully submitted jobs using sbatch for script ./job_scripts_slds/dsq-joblist_slds.sh
-2025-02-07 11:37:22,705 - hpc_slds_fitter - INFO - Submitted job array with ID: 28145253
-2025-02-07 11:37:22,705 - hpc_slds_fitter - INFO - Tracking progress of job array with ID: 28145253
-2025-02-07 11:40:23,070 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:43:23,333 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:46:23,652 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:49:23,970 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:52:24,290 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:55:24,606 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 11:58:24,925 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 12:01:25,194 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-2025-02-07 12:04:25,410 - hpc_slds_fitter - INFO - Job array 28145253 is still running. Checking again in 3 minutes...
-slurmstepd: error: *** JOB 28145252 ON r811u34n02 CANCELLED AT 2025-02-07T12:04:25 ***
+
+CondaError: Run 'conda init' before 'conda deactivate'
+
+2025-02-07 13:09:11,805 - __main__ - INFO - Starting the script
+2025-02-07 13:09:11,805 - __main__ - INFO - Initializing parameters
+2025-02-07 13:09:11,805 - curate_data - INFO - Setting root data directory based on whether on the cluster or not and whether on Grace or Milgram.
+2025-02-07 13:09:11,805 - curate_data - INFO - Root data directory set to: /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/
+2025-02-07 13:09:11,805 - curate_data - INFO - Processed data directory set to: /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates
+2025-02-07 13:09:11,806 - __main__ - INFO - Parameters initialized successfully
+2025-02-07 13:09:11,806 - __main__ - INFO - Loading data files
+2025-02-07 13:09:12,537 - __main__ - INFO - Data loaded successfully
+2025-02-07 13:09:12,540 - __main__ - INFO - Loading existing fixation timeline
+2025-02-07 13:09:16,366 - __main__ - INFO - Preparing SLDS fitting tasks.
+2025-02-07 13:09:16,372 - __main__ - INFO - Generated 417 SLDS tasks.
+2025-02-07 13:09:16,372 - __main__ - INFO - Submitting SLDS fitting tasks to HPC.
+2025-02-07 13:09:16,390 - hpc_slds_fitter - INFO - Generated SLDS job file with 417 tasks at ./job_scripts_slds/slds_joblist.txt.
+2025-02-07 13:09:16,390 - hpc_slds_fitter - INFO - Generating the dSQ job script
+2025-02-07 13:09:17,265 - hpc_slds_fitter - INFO - Successfully generated the dSQ job script.
+2025-02-07 13:09:17,266 - hpc_slds_fitter - INFO - Submitting jobs using dSQ job script: ./job_scripts_slds/dsq-joblist_slds.sh
+2025-02-07 13:09:17,309 - hpc_slds_fitter - INFO - Successfully submitted jobs using sbatch for script ./job_scripts_slds/dsq-joblist_slds.sh
+2025-02-07 13:09:17,309 - hpc_slds_fitter - INFO - Submitted job array with ID: 28145503
+2025-02-07 13:09:17,309 - hpc_slds_fitter - INFO - Tracking progress of job array with ID: 28145503

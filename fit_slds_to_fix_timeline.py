@@ -40,7 +40,7 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'remake_fixation_timeline': False,
-        'run_locally': True,
+        'run_locally': False,
         'test_single_task': False  # Set to True to test a single random task
     }
     
@@ -105,7 +105,7 @@ def main():
     # Save results
     final_output_path = os.path.join(processed_data_dir, 'fixation_timeline_slds.pkl')
     fixation_timeline_slds_results_df.to_pickle(final_output_path)
-    pdb.set_trace()
+    
     logger.info(f"Saved final SLDS results to {final_output_path}")
 
 
@@ -303,16 +303,19 @@ def fit_slds_to_timeline_pair(df, params):
             "session_name": session_name,
             "interaction_type": interaction_type,
             "run_number": run_number,
+
             "ELBO_m1": results[0]["ELBO"],
             "AIC_m1": results[0]["AIC"],
             "BIC_m1": results[0]["BIC"],
             "Latent_States_m1": results[0]["Latent_States"],
             "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],
+
             "ELBO_m2": results[1]["ELBO"],
             "AIC_m2": results[1]["AIC"],
             "BIC_m2": results[1]["BIC"],
             "Latent_States_m2": results[1]["Latent_States"],
             "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],
+
             "ELBO_joint": results[2]["ELBO"],
             "AIC_joint": results[2]["AIC"],
             "BIC_joint": results[2]["BIC"],
@@ -353,7 +356,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=50):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=5):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     
@@ -394,16 +397,16 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         logger.info(f"SLDS fitting completed for {label}. Final ELBO: {elbo:.2f}")
 
         # Extract smoothed latent variables
-        smoothed_latents = q_mf.mean[0]
-        logger.info(f"Extracted smoothed latent states for {label}. Smoothed latents: {smoothed_latents}")
-        pdb.set_trace()
+        smoothed_latents = q_mf.mean[0][1] # index 0 is the discrete posterior expectations
+        logger.info(f"Extracted smoothed latent states for {label}. Shape: {smoothed_latents.shape}")
+        
         # Extract most likely discrete latent states
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
-        pdb.set_trace()
+        
         # Align discrete states using permutation if needed
         slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
-
+        
         return {
             "ELBO": elbo,
             "Smoothed_Latents": smoothed_latents,
