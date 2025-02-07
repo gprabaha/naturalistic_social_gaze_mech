@@ -302,35 +302,36 @@ def fit_slds_to_timeline_pair(df, params):
         # Extract ELBOs
         elbo_m1, elbo_m2, elbo_joint = results[0]["ELBO"], results[1]["ELBO"], results[2]["ELBO"]
 
-        # Compute number of model parameters correctly
-        K_individual = (num_states * latent_dim) + (latent_dim * obs_dim_m1)  # Single-agent model
-        K_joint = (num_states * latent_dim) + (latent_dim * obs_dim_joint)  # Joint model
+                # Compute model complexity (K) for each model
+        K_m1 = compute_K(obs_dim_m1, num_states, latent_dim)
+        K_m2 = compute_K(obs_dim_m2, num_states, latent_dim)
+        K_joint = compute_K(obs_dim_joint, num_states, latent_dim)
 
-        # Corrected AIC/BIC calculation
-        aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_individual)
-        aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_individual)
-        aic_joint, bic_joint = compute_aic_bic(elbo_joint, 2 * T, K_joint)  # Joint model uses 2T
+        # Compute AIC and BIC
+        aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_m1)
+        aic_m2, bic_m2 = compute_aic_bic(elbo_m2, T, K_m2)
+        aic_joint, bic_joint = compute_aic_bic(elbo_joint, T, K_joint)
 
         return {
             "session_name": session_name,
             "interaction_type": interaction_type,
             "run_number": run_number,
 
-            # Corrected SLDS results for m1
+            # Results for m1
             "ELBO_m1": elbo_m1,
             "AIC_m1": aic_m1,
             "BIC_m1": bic_m1,
             "Latent_States_m1": results[0]["Latent_States"],
             "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],
 
-            # Corrected SLDS results for m2
+            # Results for m2
             "ELBO_m2": elbo_m2,
             "AIC_m2": aic_m2,
             "BIC_m2": bic_m2,
             "Latent_States_m2": results[1]["Latent_States"],
             "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],
 
-            # Corrected SLDS results for joint model
+            # Results for joint model
             "ELBO_joint": elbo_joint,
             "AIC_joint": aic_joint,
             "BIC_joint": bic_joint,
@@ -372,7 +373,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=25):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=2):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     
@@ -403,17 +404,17 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         logger.info(f"Starting SLDS fitting for {label}. Data shape: {onehot_data.shape}")
 
         # Fit the SLDS using BBVI and mean-field variational inference
-        q_elbos, q_mf = slds.fit(
+        elbos, posterior = slds.fit(
             [onehot_data], method="laplace_em",
             variational_posterior="structured_meanfield",
             initialize=False, num_iters=num_iters
         )
         
-        elbo = q_elbos[-1]
+        elbo = elbos[-1]
         logger.info(f"SLDS fitting completed for {label}. Final ELBO: {elbo:.2f}")
 
         # Extract smoothed latent variables
-        smoothed_latents = q_mf.mean[0][1] # index 0 is the discrete posterior expectations
+        smoothed_latents = posterior.mean[0][1] # index 0 is the discrete posterior expectations
         logger.info(f"Extracted smoothed latent states for {label}. Shape: {smoothed_latents.shape}")
         
         # Extract most likely discrete latent states
@@ -441,6 +442,40 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             "Latent_States": []
         }
 
+
+def compute_K(obs_dim, num_states, latent_dim):
+    """
+    Compute number of parameters (K) for the SLDS model.
+
+    Args:
+        obs_dim (int): Observation dimension.
+        num_states (int): Number of discrete states.
+        latent_dim (int): Number of continuous latent dimensions.
+
+    Returns:
+        int: Number of model parameters.
+    """
+    # 1. Emission parameters: Maps latent space to observations
+    # - Each observed variable depends on latent variables (obs_dim * latent_dim)
+    # - Plus a bias term per observed variable (+obs_dim)
+    K_emission = (obs_dim * latent_dim) + obs_dim
+
+    # 2. Latent dynamics parameters:
+    # - Each discrete state has a transition matrix for latents (num_states * latent_dim^2)
+    # - Plus a bias per latent variable (num_states * latent_dim)
+    K_latent = (num_states * latent_dim * latent_dim) + (num_states * latent_dim)
+
+    # 3. Switching probabilities:
+    # - Transition matrix for discrete states (num_states * num_states), minus one row to enforce sum-to-one constraint
+    K_switching = (num_states * num_states) - num_states
+
+    # 4. Initial state distribution:
+    # - Categorical distribution for discrete states (num_states - 1)
+    # - Mean and covariance of latent states ((latent_dim * latent_dim) + latent_dim)
+    K_initial = (num_states - 1) + (latent_dim * latent_dim) + latent_dim
+
+    # Total number of parameters
+    return K_emission + K_latent + K_switching + K_initial
 
 
 def compute_aic_bic(elbo, T, K):
