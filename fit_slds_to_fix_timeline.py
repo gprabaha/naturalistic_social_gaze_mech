@@ -388,7 +388,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
 
         # Extract smoothed latent variables
         smoothed_latents = q_mf.mean[0]
-        logger.info(f"Extracted smoothed latent states for {label}. Shape: {smoothed_latents.shape}")
+        logger.info(f"Extracted smoothed latent states for {label}. Smoothed latents: {smoothed_latents}")
 
         # Extract most likely discrete latent states
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)

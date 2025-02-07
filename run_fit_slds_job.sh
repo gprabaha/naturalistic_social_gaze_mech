@@ -2,7 +2,7 @@
 #SBATCH --job-name=fit_slds
 #SBATCH --partition=psych_day
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=200G
+#SBATCH --mem=100G
 #SBATCH --time=24:00:00
 #SBATCH --output=fit_slds_out.txt
 #SBATCH --error=fit_slds_err.txt

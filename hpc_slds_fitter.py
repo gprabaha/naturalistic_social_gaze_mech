@@ -52,7 +52,7 @@ class HPCSLDSFitter:
             subprocess.run(
                 f'module load dSQ; dsq --job-file {job_file_path} --batch-file {job_script_path} '
                 f'-o {self.job_script_out_dir} --status-dir {self.job_script_out_dir} --partition {partition} '
-                f'--cpus-per-task 3 --mem-per-cpu 8G -t 01:00:00 --mail-type FAIL',
+                f'--cpus-per-task 3 --mem-per-cpu 3G -t 01:00:00 --mail-type FAIL',
                 shell=True, check=True, executable='/bin/bash'
             )
 
