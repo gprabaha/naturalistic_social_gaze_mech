@@ -370,7 +370,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=
             num_states,
             latent_dim,
             emissions="bernoulli",
-            transitions="recurrent_only"
+            transitions="recurrent"
         )
         slds.initialize([onehot_data], inputs=None)
 
@@ -378,8 +378,8 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=
 
         # Fit the SLDS using BBVI and mean-field variational inference
         q_elbos, q_mf = slds.fit(
-            [onehot_data], method="bbvi",
-            variational_posterior="mf",
+            [onehot_data], method="laplace_em",
+            variational_posterior="structured_meanfield",
             initialize=False, num_iters=num_iters
         )
 
