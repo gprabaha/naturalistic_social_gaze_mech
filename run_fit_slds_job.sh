@@ -4,8 +4,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=100G
 #SBATCH --time=24:00:00
-#SBATCH --output=fit_slds_out.txt
-#SBATCH --error=fit_slds_err.txt
+#SBATCH --output=fit_slds.out
+#SBATCH --error=fit_slds.err
 
 # Load necessary modules
 module load miniconda

@@ -40,9 +40,9 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'remake_fixation_timeline': False,
-        'run_locally': True,
+        'run_locally': False,
         'fit_slds_for_agents_in_serial': False,
-        'test_single_task': True  # Set to True to test a single random task
+        'test_single_task': False  # Set to True to test a single random task
     }
     
     params = curate_data.add_root_data_to_params(params)
@@ -302,7 +302,7 @@ def fit_slds_to_timeline_pair(df, params):
         # Extract ELBOs
         elbo_m1, elbo_m2, elbo_joint = results[0]["ELBO"], results[1]["ELBO"], results[2]["ELBO"]
 
-                # Compute model complexity (K) for each model
+        # Compute model complexity (K) for each model
         K_m1 = compute_K(obs_dim_m1, num_states, latent_dim)
         K_m2 = compute_K(obs_dim_m2, num_states, latent_dim)
         K_joint = compute_K(obs_dim_joint, num_states, latent_dim)
@@ -373,7 +373,7 @@ def one_hot_encode_timeline(timeline):
         return np.zeros((timeline.shape[0], 1))  # Return a zero matrix to avoid crashes
 
 
-def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=2):
+def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=25):
     """
     Fit an SLDS model for a given observation dimension and one-hot encoded data.
     
@@ -397,7 +397,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             num_states,
             latent_dim,
             emissions="bernoulli",
-            transitions="recurrent"
+            transitions="recurrent_only"
         )
         slds.initialize([onehot_data], inputs=None)
 
