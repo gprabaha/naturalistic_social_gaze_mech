@@ -294,27 +294,21 @@ def fit_slds_to_timeline_pair(df):
             "AIC_m1": aic_m1,
             "BIC_m1": bic_m1,
             "Latent_States_m1": results[0]["Latent_States"],
-            "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],  # Added
-            "Transition_Matrices_m1": results[0]["Transition_Matrices"],
-            "Emission_Parameters_m1": results[0]["Emission_Parameters"],
+            "Smoothed_Latents_m1": results[0]["Smoothed_Latents"],
 
             # Corrected SLDS results for m2
             "ELBO_m2": elbo_m2,
             "AIC_m2": aic_m2,
             "BIC_m2": bic_m2,
             "Latent_States_m2": results[1]["Latent_States"],
-            "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],  # Added
-            "Transition_Matrices_m2": results[1]["Transition_Matrices"],
-            "Emission_Parameters_m2": results[1]["Emission_Parameters"],
+            "Smoothed_Latents_m2": results[1]["Smoothed_Latents"],
 
             # Corrected SLDS results for joint model
             "ELBO_joint": elbo_joint,
             "AIC_joint": aic_joint,
             "BIC_joint": bic_joint,
             "Latent_States_joint": results[2]["Latent_States"],
-            "Smoothed_Latents_joint": results[2]["Smoothed_Latents"],  # Added
-            "Transition_Matrices_joint": results[2]["Transition_Matrices"],
-            "Emission_Parameters_joint": results[2]["Emission_Parameters"],
+            "Smoothed_Latents_joint": results[2]["Smoothed_Latents"]
         }
 
 
@@ -372,9 +366,9 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=
 
         # Initialize the SLDS model
         slds = ssm.SLDS(
-            obs_dim=obs_dim,
-            num_states=num_states,
-            latent_dim=latent_dim,
+            obs_dim,
+            num_states,
+            latent_dim,
             emissions="bernoulli",
             transitions="recurrent_only"
         )
@@ -403,19 +397,10 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=
         # Align discrete states using permutation if needed
         slds.permute(find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data)))
 
-        # Extract learned parameters
-        transition_matrices = slds.transitions.transition_matrices_
-        emission_params = slds.emissions.parameters
-
-        logger.info(f"Extracted transition matrices for {label}. Shape: {transition_matrices.shape}")
-        logger.info(f"Extracted emission parameters for {label}. Type: {type(emission_params)}")
-
         return {
             "ELBO": elbo,
             "Smoothed_Latents": smoothed_latents,
-            "Latent_States": latent_states,
-            "Transition_Matrices": transition_matrices,
-            "Emission_Parameters": emission_params
+            "Latent_States": latent_states
         }
 
     except Exception as e:
@@ -423,9 +408,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=1, num_iters=
         return {
             "ELBO": -np.inf,
             "Smoothed_Latents": [],
-            "Latent_States": [],
-            "Transition_Matrices": None,
-            "Emission_Parameters": None
+            "Latent_States": []
         }
 
 

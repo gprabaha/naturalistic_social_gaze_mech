@@ -1,1 +1,1 @@
-module load miniconda; conda activate gaze_processing; python run_single_slds_fitting_task.py 01172019,interactive,9 /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl
+module load miniconda; conda activate gaze_processing; python run_single_slds_fitting_task.py 08292018,interactive,3 /gpfs/milgram/project/chang/pg496/data_dir/social_gaze/intermediates/params.pkl
