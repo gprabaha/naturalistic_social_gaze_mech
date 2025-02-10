@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'remake_firing_rate_df': True,
+        'remake_firing_rate_df': False,
         'neural_data_bin_size': 10,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'gaussian_smoothing_sigma': 2,
@@ -68,9 +68,22 @@ def main():
     else:
         logger.info("Loading trial-wise firing-rate dataframe")
         behav_firing_rate_df = load_data.get_data_df(behav_firing_rate_df_file_path)
-    # pdb.set_trace()
-    logger.info("Firing-rate dataframe head:")
-    logger.info(behav_firing_rate_df.head())
+
+    group_by_columns = [
+            "region", "behavior_type", "location", 
+            "from_location", "to_location", "behav_duration_category"
+        ]
+    behav_firing_rate_df[group_by_columns] = behav_firing_rate_df[group_by_columns].fillna("UNKNOWN")
+    training_groups = behav_firing_rate_df.groupby(group_by_columns)
+    print("Relevant groups for training:")
+    for group_name, group_df in training_groups:
+        print(group_name)
+        neural_groups = group_df.groupby("unit_uuid")
+        for neuron_name, neuron_df in neural_groups:
+            print(neuron_name)
+            print(neuron_df.head())
+        pdb.set_trace()
+    return 0
 
 
 def compute_firing_rates_for_fixations_and_saccades(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params):
