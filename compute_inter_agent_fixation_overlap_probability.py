@@ -8,6 +8,7 @@ from datetime import datetime
 from tqdm import tqdm
 from scipy.stats import ttest_rel, wilcoxon, shapiro
 import pingouin as pg
+from IPython.display import display
 
 import pdb
 
@@ -135,17 +136,13 @@ def ___compute_joint_duration(m1_indices, m2_indices):
 
 
 def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pair"):
-    """Generate subplot comparisons for fixation probability distributions with a single statistical test."""
+    """Generate subplot comparisons for fixation probability distributions in a Jupyter Notebook."""
     logger.info("Generating fixation probability plots")
-    today_date = datetime.today().strftime('%Y-%m-%d')
-    today_date += f"_{group_by}"
-    root_dir = os.path.join(params['root_data_dir'], "plots", "inter_agent_fix_prob", today_date)
-    os.makedirs(root_dir, exist_ok=True)
     
     violin_colors = ["#1f77b4", "#ff7f0e"]
+    
     for grouping_name, sub_df in tqdm(joint_prob_df.groupby(group_by), desc=f"Plotting {group_by}"):
         fig, axes = plt.subplots(1, 4, figsize=(16, 6))  # 1 row, 4 columns layout
-
         categories = ["eyes", "non_eye_face", "face", "out_of_roi"]
 
         for i, category in enumerate(categories):
@@ -161,7 +158,6 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
                 is_normal = (shapiro_tests_m1_times_m2 > 0.05) & (shapiro_tests_m1_and_m2 > 0.05)
 
                 if is_normal:
-                    # Perform t-test and Bayesian t-test
                     t_stat, p_val_ttest = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
                     bf = pg.bayesfactor_ttest(t_stat, cat_data.shape[0])
                     test_result_text = f"T-test p = {p_val_ttest:.4f}\nBF = {bf:.2f}"
@@ -169,7 +165,6 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
                     _, p_val_wilcoxon = wilcoxon(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
                     test_result_text = f"Wilcoxon p = {p_val_wilcoxon:.4f}"
 
-                # Plot violin plots with test result annotations
                 sns.violinplot(data=melted_data, x="Probability Type", y="Probability", ax=axes[i], hue="Probability Type")
                 axes[i].set_title(f"{category} Fixation Probabilities")
                 axes[i].text(0.5, 0.9, test_result_text, ha='center', va='center', 
@@ -177,8 +172,8 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
 
         plt.suptitle(f"{group_by.capitalize()}: {grouping_name} Fixation Probability Distributions")
         plt.tight_layout()
-        plt.savefig(os.path.join(root_dir, f"{grouping_name}_fixation_probabilities.png"))
-        plt.close()
+        plt.show()  # Display plot inline in Jupyter Notebook
+        # display(fig)
 
 
 

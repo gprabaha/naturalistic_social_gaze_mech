@@ -39,7 +39,10 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'remake_fixation_timeline': False,
+        'num_slds_states': 3,
+        'num_slds_latents': 2,
+        'num_slds_iters': 25,
+        'remake_fixation_timeline': True,
         'run_locally': False,
         'fit_slds_for_agents_in_serial': False,
         'test_single_task': False  # Set to True to test a single random task
@@ -151,8 +154,8 @@ def create_timeline(row):
     category_map = {
         "eyes": 1,
         "non_eye_face": 2,
-        "out_of_roi": 3,
-        'object': 4
+        "out_of_roi": 3#,
+        #'object': 4
     }
     
     timeline = np.zeros(row["run_length"], dtype=int)
@@ -270,8 +273,9 @@ def fit_slds_to_timeline_pair(df, params):
         timeline_m2 = np.asarray(df[df["agent"] == "m2"]["fixation_timeline"].values[0]).reshape(-1, 1)
 
         T = timeline_m1.shape[0]
-        num_states = 2
-        latent_dim = 2
+        num_states = params.get('num_slds_states', 2)
+        latent_dim = params.get('num_slds_latents', 2)
+        num_iters = params.get('num_slds_iters', 25)
 
         # One-hot encode fixation timelines
         timeline_m1_onehot = one_hot_encode_timeline(timeline_m1).astype(int)
@@ -285,18 +289,18 @@ def fit_slds_to_timeline_pair(df, params):
         if params.get("run_locally", False) & params.get("fit_slds_for_agents_in_serial", False):
             logger.info("Running SLDS fitting in serial mode.")
             results = [
-                fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim),
-                fit_slds(obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim),
-                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim)
+                fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
+                fit_slds(obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
+                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim, num_iters)
             ]
         else:
             logger.info("Running SLDS fitting in parallel.")
             results = Parallel(n_jobs=3)(
-                delayed(fit_slds)(obs_dim, timeline, label, discrete_states, latents)
-                for obs_dim, timeline, label, discrete_states, latents in [
-                    (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim),
-                    (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim),
-                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim)
+                delayed(fit_slds)(obs_dim, timeline, label, discrete_states, latents, num_iters)
+                for obs_dim, timeline, label, discrete_states, latents, num_iters in [
+                    (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
+                    (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
+                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim, num_iters)
                 ]
             )
         # Extract ELBOs
@@ -397,7 +401,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             num_states,
             latent_dim,
             emissions="bernoulli",
-            transitions="recurrent_only"
+            transitions="recurrent"
         )
         slds.initialize([onehot_data], inputs=None)
 
@@ -405,14 +409,14 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
 
         # Fit the SLDS using BBVI and mean-field variational inference
         elbos, posterior = slds.fit(
-            [onehot_data], method="laplace_em",
-            variational_posterior="structured_meanfield",
-            initialize=False, num_iters=num_iters
+            [onehot_data], method="laplace_em", # "bbvi",
+            variational_posterior="structured_meanfield", # "meanfield",
+            initialize=False, num_iters=num_iters#, stepsize=1000
         )
         
         elbo = elbos[-1]
         logger.info(f"SLDS fitting completed for {label}. Final ELBO: {elbo:.2f}")
-
+        
         # Extract smoothed latent variables
         smoothed_latents = posterior.mean[0][1] # index 0 is the discrete posterior expectations
         logger.info(f"Extracted smoothed latent states for {label}. Shape: {smoothed_latents.shape}")
@@ -421,12 +425,13 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
         
-        # Align discrete states using permutation if needed
-        perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
-        while len(set(perm)) < slds.K:
-            perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
-        slds.permute(perm)
-        latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
+        # ** (This part is causing issues; amany instances are going into infinite loops) Align discrete states using permutation if needed
+
+        # perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
+        # while len(set(perm)) < slds.K:
+        #     perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
+        # slds.permute(perm)
+        # latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         
         return {
             "ELBO": elbo,
