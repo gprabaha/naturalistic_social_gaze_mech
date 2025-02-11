@@ -42,9 +42,10 @@ def _initialize_params():
         'num_slds_states': 3,
         'num_slds_latents': 2,
         'num_slds_iters': 25,
-        'remake_fixation_timeline': True,
-        'run_locally': False,
-        'fit_slds_for_agents_in_serial': False,
+        'remake_fixation_timeline': False,
+        'run_locally': True,
+        'fit_slds_for_agents_in_serial': True,
+        'shuffle_task_order': True,
         'test_single_task': False  # Set to True to test a single random task
     }
     
@@ -119,17 +120,14 @@ def main():
 
 ## Count available CPUs and threads
 def get_slurm_cpus_and_threads():
-    """Returns the number of allocated CPUs and threads per CPU using psutil."""
-    
+    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings."""
     # Get number of CPUs allocated by SLURM
-    num_cpus = int(os.getenv("SLURM_CPUS_PER_TASK"))
-
-    # Get total virtual CPUs (logical cores)
-    total_logical_cpus = psutil.cpu_count(logical=True)
-
-    # Calculate threads per CPU
-    threads_per_cpu = total_logical_cpus // num_cpus if num_cpus > 0 else 1
-
+    slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+    slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+    # Default to 4 threads per CPU unless num_cpus is less than 4
+    threads_per_cpu = 3 if slurm_cpus >= 3 else 1
+    # Compute num_cpus by dividing total CPUs by threads per CPU
+    num_cpus = max(1, slurm_cpus // threads_per_cpu)  # Ensure at least 1 CPU
     return num_cpus, threads_per_cpu
 
 
@@ -194,6 +192,9 @@ def generate_slds_models(fixation_timeline_df, params):
     grouped = fixation_timeline_df.groupby(["session_name", "interaction_type", "run_number"])
     task_keys = [f"{session},{interaction_type},{run}" for (session, interaction_type, run), _ in grouped]
 
+    if params.get("shuffle_task_order", False):
+        np.random.shuffle(task_keys)
+    
     if params.get("test_single_task", False):
         task_keys = [random.choice(task_keys)]
         logger.info(f"Running a single test task: {task_keys[0]}")
@@ -401,7 +402,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             num_states,
             latent_dim,
             emissions="bernoulli",
-            transitions="recurrent"
+            transitions="recurrent_only"
         )
         slds.initialize([onehot_data], inputs=None)
 
@@ -409,9 +410,11 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
 
         # Fit the SLDS using BBVI and mean-field variational inference
         elbos, posterior = slds.fit(
-            [onehot_data], method="laplace_em", # "bbvi",
-            variational_posterior="structured_meanfield", # "meanfield",
-            initialize=False, num_iters=num_iters#, stepsize=1000
+            onehot_data, num_iters=num_iters, initialize=False,
+            method="laplace_em", # "bbvi",
+            variational_posterior="structured_meanfield", #, "meanfield",
+            alpha = 0.5
+            # stepsize=1000
         )
         
         elbo = elbos[-1]
@@ -424,8 +427,8 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         # Extract most likely discrete latent states
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
-        
-        # ** (This part is causing issues; amany instances are going into infinite loops) Align discrete states using permutation if needed
+        pdb.set_trace()
+        # ** (This part is causing issues; many instances are going into infinite loops) Align discrete states using permutation if needed
 
         # perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
         # while len(set(perm)) < slds.K:

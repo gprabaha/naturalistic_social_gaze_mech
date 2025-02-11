@@ -38,9 +38,9 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'make_shuffle_stringent': False,
+        'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': False,
+        'recompute_crosscorr': True,
         'remake_crosscorr_plots': True,
         'remake_sig_crosscorr_plots': True
     }
@@ -81,12 +81,15 @@ def main():
         fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
     # Cross-correlation computation
-    inter_agent_cross_corr_file = os.path.join(processed_data_dir, 'inter_agent_behav_cross_correlation_df.pkl')
+    if params.get('make_shuffle_stringent', False):
+        inter_agent_cross_corr_file = os.path.join(processed_data_dir, 'inter_agent_behav_cross_correlation_df_stringent.pkl')
+    else:
+        inter_agent_cross_corr_file = os.path.join(processed_data_dir, 'inter_agent_behav_cross_correlation_df.pkl')
 
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr_parallel(
-            fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=5000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
+            fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=1000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
         logger.info(f"Cross-correlations and shuffled statistics computed and saved to {inter_agent_cross_corr_file}")
@@ -119,20 +122,18 @@ def main():
 # ** Sub-functions **
 
 
-## Count available CPUs and threads
+
 def get_slurm_cpus_and_threads():
-    """Returns the number of allocated CPUs and threads per CPU using psutil."""
-    
+    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings."""
     # Get number of CPUs allocated by SLURM
-    num_cpus = os.getenv("SLURM_CPUS_PER_TASK")
-
-    # Get total virtual CPUs (logical cores)
-    total_logical_cpus = psutil.cpu_count(logical=True)
-
-    # Calculate threads per CPU
-    threads_per_cpu = total_logical_cpus // num_cpus if num_cpus > 0 else 1
-
+    slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+    slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+    # Default to 4 threads per CPU unless num_cpus is less than 4
+    threads_per_cpu = 4 if slurm_cpus >= 4 else 1
+    # Compute num_cpus by dividing total CPUs by threads per CPU
+    num_cpus = max(1, slurm_cpus // threads_per_cpu)  # Ensure at least 1 CPU
     return num_cpus, threads_per_cpu
+
 
 
 ## Fixation timeline binary vector generation
@@ -312,7 +313,7 @@ def generate_single_shuffled_vector(params, agent_vector, fixation_durations, av
         np.random.shuffle(all_segments)
         shuffled_vector = construct_shuffled_vector(all_segments, run_length)
     else:
-        shuffled_vector = np.random.shuffle(agent_vector)
+        shuffled_vector = np.random.permutation(agent_vector)
     return shuffled_vector
 
 def generate_uniformly_distributed_partitions(total_duration, num_partitions):
@@ -407,7 +408,7 @@ def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_d
     results = grouped.apply(compute_crosscorr_stats, max_timepoints=max_timepoints).reset_index()
 
     # Create plot directory
-    today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
+    today_date = f"{datetime.today().strftime('%Y-%m-%d')}_{group_by}" + ("_stringent" if params.get('make_shuffle_stringent', False) else "")
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
@@ -526,7 +527,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
     stats_df = pd.concat([results_df.drop(columns=["computed_stats"]), results_df["computed_stats"].apply(pd.Series)], axis=1)
 
     # Create plot directory
-    today_date = datetime.today().strftime('%Y-%m-%d') + "_" + group_by
+    today_date = f"{datetime.today().strftime('%Y-%m-%d')}_{group_by}" + ("_stringent" if params.get('make_shuffle_stringent', False) else "")
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_significant", today_date)
     os.makedirs(root_dir, exist_ok=True)
 
