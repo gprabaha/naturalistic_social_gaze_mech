@@ -139,10 +139,8 @@ def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_
     """Generate subplot comparisons for fixation probability distributions in a Jupyter Notebook."""
     logger.info("Generating fixation probability plots")
     
-    violin_colors = ["#1f77b4", "#ff7f0e"]
-    
     for grouping_name, sub_df in tqdm(joint_prob_df.groupby(group_by), desc=f"Plotting {group_by}"):
-        fig, axes = plt.subplots(1, 4, figsize=(16, 6))  # 1 row, 4 columns layout
+        fig, axes = plt.subplots(1, 4, figsize=(16, 8))  # 1 row, 4 columns layout
         categories = ["eyes", "non_eye_face", "face", "out_of_roi"]
 
         for i, category in enumerate(categories):
