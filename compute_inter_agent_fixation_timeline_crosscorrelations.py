@@ -38,7 +38,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'make_shuffle_stringent': True,
+        'make_shuffle_stringent': False,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': True,
         'remake_crosscorr_plots': True,
