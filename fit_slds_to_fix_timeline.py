@@ -43,9 +43,9 @@ def _initialize_params():
         'num_slds_latents': 2,
         'num_slds_iters': 25,
         'remake_fixation_timeline': False,
-        'run_locally': True,
-        'fit_slds_for_agents_in_serial': True,
-        'shuffle_task_order': True,
+        'run_locally': False,
+        'fit_slds_for_agents_in_serial': False,
+        'shuffle_task_order': False,
         'test_single_task': False  # Set to True to test a single random task
     }
     
@@ -301,7 +301,7 @@ def fit_slds_to_timeline_pair(df, params):
                 for obs_dim, timeline, label, discrete_states, latents, num_iters in [
                     (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
                     (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
-                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim, num_iters)
+                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states*2, latent_dim*2, num_iters)
                 ]
             )
         # Extract ELBOs
@@ -310,7 +310,7 @@ def fit_slds_to_timeline_pair(df, params):
         # Compute model complexity (K) for each model
         K_m1 = compute_K(obs_dim_m1, num_states, latent_dim)
         K_m2 = compute_K(obs_dim_m2, num_states, latent_dim)
-        K_joint = compute_K(obs_dim_joint, num_states, latent_dim)
+        K_joint = compute_K(obs_dim_joint, num_states*2, latent_dim*2)
 
         # Compute AIC and BIC
         aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_m1)
@@ -427,7 +427,6 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
         # Extract most likely discrete latent states
         latent_states = slds.most_likely_states(smoothed_latents, onehot_data)
         logger.info(f"Extracted most likely discrete states for {label}. Length: {len(latent_states)}")
-        pdb.set_trace()
         # ** (This part is causing issues; many instances are going into infinite loops) Align discrete states using permutation if needed
 
         # perm = find_permutation(latent_states, slds.most_likely_states(smoothed_latents, onehot_data))
