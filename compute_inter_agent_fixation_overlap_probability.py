@@ -70,14 +70,12 @@ def analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_sessio
     return joint_probs_df
 
 
-def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df, params):
+def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
     """Compute fixation probabilities and joint fixation probabilities for m1 and m2."""
     logger.info("Computing fixation statistics")
     joint_probs = []
     
     grouped = list(eye_mvm_behav_df.groupby(["session_name", "interaction_type", "run_number"]))
-    use_chunks = params.get("use_time_chunks", False)
-    
     for (session, interaction, run), sub_df in tqdm(grouped, desc="Processing sessions"):
         m1 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m1"].iloc[0]
         m2 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m2"].iloc[0]
@@ -91,44 +89,26 @@ def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df, params
         m2_fixations = categorize_fixations(m2_df["fixation_location"].values[0])
         run_length = m1_df["run_length"].values[0]
         
-        chunk_size = run_length // 10 if use_chunks else run_length
-        stride = run_length // 20 if use_chunks else run_length
-        num_chunks = 19 if use_chunks else 1
-        
-        for chunk_idx in range(num_chunks):
-            chunk_start = chunk_idx * stride
-            chunk_end = min(chunk_start + chunk_size, run_length)
+        for category in ["eyes", "non_eye_face", "face", "out_of_roi"]:
+            if category != "face":
+                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat == category]
+                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat == category]
+            else:
+                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
+                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
             
-            for category in ["eyes", "non_eye_face", "face", "out_of_roi"]:
-                if category != "face":
-                    m1_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
-                                  for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) 
-                                  if cat == category and stop >= chunk_start and start <= chunk_end]
-                    m2_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
-                                  for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) 
-                                  if cat == category and stop >= chunk_start and start <= chunk_end]
-                else:
-                    m1_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
-                                  for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) 
-                                  if cat in {"eyes", "non_eye_face"} and stop >= chunk_start and start <= chunk_end]
-                    m2_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
-                                  for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) 
-                                  if cat in {"eyes", "non_eye_face"} and stop >= chunk_start and start <= chunk_end]
-                
-                joint_duration = compute_joint_duration(m1_indices, m2_indices)
-                chunk_length = chunk_size if use_chunks else run_length
-                p_m1 = sum(stop + 1 - start for start, stop in m1_indices) / chunk_length
-                p_m2 = sum(stop + 1 - start for start, stop in m2_indices) / chunk_length
-                p_joint = joint_duration / chunk_length
-                
-                joint_probs.append({
-                    "monkey_pair": f"{m1}-{m2}",
-                    "session_name": session, "interaction_type": interaction, "run_number": run,
-                    "fixation_category": category, "P(m1)": p_m1, "P(m2)": p_m2,
-                    "P(m1)*P(m2)": p_m1 * p_m2, "P(m1&m2)": p_joint,
-                    "chunk_index": chunk_idx if use_chunks else None
-                })
-    
+            joint_duration = compute_joint_duration(m1_indices, m2_indices)
+            p_m1 = sum(stop + 1 - start for start, stop in m1_indices) / run_length
+            p_m2 = sum(stop + 1 - start for start, stop in m2_indices) / run_length
+            p_joint = joint_duration / run_length
+            
+            joint_probs.append({
+                "monkey_pair": f"{m1}-{m2}",
+                "session_name": session, "interaction_type": interaction, "run_number": run,
+                "fixation_category": category, "P(m1)": p_m1, "P(m2)": p_m2,
+                "P(m1)*P(m2)": p_m1 * p_m2, "P(m1&m2)": p_joint
+            })
+
     logger.info("Fixation statistics computation complete")
     return pd.DataFrame(joint_probs)
 
