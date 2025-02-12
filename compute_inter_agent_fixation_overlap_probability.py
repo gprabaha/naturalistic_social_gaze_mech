@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'reanalyse_fixation_probabilities': True
+        'reanalyse_fixation_probabilities': True,
+        'use_time_chunks': True
         }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -55,26 +56,28 @@ def main():
 
     if params.get('reanalyse_fixation_probabilities', False):
         logger.info("Analyzing fixation probabilities")
-        _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
+        analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
         logger.info("Analysis and plotting complete")
 
 
 # ** Sub-functions **
 
 
-def _analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="monkey_pair"):
+def analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="monkey_pair"):
     """Run the full pipeline of fixation probability analysis."""
-    joint_probs_df = __compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df)
-    __plot_joint_fixation_distributions(joint_probs_df, params, group_by=group_by)
+    joint_probs_df = compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df, params)
+    plot_joint_fixation_distributions(joint_probs_df, params, group_by=group_by)
     return joint_probs_df
 
 
-def __compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
+def compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df, params):
     """Compute fixation probabilities and joint fixation probabilities for m1 and m2."""
     logger.info("Computing fixation statistics")
     joint_probs = []
     
     grouped = list(eye_mvm_behav_df.groupby(["session_name", "interaction_type", "run_number"]))
+    use_chunks = params.get("use_time_chunks", False)
+    
     for (session, interaction, run), sub_df in tqdm(grouped, desc="Processing sessions"):
         m1 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m1"].iloc[0]
         m2 = monkeys_per_session_df[monkeys_per_session_df["session_name"] == session]["m2"].iloc[0]
@@ -84,34 +87,53 @@ def __compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df):
         if m1_df.empty or m2_df.empty:
             continue
         
-        m1_fixations = ___categorize_fixations(m1_df["fixation_location"].values[0])
-        m2_fixations = ___categorize_fixations(m2_df["fixation_location"].values[0])
+        m1_fixations = categorize_fixations(m1_df["fixation_location"].values[0])
+        m2_fixations = categorize_fixations(m2_df["fixation_location"].values[0])
         run_length = m1_df["run_length"].values[0]
         
-        for category in ["eyes", "non_eye_face", "face", "out_of_roi"]:
-            if category != "face":
-                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat == category]
-                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat == category]
-            else:
-                m1_indices = [(start, stop) for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
-                m2_indices = [(start, stop) for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) if cat in {"eyes", "non_eye_face"}]
+        chunk_size = run_length // 10 if use_chunks else run_length
+        stride = run_length // 20 if use_chunks else run_length
+        num_chunks = 19 if use_chunks else 1
+        
+        for chunk_idx in range(num_chunks):
+            chunk_start = chunk_idx * stride
+            chunk_end = min(chunk_start + chunk_size, run_length)
             
-            joint_duration = ___compute_joint_duration(m1_indices, m2_indices)
-            p_m1 = sum(stop + 1 - start for start, stop in m1_indices) / run_length
-            p_m2 = sum(stop + 1 - start for start, stop in m2_indices) / run_length
-            p_joint = joint_duration / run_length
-            
-            joint_probs.append({
-                "monkey_pair": f"{m1}-{m2}",
-                "session_name": session, "interaction_type": interaction, "run_number": run,
-                "fixation_category": category, "P(m1)": p_m1, "P(m2)": p_m2,
-                "P(m1)*P(m2)": p_m1 * p_m2, "P(m1&m2)": p_joint
-            })
-
+            for category in ["eyes", "non_eye_face", "face", "out_of_roi"]:
+                if category != "face":
+                    m1_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
+                                  for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) 
+                                  if cat == category and stop >= chunk_start and start <= chunk_end]
+                    m2_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
+                                  for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) 
+                                  if cat == category and stop >= chunk_start and start <= chunk_end]
+                else:
+                    m1_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
+                                  for cat, (start, stop) in zip(m1_fixations, m1_df["fixation_start_stop"].values[0]) 
+                                  if cat in {"eyes", "non_eye_face"} and stop >= chunk_start and start <= chunk_end]
+                    m2_indices = [(max(start, chunk_start), min(stop, chunk_end)) 
+                                  for cat, (start, stop) in zip(m2_fixations, m2_df["fixation_start_stop"].values[0]) 
+                                  if cat in {"eyes", "non_eye_face"} and stop >= chunk_start and start <= chunk_end]
+                
+                joint_duration = compute_joint_duration(m1_indices, m2_indices)
+                chunk_length = chunk_size if use_chunks else run_length
+                p_m1 = sum(stop + 1 - start for start, stop in m1_indices) / chunk_length
+                p_m2 = sum(stop + 1 - start for start, stop in m2_indices) / chunk_length
+                p_joint = joint_duration / chunk_length
+                
+                joint_probs.append({
+                    "monkey_pair": f"{m1}-{m2}",
+                    "session_name": session, "interaction_type": interaction, "run_number": run,
+                    "fixation_category": category, "P(m1)": p_m1, "P(m2)": p_m2,
+                    "P(m1)*P(m2)": p_m1 * p_m2, "P(m1&m2)": p_joint,
+                    "chunk_index": chunk_idx if use_chunks else None
+                })
+    
     logger.info("Fixation statistics computation complete")
     return pd.DataFrame(joint_probs)
 
-def ___categorize_fixations(fix_locations):
+
+def categorize_fixations(fix_locations):
     """Categorize fixation locations into predefined categories."""
     return [
         "eyes" if {"face", "eyes_nf"}.issubset(set(fixes)) else
@@ -120,7 +142,7 @@ def ___categorize_fixations(fix_locations):
         for fixes in fix_locations
     ]
 
-def ___compute_joint_duration(m1_indices, m2_indices):
+def compute_joint_duration(m1_indices, m2_indices):
     """Compute the overlapping duration between m1 and m2 fixation events."""
     m1_timepoints = set()
     for start, stop in m1_indices:
@@ -135,7 +157,7 @@ def ___compute_joint_duration(m1_indices, m2_indices):
     return len(joint_timepoints)
 
 
-def __plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pair"):
+def plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pair"):
     """Generate subplot comparisons for fixation probability distributions in a Jupyter Notebook."""
     logger.info("Generating fixation probability plots")
     
