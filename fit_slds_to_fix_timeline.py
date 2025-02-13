@@ -7,19 +7,22 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from tqdm import tqdm
 from sklearn.preprocessing import OneHotEncoder
-import random
-import ssm  # Import Switching State-Space Models
-from ssm.util import find_permutation
-from hpc_slds_fitter import HPCSLDSFitter
 import pickle
 import glob
 import warnings
 from joblib import Parallel, delayed
 
+import random
+import ssm  # Import Switching State-Space Models
+from ssm.util import find_permutation
+from ssm.extensions.mp_srslds.transitions_ext import StickyRecurrentOnlyTransitions, StickyRecurrentTransitions
+
 import pdb
 
 import load_data
 import curate_data
+from hpc_slds_fitter import HPCSLDSFitter
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
@@ -41,11 +44,11 @@ def _initialize_params():
         'is_grace': False,
         'num_slds_states': 3,
         'num_slds_latents': 2,
-        'num_slds_iters': 25,
+        'num_slds_iters': 10,
         'remake_fixation_timeline': False,
-        'run_locally': False,
+        'run_locally': True,
         'fit_slds_for_agents_in_serial': False,
-        'shuffle_task_order': False,
+        'shuffle_task_order': True,
         'test_single_task': False  # Set to True to test a single random task
     }
     
@@ -287,16 +290,16 @@ def fit_slds_to_timeline_pair(df, params):
         timeline_joint_onehot = np.hstack((timeline_m1_onehot, timeline_m2_onehot))
         obs_dim_joint = timeline_joint_onehot.shape[1]
 
-        if params.get("run_locally", False) & params.get("fit_slds_for_agents_in_serial", False):
+        if (params.get("run_locally", False) & params.get("fit_slds_for_agents_in_serial", False)):
             logger.info("Running SLDS fitting in serial mode.")
             results = [
                 fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
                 fit_slds(obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
-                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states, latent_dim, num_iters)
+                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states*2, latent_dim*2, num_iters)
             ]
         else:
             logger.info("Running SLDS fitting in parallel.")
-            results = Parallel(n_jobs=3)(
+            results = Parallel(n_jobs=-1)(
                 delayed(fit_slds)(obs_dim, timeline, label, discrete_states, latents, num_iters)
                 for obs_dim, timeline, label, discrete_states, latents, num_iters in [
                     (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
@@ -396,6 +399,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
     try:
         logger.info(f"Fitting SLDS model for {label} with obs_dim={obs_dim}, num_states={num_states}, latent_dim={latent_dim}")
 
+
         # Initialize the SLDS model
         slds = ssm.SLDS(
             obs_dim,
@@ -404,7 +408,7 @@ def fit_slds(obs_dim, onehot_data, label, num_states=2, latent_dim=2, num_iters=
             emissions="bernoulli",
             transitions="recurrent_only"
         )
-        slds.initialize([onehot_data], inputs=None)
+        slds.initialize(onehot_data, inputs=None, num_init_iters=100, num_init_restarts=5, verbose=1)
 
         logger.info(f"Starting SLDS fitting for {label}. Data shape: {onehot_data.shape}")
 
