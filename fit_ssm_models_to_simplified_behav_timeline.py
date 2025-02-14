@@ -9,6 +9,7 @@ import pickle
 import jax.numpy as jnp
 import jax.random as jr
 from dynamax.linear_gaussian_ssm import LinearAutoregressiveHMM
+from jax.nn import pad
 
 import pdb
 
@@ -56,6 +57,7 @@ def _initialize_params():
     return params
 
 
+
 def main():
     """
     Main function to load data, generate fixation timeline, and submit SLDS fitting jobs.
@@ -87,19 +89,12 @@ def main():
 
 
 
-
-import os
-import numpy as np
-import pickle
-import pandas as pd
-
 def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_iters=50):
     """
     Fits ARHMM models for each unique m1-m2 pair using dynamax and saves the models and predicted states.
     """
     # Ensure output directories exist
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
-    os.makedirs(params['processed_data_dir'], exist_ok=True)
     
     # Initialize dataframe to store predicted state sequences
     predicted_states_list = []
@@ -109,6 +104,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
         
         # Dictionary to hold models nested under fixation type
         arhmm_models = {}
+        key = jr.PRNGKey(1)
         
         for fixation_type in ['eyes', 'face']:
             
@@ -137,23 +133,26 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
             if not m1_data or not m2_data:
                 continue  # Skip if no valid data
             
+            # Pad sequences to equal lengths
+            m1_data_padded = pad_sequences(m1_data)
+            m2_data_padded = pad_sequences(m2_data)
+            stacked_data_padded = pad_sequences(stacked_data)
+            
             # Initialize ARHMMs using Dynamax
             arhmm_models.setdefault(fixation_type, {})
-            key = jr.PRNGKey(1)
-            
             arhmm_models[fixation_type]['m1'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
             arhmm_models[fixation_type]['m2'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
             arhmm_models[fixation_type]['m1_m2'] = LinearAutoregressiveHMM(n_states, 2, num_lags=num_lags)
             
             # Fit models across all runs for the m1-m2 pair
-            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="kmeans", emissions=jnp.array(m1_data))
-            params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(params_m1, props_m1, jnp.array(m1_data))
+            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="kmeans", emissions=m1_data_padded)
+            params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(params_m1, props_m1, m1_data_padded)
             
-            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="kmeans", emissions=jnp.array(m2_data))
-            params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(params_m2, props_m2, jnp.array(m2_data))
+            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="kmeans", emissions=m2_data_padded)
+            params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(params_m2, props_m2, m2_data_padded)
             
-            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="kmeans", emissions=jnp.array(stacked_data))
-            params_m1_m2, _ = arhmm_models[fixation_type]['m1_m2'].fit_em(params_m1_m2, props_m1_m2, jnp.array(stacked_data))
+            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="kmeans", emissions=stacked_data_padded)
+            params_m1_m2, _ = arhmm_models[fixation_type]['m1_m2'].fit_em(params_m1_m2, props_m1_m2, stacked_data_padded)
             
             # Store parameters in dictionary
             arhmm_models[fixation_type]['m1_params'] = params_m1
@@ -170,7 +169,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
             for _, session_df in group_df[group_df['fixation_type'] == fixation_type].groupby(['session_name', 'interaction_type', 'run_number']):
                 for i, row in session_df.iterrows():
                     agent = row['agent']
-                    data = jnp.array(row['binary_vector']).reshape(-1, 1)
+                    data = pad_sequences([row['binary_vector']])
                     pred_states = arhmm_models[fixation_type][f"{agent}_params"].most_likely_states(data)
                     
                     predicted_states_list.append({
@@ -183,14 +182,33 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
                         'fixation_type': fixation_type,
                         'predicted_states': pred_states.tolist()
                     })
+                    
+                    if agent == 'm1':
+                        paired_data = pad_sequences([np.stack((row['binary_vector'], session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]), axis=0)])
+                        pred_states_m1_m2 = arhmm_models[fixation_type]['m1_m2_params'].most_likely_states(paired_data)
+                        predicted_states_list.append({
+                            'session_name': row['session_name'],
+                            'interaction_type': row['interaction_type'],
+                            'run_number': row['run_number'],
+                            'm1': m1,
+                            'm2': m2,
+                            'agent': 'm1_m2',
+                            'fixation_type': fixation_type,
+                            'predicted_states': pred_states_m1_m2.tolist()
+                        })
     
     # Create dataframe of predicted states
     predicted_states_df = pd.DataFrame(predicted_states_list)
     
     # Save to file
-    output_path = os.path.join(params['processed_data_dir'], 'predicted_states.pkl')
+    output_path = os.path.join(params['processed_data_dir'], 'arhmm_predicted_states.pkl')
     predicted_states_df.to_pickle(output_path)
 
+
+def pad_sequences(sequences, pad_value=0):
+    """Pad variable-length sequences to the maximum length."""
+    max_length = max(len(seq) for seq in sequences)
+    return jnp.array([jnp.pad(seq, (0, max_length - len(seq)), constant_values=pad_value) for seq in sequences])
 
 
 
