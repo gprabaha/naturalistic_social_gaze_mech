@@ -8,7 +8,7 @@ import pickle
 
 import jax.numpy as jnp
 import jax.random as jr
-from dynamax.linear_gaussian_ssm import LinearAutoregressiveHMM
+from dynamax.hidden_markov_model import BernoulliHMM
 from jax.nn import pad
 
 import pdb
@@ -85,11 +85,10 @@ def main():
 
     # Fit ARHMM models
     fit_arhmm_models(fix_binary_vector_df, params, n_states=3)
-    pdb.set_trace()
 
 
 
-def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_iters=50):
+def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
     """
     Fits ARHMM models for each unique m1-m2 pair using dynamax and saves the models and predicted states.
     """
@@ -126,6 +125,8 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
                 if not m1_rows or not m2_rows:
                     continue
                 
+                pdb.set_trace()
+
                 m1_data.extend(m1_rows)
                 m2_data.extend(m2_rows)
                 stacked_data.extend([np.stack((m1_v, m2_v), axis=0) for m1_v, m2_v in zip(m1_rows, m2_rows)])
@@ -140,9 +141,9 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_i
             
             # Initialize ARHMMs using Dynamax
             arhmm_models.setdefault(fixation_type, {})
-            arhmm_models[fixation_type]['m1'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
-            arhmm_models[fixation_type]['m2'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
-            arhmm_models[fixation_type]['m1_m2'] = LinearAutoregressiveHMM(n_states, 2, num_lags=num_lags)
+            arhmm_models[fixation_type]['m1'] = BernoulliHMM(n_states, 1)
+            arhmm_models[fixation_type]['m2'] = BernoulliHMM(n_states, 1)
+            arhmm_models[fixation_type]['m1_m2'] = BernoulliHMM(n_states, 2)
             
             # Fit models across all runs for the m1-m2 pair
             params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="kmeans", emissions=m1_data_padded)
