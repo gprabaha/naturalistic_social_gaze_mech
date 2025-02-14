@@ -146,13 +146,13 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
             arhmm_models[fixation_type]['m1_m2'] = BernoulliHMM(n_states, 2)
             
             # Fit models across all runs for the m1-m2 pair
-            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="kmeans", emissions=m1_data_padded)
+            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="prior", emissions=m1_data_padded)
             params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(params_m1, props_m1, m1_data_padded)
             
-            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="kmeans", emissions=m2_data_padded)
+            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="prior", emissions=m2_data_padded)
             params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(params_m2, props_m2, m2_data_padded)
             
-            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="kmeans", emissions=stacked_data_padded)
+            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="prior", emissions=stacked_data_padded)
             params_m1_m2, _ = arhmm_models[fixation_type]['m1_m2'].fit_em(params_m1_m2, props_m1_m2, stacked_data_padded)
             
             # Store parameters in dictionary
