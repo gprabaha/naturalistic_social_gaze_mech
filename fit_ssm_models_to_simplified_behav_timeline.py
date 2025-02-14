@@ -6,6 +6,10 @@ import ssm
 from tqdm import tqdm
 import pickle
 
+import jax.numpy as jnp
+import jax.random as jr
+from dynamax.linear_gaussian_ssm import LinearAutoregressiveHMM
+
 import pdb
 
 import load_data
@@ -84,9 +88,14 @@ def main():
 
 
 
-def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
+import os
+import numpy as np
+import pickle
+import pandas as pd
+
+def fit_arhmm_models(fix_binary_vector_df, params, n_states=3, num_lags=1, num_iters=50):
     """
-    Fits ARHMM models for each unique m1-m2 pair and saves the models and predicted states.
+    Fits ARHMM models for each unique m1-m2 pair using dynamax and saves the models and predicted states.
     """
     # Ensure output directories exist
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
@@ -128,16 +137,28 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
             if not m1_data or not m2_data:
                 continue  # Skip if no valid data
             
-            # Initialize ARHMMs
+            # Initialize ARHMMs using Dynamax
             arhmm_models.setdefault(fixation_type, {})
-            arhmm_models[fixation_type]['m1'] = ssm.HMM(n_states, obs_dim=1)
-            arhmm_models[fixation_type]['m2'] = ssm.HMM(n_states, obs_dim=1)
-            arhmm_models[fixation_type]['m1_m2'] = ssm.HMM(n_states, obs_dim=2)
+            key = jr.PRNGKey(1)
+            
+            arhmm_models[fixation_type]['m1'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
+            arhmm_models[fixation_type]['m2'] = LinearAutoregressiveHMM(n_states, 1, num_lags=num_lags)
+            arhmm_models[fixation_type]['m1_m2'] = LinearAutoregressiveHMM(n_states, 2, num_lags=num_lags)
             
             # Fit models across all runs for the m1-m2 pair
-            arhmm_models[fixation_type]['m1'].fit(m1_data, method='em', num_iters=50)
-            arhmm_models[fixation_type]['m2'].fit(m2_data, method='em', num_iters=50)
-            arhmm_models[fixation_type]['m1_m2'].fit(stacked_data, method='em', num_iters=50)
+            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="kmeans", emissions=jnp.array(m1_data))
+            params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(params_m1, props_m1, jnp.array(m1_data))
+            
+            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="kmeans", emissions=jnp.array(m2_data))
+            params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(params_m2, props_m2, jnp.array(m2_data))
+            
+            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="kmeans", emissions=jnp.array(stacked_data))
+            params_m1_m2, _ = arhmm_models[fixation_type]['m1_m2'].fit_em(params_m1_m2, props_m1_m2, jnp.array(stacked_data))
+            
+            # Store parameters in dictionary
+            arhmm_models[fixation_type]['m1_params'] = params_m1
+            arhmm_models[fixation_type]['m2_params'] = params_m2
+            arhmm_models[fixation_type]['m1_m2_params'] = params_m1_m2
         
         # Save models after both fixation types are processed
         model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_arhmm.pkl")
@@ -149,8 +170,8 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
             for _, session_df in group_df[group_df['fixation_type'] == fixation_type].groupby(['session_name', 'interaction_type', 'run_number']):
                 for i, row in session_df.iterrows():
                     agent = row['agent']
-                    data = np.array(row['binary_vector']).reshape(-1, 1)
-                    pred_states = models[agent].most_likely_states(data)
+                    data = jnp.array(row['binary_vector']).reshape(-1, 1)
+                    pred_states = arhmm_models[fixation_type][f"{agent}_params"].most_likely_states(data)
                     
                     predicted_states_list.append({
                         'session_name': row['session_name'],
@@ -162,21 +183,6 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
                         'fixation_type': fixation_type,
                         'predicted_states': pred_states.tolist()
                     })
-                    
-                    # Predict hidden states for m1_m2 model
-                    if agent == 'm1':
-                        paired_data = np.stack((data.flatten(), np.array(session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]).flatten()), axis=0)
-                        pred_states_m1_m2 = models['m1_m2'].most_likely_states(paired_data.T)
-                        predicted_states_list.append({
-                            'session_name': row['session_name'],
-                            'interaction_type': row['interaction_type'],
-                            'run_number': row['run_number'],
-                            'm1': m1,
-                            'm2': m2,
-                            'agent': 'm1_m2',
-                            'fixation_type': fixation_type,
-                            'predicted_states': pred_states_m1_m2.tolist()
-                        })
     
     # Create dataframe of predicted states
     predicted_states_df = pd.DataFrame(predicted_states_list)
@@ -184,6 +190,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
     # Save to file
     output_path = os.path.join(params['processed_data_dir'], 'predicted_states.pkl')
     predicted_states_df.to_pickle(output_path)
+
 
 
 
