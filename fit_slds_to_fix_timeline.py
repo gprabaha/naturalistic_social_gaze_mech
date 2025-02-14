@@ -40,12 +40,12 @@ def _initialize_params():
     logger.info("Initializing parameters")
     
     params = {
-        'is_cluster': True,
+        'is_cluster': False,
         'is_grace': False,
         'num_slds_states': 3,
         'num_slds_latents': 2,
         'num_slds_iters': 10,
-        'remake_fixation_timeline': False,
+        'remake_fixation_timeline': True,
         'run_locally': True,
         'fit_slds_for_agents_in_serial': False,
         'shuffle_task_order': True,
@@ -92,6 +92,8 @@ def main():
     # Merge monkey names into behavioral data
     eye_mvm_behav_df = eye_mvm_behav_df.merge(monkeys_per_session_df, on="session_name", how="left")
 
+    pdb.set_trace()
+    
     # Generate fixation timeline if not already saved
     if params.get('remake_fixation_timeline', False):
         logger.info("Generating fixation timeline")
@@ -281,6 +283,10 @@ def fit_slds_to_timeline_pair(df, params):
         latent_dim = params.get('num_slds_latents', 2)
         num_iters = params.get('num_slds_iters', 25)
 
+        num_states_joint = num_states
+        latent_dim_joint = latent_dim
+
+
         # One-hot encode fixation timelines
         timeline_m1_onehot = one_hot_encode_timeline(timeline_m1).astype(int)
         timeline_m2_onehot = one_hot_encode_timeline(timeline_m2).astype(int)
@@ -295,7 +301,7 @@ def fit_slds_to_timeline_pair(df, params):
             results = [
                 fit_slds(obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
                 fit_slds(obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
-                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states*2, latent_dim*2, num_iters)
+                fit_slds(obs_dim_joint, timeline_joint_onehot, "joint", num_states_joint, latent_dim_joint, num_iters)
             ]
         else:
             logger.info("Running SLDS fitting in parallel.")
@@ -304,7 +310,7 @@ def fit_slds_to_timeline_pair(df, params):
                 for obs_dim, timeline, label, discrete_states, latents, num_iters in [
                     (obs_dim_m1, timeline_m1_onehot, "m1", num_states, latent_dim, num_iters),
                     (obs_dim_m2, timeline_m2_onehot, "m2", num_states, latent_dim, num_iters),
-                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states*2, latent_dim*2, num_iters)
+                    (obs_dim_joint, timeline_joint_onehot, "joint", num_states_joint, latent_dim_joint, num_iters)
                 ]
             )
         # Extract ELBOs
@@ -313,7 +319,7 @@ def fit_slds_to_timeline_pair(df, params):
         # Compute model complexity (K) for each model
         K_m1 = compute_K(obs_dim_m1, num_states, latent_dim)
         K_m2 = compute_K(obs_dim_m2, num_states, latent_dim)
-        K_joint = compute_K(obs_dim_joint, num_states*2, latent_dim*2)
+        K_joint = compute_K(obs_dim_joint, num_states_joint, latent_dim_joint)
 
         # Compute AIC and BIC
         aic_m1, bic_m1 = compute_aic_bic(elbo_m1, T, K_m1)
