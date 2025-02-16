@@ -181,7 +181,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
                 for i, row in session_df.iterrows():
                     agent = row['agent']
                     data = pad_sequences([row['binary_vector']])
-                    pred_states = arhmm_models[fixation_type][f"{agent}_params"].most_likely_states(data)
+                    pred_states = arhmm_models[fixation_type][f"{agent}"].most_likely_states(arhmm_models[fixation_type][f"{agent}_params"], data)
                     
                     predicted_states_list.append({
                         'session_name': row['session_name'],
@@ -196,7 +196,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
                     
                     if agent == 'm1':
                         paired_data = pad_sequences([np.stack((row['binary_vector'], session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]), axis=0)])
-                        pred_states_m1_m2 = arhmm_models[fixation_type]['m1_m2_params'].most_likely_states(paired_data)
+                        pred_states_m1_m2 = arhmm_models[fixation_type]['m1_m2'].most_likely_states(arhmm_models[fixation_type]['m1_m2_params'], paired_data)
                         predicted_states_list.append({
                             'session_name': row['session_name'],
                             'interaction_type': row['interaction_type'],
