@@ -34,7 +34,7 @@ def _initialize_params():
     logger.info("Initializing parameters")
     
     params = {
-        'is_cluster': False,
+        'is_cluster': True,
         'is_grace': False,
         'num_slds_states': 3,
         'num_slds_latents': 2,
@@ -51,6 +51,7 @@ def _initialize_params():
 
     # Set SLDS results directory
     params['ssm_models_dir'] = os.path.join(params['processed_data_dir'], 'ssm_model_fits')
+    
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
 
     logger.info("Parameters initialized successfully")
