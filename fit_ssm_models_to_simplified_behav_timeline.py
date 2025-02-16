@@ -9,7 +9,7 @@ import pickle
 import jax.numpy as jnp
 import jax.random as jr
 from dynamax.hidden_markov_model import BernoulliHMM
-from jax.nn import pad
+from jax.numpy import pad
 
 import pdb
 
@@ -90,7 +90,7 @@ def main():
 
 def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
     """
-    Fits ARHMM models for each unique m1-m2 pair using dynamax and saves the models and predicted states.
+    Fits ARHMM models for each unique m1-m2 pair using Dynamax and saves the models and predicted states.
     """
     # Ensure output directories exist
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
@@ -103,7 +103,7 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
         
         # Dictionary to hold models nested under fixation type
         arhmm_models = {}
-        key = jr.PRNGKey(1)
+        key = jr.PRNGKey(1)  # PRNG for randomness
         
         for fixation_type in ['eyes', 'face']:
             
@@ -116,7 +116,6 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
             # Collect data across all runs for model fitting
             m1_data = []
             m2_data = []
-            stacked_data = []
             
             for _, session_df in session_groups:
                 m1_rows = session_df[session_df['agent'] == 'm1']['binary_vector'].tolist()
@@ -124,35 +123,45 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
                 
                 if not m1_rows or not m2_rows:
                     continue
-                
-                pdb.set_trace()
 
                 m1_data.extend(m1_rows)
                 m2_data.extend(m2_rows)
-                stacked_data.extend([np.stack((m1_v, m2_v), axis=0) for m1_v, m2_v in zip(m1_rows, m2_rows)])
             
             if not m1_data or not m2_data:
                 continue  # Skip if no valid data
             
-            # Pad sequences to equal lengths
+            # Pad sequences separately for m1 and m2
             m1_data_padded = pad_sequences(m1_data)
             m2_data_padded = pad_sequences(m2_data)
-            stacked_data_padded = pad_sequences(stacked_data)
+
+            # Ensure both are of the same shape before stacking
+            assert m1_data_padded.shape == m2_data_padded.shape, \
+                f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
+            
+            # Stack after padding
+            stacked_data_padded = jnp.stack((m1_data_padded, m2_data_padded), axis=-1)
+            
+            # Split PRNG key for different models
+            key_m1, key_m2, key_m1_m2 = jr.split(key, 3)
             
             # Initialize ARHMMs using Dynamax
             arhmm_models.setdefault(fixation_type, {})
             arhmm_models[fixation_type]['m1'] = BernoulliHMM(n_states, 1)
             arhmm_models[fixation_type]['m2'] = BernoulliHMM(n_states, 1)
-            arhmm_models[fixation_type]['m1_m2'] = BernoulliHMM(n_states, 2)
+            arhmm_models[fixation_type]['m1_m2'] = BernoulliHMM(n_states, 2)  # 2D Emission Case
             
             # Fit models across all runs for the m1-m2 pair
-            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key, method="prior", emissions=m1_data_padded)
-            params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(params_m1, props_m1, m1_data_padded)
+            params_m1, props_m1 = arhmm_models[fixation_type]['m1'].initialize(key_m1, method="prior")
+            params_m1, _ = arhmm_models[fixation_type]['m1'].fit_em(
+                params_m1, props_m1, jnp.expand_dims(m1_data_padded, axis=-1)  # (98, 298608, 1)
+            )
             
-            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key, method="prior", emissions=m2_data_padded)
-            params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(params_m2, props_m2, m2_data_padded)
+            params_m2, props_m2 = arhmm_models[fixation_type]['m2'].initialize(key_m2, method="prior")
+            params_m2, _ = arhmm_models[fixation_type]['m2'].fit_em(
+                params_m2, props_m2, jnp.expand_dims(m2_data_padded, axis=-1)  # (98, 298608, 1)
+            )
             
-            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key, method="prior", emissions=stacked_data_padded)
+            params_m1_m2, props_m1_m2 = arhmm_models[fixation_type]['m1_m2'].initialize(key_m1_m2, method="prior")
             params_m1_m2, _ = arhmm_models[fixation_type]['m1_m2'].fit_em(params_m1_m2, props_m1_m2, stacked_data_padded)
             
             # Store parameters in dictionary
@@ -209,8 +218,12 @@ def fit_arhmm_models(fix_binary_vector_df, params, n_states=3):
 def pad_sequences(sequences, pad_value=0):
     """Pad variable-length sequences to the maximum length."""
     max_length = max(len(seq) for seq in sequences)
-    return jnp.array([jnp.pad(seq, (0, max_length - len(seq)), constant_values=pad_value) for seq in sequences])
-
+    
+    # Pad each sequence to the same length
+    padded_sequences = [jnp.pad(jnp.array(seq), (0, max_length - len(seq)), mode="constant", constant_values=pad_value)
+                        for seq in sequences]
+    
+    return jnp.stack(padded_sequences)  # Ensures uniform shape
 
 
 # ** Call to main() **
