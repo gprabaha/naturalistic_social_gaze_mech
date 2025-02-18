@@ -2,7 +2,6 @@ import os
 import logging
 import pandas as pd
 import numpy as np
-import ssm
 from tqdm import tqdm
 import pickle
 
@@ -36,7 +35,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'refit_arhmm': True,
+        'refit_arhmm': False,
         'remake_fixation_timeline': True,
         'run_locally': True,
         'fit_slds_for_agents_in_serial': False,
@@ -96,7 +95,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
 
     # Step 1: Fit and Save Models (Only if refit is True)
     if params.get('refit_arhmm', True):
-        print("Refitting ARHMM models...")
+        logger.info("Refitting ARHMM models...")
 
         # Dictionary to store all models
         all_arhmm_models = {}
@@ -165,11 +164,13 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
             model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
             with open(model_path, 'wb') as f:
                 pickle.dump(arhmm_models, f)
+            
+            logger.info(f"Model saved to {model_path}")
 
             all_arhmm_models[(m1, m2)] = arhmm_models
 
     else:
-        print("Loading precomputed ARHMM models...")
+        logger.info("Loading precomputed ARHMM models...")
         all_arhmm_models = {}
 
         for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
@@ -180,7 +181,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
                     arhmm_models = pickle.load(f)
                 all_arhmm_models[(m1, m2)] = arhmm_models
             else:
-                print(f"Model file not found: {model_path}. Skipping.")
+                logger.info(f"Model file not found: {model_path}. Skipping.")
 
     # Step 2: Predict Hidden States
     predicted_states_list = []
@@ -197,8 +198,8 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
                 
                 for i, row in session_df.iterrows():
                     agent = row['agent']
-                    data = pad_sequences([row['binary_vector']])
-
+                    data = row['binary_vector']
+                    data = jnp.array(data)[:, None]
                     pred_states = arhmm_models[fixation_type][agent].most_likely_states(
                         arhmm_models[fixation_type][f"{agent}_params"], jnp.expand_dims(data, axis=-1)
                     )
@@ -215,9 +216,9 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
                     })
 
                     if agent == 'm1':
-                        paired_data = pad_sequences([
-                            jnp.stack((row['binary_vector'], session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]), axis=0)
-                        ])
+                        paired_data = jnp.stack(
+                            (row['binary_vector'], session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]),
+                            axis=1)
                         pred_states_m1_m2 = arhmm_models[fixation_type]['m1_m2'].most_likely_states(
                             arhmm_models[fixation_type]['m1_m2_params'], paired_data
                         )
@@ -237,7 +238,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
     output_path = os.path.join(params['processed_data_dir'], 'bernoulli_predicted_states.pkl')
     predicted_states_df.to_pickle(output_path)
 
-    print("BernoulliHMM predictions saved.")
+    logger.info("BernoulliHMM predictions saved.")
 
 
 def pad_sequences(sequences, pad_value=0):
