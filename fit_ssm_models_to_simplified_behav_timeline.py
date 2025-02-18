@@ -159,12 +159,17 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
                 arhmm_models[fixation_type]['m1_params'] = params_m1
                 arhmm_models[fixation_type]['m2_params'] = params_m2
                 arhmm_models[fixation_type]['m1_m2_params'] = params_m1_m2
+                # Compute and store model metrics
+                for agent, data in [('m1', m1_data[:, None]), ('m2', m2_data[:, None]), ('m1_m2', stacked_data)]:
+                    metrics = compute_model_metrics(arhmm_models[fixation_type][agent], 
+                                                    arhmm_models[fixation_type][f"{agent}_params"], data)
+                    arhmm_models[fixation_type][f"{agent}_metrics"] = metrics
+                    logger.info(f"{fixation_type} {agent}: Log-Likelihood={metrics['log_likelihood']:.2f}, AIC={metrics['AIC']:.2f}, BIC={metrics['BIC']:.2f}")
 
             # Save models
             model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
             with open(model_path, 'wb') as f:
                 pickle.dump(arhmm_models, f)
-            
             logger.info(f"Model saved to {model_path}")
 
             all_arhmm_models[(m1, m2)] = arhmm_models
@@ -250,6 +255,36 @@ def pad_sequences(sequences, pad_value=0):
                         for seq in sequences]
     
     return jnp.stack(padded_sequences)  # Ensures uniform shape
+
+
+def compute_model_metrics(model, params, data):
+    """
+    Computes log-likelihood, AIC, and BIC for a fitted BernoulliHMM.
+
+    Args:
+        model: The trained BernoulliHMM model.
+        params: The trained model parameters.
+        data: The input data of shape (T, D) used for likelihood evaluation.
+
+    Returns:
+        Dictionary with log_likelihood, AIC, BIC
+    """
+    log_likelihood = model.log_likelihood(params, data)
+
+    num_states = params.transitions.transition_matrix.shape[0]  # Number of hidden states
+    num_obs_dim = params.emissions.probs.shape[1]  # Number of observation dimensions
+
+    num_params = (
+        num_states * (num_states - 1) +  # Transition matrix (excluding one row due to sum=1 constraint)
+        num_states * num_obs_dim +  # Emission probabilities
+        num_states  # Initial state probabilities
+    )
+
+    T = data.shape[0]  # Number of time steps
+    AIC = 2 * num_params - 2 * log_likelihood
+    BIC = np.log(T) * num_params - 2 * log_likelihood
+
+    return {'log_likelihood': log_likelihood, 'AIC': AIC, 'BIC': BIC}
 
 
 # ** Call to main() **
