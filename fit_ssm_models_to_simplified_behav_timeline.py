@@ -39,12 +39,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'refit_arhmm': False,
-        'remake_fixation_timeline': True,
-        'run_locally': True,
-        'fit_slds_for_agents_in_serial': False,
-        'shuffle_task_order': True,
-        'test_single_task': False  # Set to True to test a single random task
+        'refit_arhmm': True
     }
     
     params = curate_data.add_root_data_to_params(params)
@@ -105,7 +100,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
             arhmm_models = {}
             for fixation_type in ['eyes', 'face']:
                 fix_type_df = group_df[group_df['fixation_type'] == fixation_type]
-                arhmm_models[fixation_type] = fit_model_for_fix_type(fix_type_df, models)
+                arhmm_models[fixation_type] = fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type)
             
             if arhmm_models:
                 model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
@@ -137,10 +132,11 @@ def invoke_model_dict(n_states, key):
         'm1_m2': (BernoulliHMM(n_states, 2), key_m1_m2)
     }
 
-def fit_model_for_fix_type(fix_type_df, models):
+def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     """Processes a single fixation type, fits models, and computes metrics."""
-    session_groups = fix_type_df.groupby(['session_name', 'interaction_type', 'run_number'])
+    logger.info(f"Fitting models for {m1}-{m2} {fixation_type} fixations")
     
+    session_groups = fix_type_df.groupby(['session_name', 'interaction_type', 'run_number'])
     m1_data, m2_data = [], []
     for _, session_df in session_groups:
         m1_rows = session_df[session_df['agent'] == 'm1']['binary_vector'].tolist()
@@ -155,7 +151,7 @@ def fit_model_for_fix_type(fix_type_df, models):
         return None  # No valid data
 
     m1_data, m2_data = jnp.array(m1_data), jnp.array(m2_data)
-    m1_data_padded, m2_data_padded = pad_sequences(m1_data), pad_sequences(m2_data)
+    m1_data_padded, m2_data_padded = pad_sequences(m1_data.tolist()), pad_sequences(m2_data.tolist())
     stacked_data_padded = jnp.stack((m1_data_padded, m2_data_padded), axis=-1)
 
     # Fit models and store parameters
@@ -174,7 +170,6 @@ def fit_model_for_fix_type(fix_type_df, models):
         logger.info(f"{agent}: Log-Likelihood={metrics['log_likelihood']:.2f}, AIC={metrics['AIC']:.2f}, BIC={metrics['BIC']:.2f}")
 
     return arhmm_models
-
 
 def pad_sequences(sequences, pad_value=0):
     """Pad variable-length sequences to the maximum length."""
@@ -198,7 +193,7 @@ def compute_model_metrics(model, params, data):
         num_states  # Initial state probabilities
     )
 
-    T = data.shape[0]  # Number of time steps
+    T = max(data.shape[0], 1)  # Ensure T is never 0
     AIC = 2 * num_params - 2 * log_likelihood
     BIC = np.log(T) * num_params - 2 * log_likelihood
 
@@ -211,7 +206,8 @@ def predict_hidden_states(fix_binary_vector_df, all_arhmm_models):
     for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
         if (m1, m2) not in all_arhmm_models:
             continue
-
+        
+        logger.info(f"Making state predictions for {m1}-{m2}")
         arhmm_models = all_arhmm_models[(m1, m2)]
 
         for fixation_type, models in arhmm_models.items():
