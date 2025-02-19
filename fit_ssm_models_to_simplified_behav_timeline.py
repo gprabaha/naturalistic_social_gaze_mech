@@ -17,8 +17,10 @@ import curate_data
 
 
 ## ** JAX Warning Suppression **
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppresses TensorFlow/JAX logs
 os.environ["JAX_LOG_LEVEL"] = "ERROR"
 os.environ["XLA_FLAGS"] = "--xla_disable_slow_operation_warnings"
+
 
 
 ## ** Configure logging **
@@ -150,8 +152,12 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     if not m1_data or not m2_data:
         return None  # No valid data
 
-    m1_data, m2_data = jnp.array(m1_data), jnp.array(m2_data)
-    m1_data_padded, m2_data_padded = pad_sequences(m1_data.tolist()), pad_sequences(m2_data.tolist())
+    m1_data_padded = jnp.array(pad_sequences(m1_data))
+    m2_data_padded = jnp.array(pad_sequences(m2_data))
+
+    assert m1_data_padded.shape == m2_data_padded.shape, \
+        f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
+
     stacked_data_padded = jnp.stack((m1_data_padded, m2_data_padded), axis=-1)
 
     # Fit models and store parameters
@@ -182,21 +188,40 @@ def pad_sequences(sequences, pad_value=0):
     return jnp.stack(padded_sequences)  # Ensures uniform shape
 
 def compute_model_metrics(model, params, data):
-    """Computes log-likelihood, AIC, and BIC for a fitted BernoulliHMM."""
-    log_likelihood = model.log_likelihood(params, data)
+    """
+    Computes log-likelihood, AIC, and BIC for a fitted BernoulliHMM.
+    
+    Args:
+        model: The fitted BernoulliHMM model.
+        params: The parameters of the fitted model.
+        data: The observed data (array-like).
+
+    Returns:
+        A dictionary containing the log-likelihood, AIC, and BIC.
+    """
+    # Compute the log-likelihood of the data under the model
+    log_likelihood = model.marginal_log_prob(params, data)
+    
+    # Number of states
     num_states = params.transitions.transition_matrix.shape[0]
+    
+    # Number of observation dimensions
     num_obs_dim = params.emissions.probs.shape[1]
-
+    
+    # Calculate the number of parameters
     num_params = (
-        num_states * (num_states - 1) +  # Transition matrix (excluding a row due to constraints)
-        num_states * num_obs_dim +  # Emission probabilities
-        num_states  # Initial state probabilities
+        num_states * (num_states - 1) +  # Transition probabilities (excluding one due to sum-to-one constraint)
+        num_states * num_obs_dim +       # Emission probabilities
+        num_states                       # Initial state probabilities
     )
-
-    T = max(data.shape[0], 1)  # Ensure T is never 0
+    
+    # Number of observations
+    T = data.shape[0]
+    
+    # Calculate AIC and BIC
     AIC = 2 * num_params - 2 * log_likelihood
     BIC = np.log(T) * num_params - 2 * log_likelihood
-
+    
     return {'log_likelihood': log_likelihood, 'AIC': AIC, 'BIC': BIC}
 
 def predict_hidden_states(fix_binary_vector_df, all_arhmm_models):
