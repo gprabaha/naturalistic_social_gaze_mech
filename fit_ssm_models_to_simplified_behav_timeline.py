@@ -157,26 +157,26 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
         return None  # No valid data
 
     # Convert lists to JAX arrays after padding
-    m1_data_padded = jnp.array(pad_sequences(m1_data))
-    m2_data_padded = jnp.array(pad_sequences(m2_data))
+    m1_data_padded = jnp.expand_dims(jnp.array(pad_sequences(m1_data)), axis=-1)
+    m2_data_padded = jnp.expand_dims(jnp.array(pad_sequences(m2_data)), axis=-1)
 
     assert m1_data_padded.shape == m2_data_padded.shape, \
         f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
-
-    stacked_data_padded = jnp.stack((m1_data_padded, m2_data_padded), axis=-1)
+    
+    stacked_data_padded = jnp.concatenate((m1_data_padded, m2_data_padded), axis=-1)
 
     # Fit models and store parameters
     hmm_models = {}
     for agent, (model, key) in models.items():
         hmm_models[agent] = model
-        data = jnp.expand_dims(m1_data_padded, axis=-1) if agent == 'm1' else \
-               jnp.expand_dims(m2_data_padded, axis=-1) if agent == 'm2' else stacked_data_padded
+        data = m1_data_padded if agent == 'm1' else \
+               m2_data_padded if agent == 'm2' else stacked_data_padded
 
         # Fit model with batch dimension
         params, props = model.initialize(key, method="prior")
-        params, _ = model.fit_em(params, props, data, num_iters=100)
+        params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
         hmm_models[f"{agent}_params"] = params
-
+        pdb.set_trace()
         # Compute and store model metrics
         metrics = compute_model_metrics(model, params, data)
         hmm_models[f"{agent}_metrics"] = metrics
