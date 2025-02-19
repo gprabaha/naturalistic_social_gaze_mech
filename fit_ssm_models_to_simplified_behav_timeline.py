@@ -128,10 +128,11 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params, n_states=3):
 def invoke_model_dict(n_states, key):
     """Initializes BernoulliHMM models for different agents."""
     key_m1, key_m2, key_m1_m2 = jr.split(key, 3)
+    n_states_joint = n_states * 2
     return {
         'm1': (BernoulliHMM(n_states, 1), key_m1),
         'm2': (BernoulliHMM(n_states, 1), key_m2),
-        'm1_m2': (BernoulliHMM(n_states, 2), key_m1_m2)
+        'm1_m2': (BernoulliHMM(n_states_joint, 2), key_m1_m2)
     }
 
 def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
