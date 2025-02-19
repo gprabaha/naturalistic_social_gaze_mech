@@ -204,11 +204,11 @@ def compute_model_metrics(model, params, data):
     """
     # Ensure correct shape for each run: (T, D) = (298608, 1)
     assert data.ndim == 3, f"Expected (B, T, D), got {data.shape}"
-    pdb.set_trace()
+    
     # Compute log-likelihood per run and sum
     log_likelihoods = [model.marginal_log_prob(params, data[i]) for i in range(data.shape[0])]
     log_likelihood = jnp.sum(jnp.array(log_likelihoods))  # Sum over all runs
-    pdb.set_trace()
+    
     # Number of states
     num_states = params.transitions.transition_matrix.shape[0]
     
