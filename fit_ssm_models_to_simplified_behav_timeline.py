@@ -41,8 +41,8 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'refit_hmm': True,
-        'num_states_hmm': 3,
-        'num_states_hmm_joint': 3
+        'num_states_hmm': 3, # predicted social states: high, low, other
+        'num_states_hmm_joint': 5 # predicted joint social states: high-high, high-low, low-high, low-low, other
     }
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
@@ -91,6 +91,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
         logger.info("Refitting BernoulliHMM models...")
         all_hmm_models = {}
         for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
+            logger.info(f"Fitting models for {m1}-{m2}")
             key = jr.PRNGKey(1)
             models = invoke_model_dict(params, key)
             hmm_models = {}
@@ -151,13 +152,15 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     # Fit models and store parameters
     hmm_models = {}
     for agent, (model, key) in models.items():
+        logger.info(f"Fitting {agent} model for {m1}-{m2} {fixation_type} fixations")
         hmm_models[agent] = model
         data = m1_data_padded if agent == 'm1' else \
                m2_data_padded if agent == 'm2' else stacked_data_padded
         # Fit model with batch dimension
         params, props = model.initialize(key, method="prior")
         params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
-        # Store per-iteration log-likelihoods
+        # Store params and per-iteration log-likelihoods
+        hmm_models[f"{agent}_params"] = params
         hmm_models[f"{agent}_log_likelihoods"] = log_likelihoods
         # Compute model metrics using the last log-likelihood
         metrics = compute_model_metrics(log_likelihoods[-1], params, data)
