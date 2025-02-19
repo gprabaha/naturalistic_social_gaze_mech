@@ -5,6 +5,8 @@ import numpy as np
 from tqdm import tqdm
 import pickle
 
+from joblib import Parallel, delayed
+
 import jax.numpy as jnp
 import jax.random as jr
 from dynamax.hidden_markov_model import BernoulliHMM
@@ -41,6 +43,7 @@ def _initialize_params():
         'is_cluster': True,
         'is_grace': False,
         'refit_hmm': True,
+        'randomization_key_seed': 42,
         'num_states_hmm': 3, # predicted social states: high, low, other
         'num_states_hmm_joint': 5 # predicted joint social states: high-high, high-low, low-high, low-low, other
     }
@@ -89,10 +92,11 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
     if params.get('refit_hmm', True):
         logger.info("Refitting BernoulliHMM models...")
+        rand_key_seed = params.get('randomization_key_seed', 42)
         all_hmm_models = {}
         for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
             logger.info(f"Fitting models for {m1}-{m2}")
-            key = jr.PRNGKey(1)
+            key = jr.PRNGKey(rand_key_seed)
             models = invoke_model_dict(params, key)
             hmm_models = {}
             for fixation_type in ['eyes', 'face']:
@@ -129,8 +133,8 @@ def invoke_model_dict(params, key):
     }
 
 
-def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
-    """Processes a single fixation type, fits models, and computes metrics."""
+def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type, num_indep_inits=5):
+    """Processes a single fixation type, fits models multiple times in parallel, and selects the best fit."""
     logger.info(f"Fitting models for {m1}-{m2} {fixation_type} fixations")
     session_groups = fix_type_df.groupby(['session_name', 'interaction_type', 'run_number'])
     m1_data, m2_data = [], []
@@ -149,25 +153,29 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     assert m1_data_padded.shape == m2_data_padded.shape, \
         f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
     stacked_data_padded = jnp.concatenate((m1_data_padded, m2_data_padded), axis=-1)
-    # Fit models and store parameters
+    # Determine number of parallel jobs
+    num_cpus = int(os.getenv("SLURM_CPUS_PER_TASK", "4")) // 4
+    num_cpus = max(1, num_cpus)  # Ensure at least one process
+    # Fit models in parallel and select the best fit
     hmm_models = {}
     for agent, (model, key) in models.items():
-        logger.info(f"Fitting {agent} model for {m1}-{m2} {fixation_type} fixations")
-        hmm_models[agent] = model
+        logger.info(f"Fitting {agent} model for {m1}-{m2} {fixation_type} fixations with {n} initializations")
         data = m1_data_padded if agent == 'm1' else \
                m2_data_padded if agent == 'm2' else stacked_data_padded
-        # Fit model with batch dimension
-        params, props = model.initialize(key, method="prior")
-        params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
-        # Store params and per-iteration log-likelihoods
-        hmm_models[f"{agent}_params"] = params
-        hmm_models[f"{agent}_log_likelihoods"] = log_likelihoods
-        # Compute model metrics using the last log-likelihood
-        metrics = compute_model_metrics(log_likelihoods[-1], params, data)
-        hmm_models[f"{agent}_metrics"] = metrics
-        logger.info(f"{agent}: Log-Likelihood={metrics['log_likelihood']:.2f}, AIC={metrics['AIC']:.2f}, BIC={metrics['BIC']:.2f}")
+        key_seeds = jr.split(key, num_indep_inits)
+        # Parallel fitting with different initial conditions
+        results = Parallel(n_jobs=num_cpus)(
+            delayed(fit_model_once)(model, key_seeds[i], data) for i in range(num_indep_inits)
+        )
+        # Select the best fit based on the highest final log-likelihood
+        best_params, best_log_likelihoods, best_metrics = max(results, key=lambda x: x[1][-1])
+        hmm_models[agent] = model
+        hmm_models[f"{agent}_params"] = best_params
+        hmm_models[f"{agent}_log_likelihoods"] = best_log_likelihoods
+        hmm_models[f"{agent}_metrics"] = best_metrics
+        logger.info(f"{agent}: Log-Likelihood={best_metrics['log_likelihood']:.2f}, "
+                    f"AIC={best_metrics['AIC']:.2f}, BIC={best_metrics['BIC']:.2f}")
     return hmm_models
-
 
 def pad_sequences(sequences, pad_value=0):
     """Pad variable-length sequences to the maximum length."""
@@ -177,6 +185,12 @@ def pad_sequences(sequences, pad_value=0):
                         for seq in sequences]
     return jnp.stack(padded_sequences)  # Ensures uniform shape
 
+def fit_model_once(model, key, data):
+    """Fits a single model initialization and returns parameters, log-likelihoods, and metrics."""
+    params, props = model.initialize(key, method="prior")
+    params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
+    metrics = compute_model_metrics(log_likelihoods[-1], params, data)
+    return params, log_likelihoods, metrics
 
 def compute_model_metrics(final_log_likelihood, params, data):
     """
