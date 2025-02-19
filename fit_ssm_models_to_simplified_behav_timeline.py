@@ -137,13 +137,13 @@ def invoke_model_dict(n_states, key):
 def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     """Processes a single fixation type, fits models, and computes metrics."""
     logger.info(f"Fitting models for {m1}-{m2} {fixation_type} fixations")
-    
+
     session_groups = fix_type_df.groupby(['session_name', 'interaction_type', 'run_number'])
     m1_data, m2_data = [], []
     for _, session_df in session_groups:
         m1_rows = session_df[session_df['agent'] == 'm1']['binary_vector'].tolist()
         m2_rows = session_df[session_df['agent'] == 'm2']['binary_vector'].tolist()
-        
+
         if not m1_rows or not m2_rows:
             continue
         m1_data.extend(m1_rows)
@@ -152,6 +152,7 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     if not m1_data or not m2_data:
         return None  # No valid data
 
+    # Convert lists to JAX arrays after padding
     m1_data_padded = jnp.array(pad_sequences(m1_data))
     m2_data_padded = jnp.array(pad_sequences(m2_data))
 
@@ -164,10 +165,12 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     arhmm_models = {}
     for agent, (model, key) in models.items():
         arhmm_models[agent] = model
-        data = jnp.expand_dims(m1_data_padded, axis=-1) if agent == 'm1' else jnp.expand_dims(m2_data_padded, axis=-1) if agent == 'm2' else stacked_data_padded
+        data = jnp.expand_dims(m1_data_padded, axis=-1) if agent == 'm1' else \
+               jnp.expand_dims(m2_data_padded, axis=-1) if agent == 'm2' else stacked_data_padded
 
+        # Fit model with batch dimension
         params, props = model.initialize(key, method="prior")
-        params, _ = model.fit_em(params, props, data)
+        params, _ = model.fit_em(params, props, data, num_iters=100)
         arhmm_models[f"{agent}_params"] = params
 
         # Compute and store model metrics
@@ -199,9 +202,13 @@ def compute_model_metrics(model, params, data):
     Returns:
         A dictionary containing the log-likelihood, AIC, and BIC.
     """
-    # Compute the log-likelihood of the data under the model
-    log_likelihood = model.marginal_log_prob(params, data)
-    
+    # Ensure correct shape for each run: (T, D) = (298608, 1)
+    assert data.ndim == 3, f"Expected (B, T, D), got {data.shape}"
+    pdb.set_trace()
+    # Compute log-likelihood per run and sum
+    log_likelihoods = [model.marginal_log_prob(params, data[i]) for i in range(data.shape[0])]
+    log_likelihood = jnp.sum(jnp.array(log_likelihoods))  # Sum over all runs
+    pdb.set_trace()
     # Number of states
     num_states = params.transitions.transition_matrix.shape[0]
     
@@ -215,13 +222,14 @@ def compute_model_metrics(model, params, data):
         num_states                       # Initial state probabilities
     )
     
-    # Number of observations
-    T = data.shape[0]
-    
-    # Calculate AIC and BIC
+    # Number of total observations across all runs
+    T = max(data.shape[1], 1)  # T is the second dim (298608)
+    B = data.shape[0]  # Number of runs (98)
+
+    # Compute AIC and BIC
     AIC = 2 * num_params - 2 * log_likelihood
-    BIC = np.log(T) * num_params - 2 * log_likelihood
-    
+    BIC = np.log(T * B) * num_params - 2 * log_likelihood  # Log total samples
+
     return {'log_likelihood': log_likelihood, 'AIC': AIC, 'BIC': BIC}
 
 def predict_hidden_states(fix_binary_vector_df, all_arhmm_models):

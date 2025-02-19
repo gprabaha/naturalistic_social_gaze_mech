@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=fit_ssm
 #SBATCH --output=fit_ssm.out
-#SBATCH --error=fit_ssm.err
+#SBATCH --error=fit_ssm.out
 #SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=8G
 #SBATCH --partition=psych_day
