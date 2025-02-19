@@ -110,12 +110,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
                 all_hmm_models[(m1, m2)] = hmm_models
     else:
         logger.info("Loading precomputed BernoulliHMM models...")
-        all_hmm_models = {}
-        for (m1, m2), _ in fix_binary_vector_df.groupby(['m1', 'm2']):
-            model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
-            if os.path.exists(model_path):
-                with open(model_path, 'rb') as f:
-                    all_hmm_models[(m1, m2)] = pickle.load(f)
+        all_hmm_models = load_precomputed_hmm_models(fix_binary_vector_df, params)
     predicted_states_df = predict_hidden_states(fix_binary_vector_df, all_hmm_models)
     predicted_states_df.to_pickle(os.path.join(params['processed_data_dir'], 'bernoulli_predicted_states.pkl'))
     logger.info("BernoulliHMM predictions saved.")
@@ -177,6 +172,7 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type, num_indep
                     f"AIC={best_metrics['AIC']:.2f}, BIC={best_metrics['BIC']:.2f}")
     return hmm_models
 
+
 def pad_sequences(sequences, pad_value=0):
     """Pad variable-length sequences to the maximum length."""
     max_length = max(len(seq) for seq in sequences)
@@ -185,12 +181,14 @@ def pad_sequences(sequences, pad_value=0):
                         for seq in sequences]
     return jnp.stack(padded_sequences)  # Ensures uniform shape
 
+
 def fit_model_once(model, key, data):
     """Fits a single model initialization and returns parameters, log-likelihoods, and metrics."""
     params, props = model.initialize(key, method="prior")
     params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
     metrics = compute_model_metrics(log_likelihoods[-1], params, data)
     return params, log_likelihoods, metrics
+
 
 def compute_model_metrics(final_log_likelihood, params, data):
     """
@@ -220,6 +218,17 @@ def compute_model_metrics(final_log_likelihood, params, data):
     AIC = 2 * num_params - 2 * final_log_likelihood
     BIC = np.log(T * B) * num_params - 2 * final_log_likelihood  # Log total samples
     return {'log_likelihood': final_log_likelihood, 'AIC': AIC, 'BIC': BIC}
+
+
+def load_precomputed_hmm_models(fix_binary_vector_df, params):
+    """Loads precomputed HMM models from disk."""
+    all_hmm_models = {}
+    for (m1, m2), _ in fix_binary_vector_df.groupby(['m1', 'm2']):
+        model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
+        if os.path.exists(model_path):
+            with open(model_path, 'rb') as f:
+                all_hmm_models[(m1, m2)] = pickle.load(f)
+    return all_hmm_models
 
 
 def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
