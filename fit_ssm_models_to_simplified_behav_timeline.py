@@ -37,7 +37,6 @@ def _initialize_params():
     Initializes parameters and adds root and processed data directories.
     """
     logger.info("Initializing parameters")
-    
     params = {
         'is_cluster': True,
         'is_grace': False,
@@ -45,15 +44,11 @@ def _initialize_params():
         'num_states_hmm': 3,
         'num_states_hmm_joint': 3
     }
-    
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
-
     # Set SLDS results directory
     params['ssm_models_dir'] = os.path.join(params['processed_data_dir'], 'ssm_model_fits')
-    
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
-
     logger.info("Parameters initialized successfully")
     return params
 
@@ -92,28 +87,22 @@ def main():
 def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
     """Fits BernoulliHMM models for each unique m1-m2 pair using Dynamax and saves the models."""
     os.makedirs(params['ssm_models_dir'], exist_ok=True)
-
     if params.get('refit_hmm', True):
         logger.info("Refitting BernoulliHMM models...")
         all_hmm_models = {}
-
         for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
             key = jr.PRNGKey(1)
             models = invoke_model_dict(params, key)
-
             hmm_models = {}
             for fixation_type in ['eyes', 'face']:
                 fix_type_df = group_df[group_df['fixation_type'] == fixation_type]
                 hmm_models[fixation_type] = fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type)
-            
             if hmm_models:
                 model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
                 with open(model_path, 'wb') as f:
                     pickle.dump(hmm_models, f)
                 logger.info(f"Model saved to {model_path}")
-
                 all_hmm_models[(m1, m2)] = hmm_models
-
     else:
         logger.info("Loading precomputed BernoulliHMM models...")
         all_hmm_models = {}
@@ -122,10 +111,10 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
             if os.path.exists(model_path):
                 with open(model_path, 'rb') as f:
                     all_hmm_models[(m1, m2)] = pickle.load(f)
-
     predicted_states_df = predict_hidden_states(fix_binary_vector_df, all_hmm_models)
     predicted_states_df.to_pickle(os.path.join(params['processed_data_dir'], 'bernoulli_predicted_states.pkl'))
     logger.info("BernoulliHMM predictions saved.")
+
 
 def invoke_model_dict(params, key):
     """Initializes BernoulliHMM models for different agents."""
@@ -138,127 +127,101 @@ def invoke_model_dict(params, key):
         'm1_m2': (BernoulliHMM(n_states_joint, 2), key_m1_m2)
     }
 
+
 def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type):
     """Processes a single fixation type, fits models, and computes metrics."""
     logger.info(f"Fitting models for {m1}-{m2} {fixation_type} fixations")
-
     session_groups = fix_type_df.groupby(['session_name', 'interaction_type', 'run_number'])
     m1_data, m2_data = [], []
     for _, session_df in session_groups:
         m1_rows = session_df[session_df['agent'] == 'm1']['binary_vector'].tolist()
         m2_rows = session_df[session_df['agent'] == 'm2']['binary_vector'].tolist()
-
         if not m1_rows or not m2_rows:
             continue
         m1_data.extend(m1_rows)
         m2_data.extend(m2_rows)
-
     if not m1_data or not m2_data:
         return None  # No valid data
-
     # Convert lists to JAX arrays after padding
     m1_data_padded = jnp.expand_dims(jnp.array(pad_sequences(m1_data)), axis=-1)
     m2_data_padded = jnp.expand_dims(jnp.array(pad_sequences(m2_data)), axis=-1)
-
     assert m1_data_padded.shape == m2_data_padded.shape, \
         f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
-    
     stacked_data_padded = jnp.concatenate((m1_data_padded, m2_data_padded), axis=-1)
-
     # Fit models and store parameters
     hmm_models = {}
     for agent, (model, key) in models.items():
         hmm_models[agent] = model
         data = m1_data_padded if agent == 'm1' else \
                m2_data_padded if agent == 'm2' else stacked_data_padded
-
         # Fit model with batch dimension
         params, props = model.initialize(key, method="prior")
         params, log_likelihoods = model.fit_em(params, props, data, num_iters=100)
-        hmm_models[f"{agent}_params"] = params
-        pdb.set_trace()
-        # Compute and store model metrics
-        metrics = compute_model_metrics(model, params, data)
+        # Store per-iteration log-likelihoods
+        hmm_models[f"{agent}_log_likelihoods"] = log_likelihoods
+        # Compute model metrics using the last log-likelihood
+        metrics = compute_model_metrics(log_likelihoods[-1], params, data)
         hmm_models[f"{agent}_metrics"] = metrics
         logger.info(f"{agent}: Log-Likelihood={metrics['log_likelihood']:.2f}, AIC={metrics['AIC']:.2f}, BIC={metrics['BIC']:.2f}")
-
     return hmm_models
+
 
 def pad_sequences(sequences, pad_value=0):
     """Pad variable-length sequences to the maximum length."""
     max_length = max(len(seq) for seq in sequences)
-    
     # Pad each sequence to the same length
     padded_sequences = [jnp.pad(jnp.array(seq), (0, max_length - len(seq)), mode="constant", constant_values=pad_value)
                         for seq in sequences]
-    
     return jnp.stack(padded_sequences)  # Ensures uniform shape
 
-def compute_model_metrics(model, params, data):
+
+def compute_model_metrics(final_log_likelihood, params, data):
     """
     Computes log-likelihood, AIC, and BIC for a fitted BernoulliHMM.
-    
     Args:
-        model: The fitted BernoulliHMM model.
+        final_log_likelihood: The final log-likelihood from fit_em.
         params: The parameters of the fitted model.
         data: The observed data (array-like).
-
     Returns:
         A dictionary containing the log-likelihood, AIC, and BIC.
     """
-    # Ensure correct shape for each run: (T, D) = (298608, 1)
     assert data.ndim == 3, f"Expected (B, T, D), got {data.shape}"
-    
-    # Compute log-likelihood per run and sum
-    log_likelihoods = [model.marginal_log_prob(params, data[i]) for i in range(data.shape[0])]
-    log_likelihood = jnp.sum(jnp.array(log_likelihoods))  # Sum over all runs
-    
     # Number of states
     num_states = params.transitions.transition_matrix.shape[0]
-    
     # Number of observation dimensions
     num_obs_dim = params.emissions.probs.shape[1]
-    
     # Calculate the number of parameters
     num_params = (
         num_states * (num_states - 1) +  # Transition probabilities (excluding one due to sum-to-one constraint)
         num_states * num_obs_dim +       # Emission probabilities
         num_states                       # Initial state probabilities
     )
-    
     # Number of total observations across all runs
-    T = max(data.shape[1], 1)  # T is the second dim (298608)
-    B = data.shape[0]  # Number of runs (98)
-
+    T = max(data.shape[1], 1)  # T is the second dim
+    B = data.shape[0]  # Number of runs
     # Compute AIC and BIC
-    AIC = 2 * num_params - 2 * log_likelihood
-    BIC = np.log(T * B) * num_params - 2 * log_likelihood  # Log total samples
+    AIC = 2 * num_params - 2 * final_log_likelihood
+    BIC = np.log(T * B) * num_params - 2 * final_log_likelihood  # Log total samples
+    return {'log_likelihood': final_log_likelihood, 'AIC': AIC, 'BIC': BIC}
 
-    return {'log_likelihood': log_likelihood, 'AIC': AIC, 'BIC': BIC}
 
 def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
     """Predicts hidden states using fitted HMM models."""
     predicted_states_list = []
-    
     for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
         if (m1, m2) not in all_hmm_models:
             continue
-        
         logger.info(f"Making state predictions for {m1}-{m2}")
         hmm_models = all_hmm_models[(m1, m2)]
-
         for fixation_type, models in hmm_models.items():
             for _, session_df in group_df[group_df['fixation_type'] == fixation_type].groupby(
                     ['session_name', 'interaction_type', 'run_number']):
-                
                 for _, row in session_df.iterrows():
                     agent = row['agent']
                     data = jnp.array(row['binary_vector'])[:, None]
-
                     pred_states = hmm_models[fixation_type][agent].most_likely_states(
                         hmm_models[fixation_type][f"{agent}_params"], data
                     )
-
                     predicted_states_list.append({
                         'session_name': row['session_name'],
                         'interaction_type': row['interaction_type'],
@@ -267,7 +230,6 @@ def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
                         'agent': agent, 'fixation_type': fixation_type,
                         'predicted_states': pred_states.tolist()
                     })
-
                     if agent == 'm1':
                         paired_data = jnp.stack(
                             (row['binary_vector'], session_df[session_df['agent'] == 'm2']['binary_vector'].iloc[0]),
@@ -284,7 +246,6 @@ def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
                             'agent': 'm1_m2', 'fixation_type': fixation_type,
                             'predicted_states': pred_states_m1_m2.tolist()
                         })
-
     return pd.DataFrame(predicted_states_list)
 
 
