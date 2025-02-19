@@ -154,17 +154,17 @@ def fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type, num_indep
         f"Shape mismatch after padding: m1 {m1_data_padded.shape}, m2 {m2_data_padded.shape}"
     stacked_data_padded = jnp.concatenate((m1_data_padded, m2_data_padded), axis=-1)
     # Determine number of parallel jobs
-    num_cpus = int(os.getenv("SLURM_CPUS_PER_TASK", "4")) // 4
+    num_cpus = min(int(os.getenv("SLURM_CPUS_PER_TASK", "1")), num_indep_inits)
     num_cpus = max(1, num_cpus)  # Ensure at least one process
     # Fit models in parallel and select the best fit
     hmm_models = {}
     for agent, (model, key) in models.items():
-        logger.info(f"Fitting {agent} model for {m1}-{m2} {fixation_type} fixations with {n} initializations")
+        logger.info(f"Fitting {agent} model for {m1}-{m2} {fixation_type} fixations with {num_indep_inits} initializations")
         data = m1_data_padded if agent == 'm1' else \
                m2_data_padded if agent == 'm2' else stacked_data_padded
         key_seeds = jr.split(key, num_indep_inits)
         # Parallel fitting with different initial conditions
-        results = Parallel(n_jobs=num_cpus)(
+        results = Parallel(n_jobs=num_cpus, backend="threading")(
             delayed(fit_model_once)(model, key_seeds[i], data) for i in range(num_indep_inits)
         )
         # Select the best fit based on the highest final log-likelihood
