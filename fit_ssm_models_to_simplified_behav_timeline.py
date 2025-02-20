@@ -47,7 +47,7 @@ def _initialize_params():
         'refit_hmm': False,
         'remake_predicted_states': False,
         'randomization_key_seed': 42,
-        'num_indep_model_initiations': 10,
+        'num_indep_model_initiations': 20,
         'num_states_hmm': 3, # predicted social states: high, low, other
         'num_states_hmm_joint': 5, # predicted joint social states: high-high, high-low, low-high, low-low, other
         'make_hmm_state_plots': True
@@ -77,7 +77,7 @@ def main():
     monkeys_per_session_dict_file_path = os.path.join(processed_data_dir, 'ephys_days_and_monkeys.pkl')
     fix_binary_vector_file_path = os.path.join(processed_data_dir, 'fix_binary_vector_df.pkl')
 
-    logger.info("Loading data files")
+    logger.info("Loading data files...")
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file_path)
@@ -97,6 +97,7 @@ def main():
         predicted_states_df = load_data.get_data_df(predicted_states_file_path)
     
     if params.get('make_hmm_state_plots', True):
+        logger.info("Making HMM state prediction plots...")
         plot_hmm_state_predictions(predicted_states_df, params)
 
     return 0
@@ -303,45 +304,46 @@ def plot_hmm_state_predictions(predicted_states_df, params):
     date_dir = datetime.today().strftime('%Y-%m-%d')
     plot_dir = os.path.join(root_plot_dir, date_dir)
     os.makedirs(plot_dir, exist_ok=True)
-    # Iterate over unique m1-m2 pairs with tqdm for progress tracking
-    for (m1, m2, session_name, run_number), run_df in tqdm(predicted_states_df.groupby(['m1', 'm2', 'session_name', 'run_number']), desc='Generating plots'):
-        pair_dir = os.path.join(plot_dir, f"{m1}_{m2}")
-        os.makedirs(pair_dir, exist_ok=True)
-        fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(12, 6), sharex=True, sharey=True)
-        for (fixation_type, timeline_of), row_df in run_df.groupby(['fixation_type', 'timeline_of']):
-            row = ['m1', 'm2', 'm1_m2'].index(timeline_of)
-            col = ['eyes', 'face'].index(fixation_type)
-            if row_df.empty:
-                axes[row, col].set_visible(False)
-                continue
-            observed_timeline = np.array(row_df.iloc[0]['observed_timeline'])
-            predicted_states = np.array(row_df.iloc[0]['predicted_states'])
-            unique_states = np.unique(predicted_states)
-            for state in unique_states:
-                mask = predicted_states == state
-                axes[row, col].fill_between(range(len(predicted_states)), -0.5, 1.5, where=mask, color=f'C{state}', alpha=0.4)
-            if timeline_of == 'm1_m2':
-                axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 0], color='blue', alpha=0.6)
-                axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 1], color='red', alpha=0.6)
-            else:
-                axes[row, col].step(range(len(observed_timeline)), observed_timeline, color='blue', alpha=0.7)
-            axes[row, col].set_title(f"{timeline_of.upper()} - {fixation_type.capitalize()}")
-            axes[row, col].set_ylim(-0.5, 1.5)
-        # Create a single legend for all subplots
-        handles = [plt.Line2D([0], [0], color=f'C{i}', lw=4, label=f'State {i}') for i in range(5)]
-        handles.append(plt.Line2D([0], [0], color='blue', lw=2, label='M1 Observed'))
-        handles.append(plt.Line2D([0], [0], color='red', lw=2, label='M2 Observed'))
-        fig.legend(handles=handles, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.02))
-        # Set title and layout
-        fig.suptitle(f"Session {session_name}, Run {run_number} - {m1} & {m2} HMM State Predictions")
-        fig.tight_layout(rect=[0, 0.05, 1, 1])
-        # Save plot
-        plot_filename = f"session-{session_name}_run-{run_number}_hmm_state_predictions.png"
-        plot_path = os.path.join(pair_dir, plot_filename)
-        fig.savefig(plot_path)
-        plt.close(fig)
+    # Parallel processing
+    Parallel(n_jobs=-1)(delayed(generate_plot)(m1, m2, session_name, run_number, run_df, plot_dir)
+                        for (m1, m2, session_name, run_number), run_df in tqdm(predicted_states_df.groupby(['m1', 'm2', 'session_name', 'run_number']), desc='Generating plots'))
 
 
+def generate_plot(m1, m2, session_name, run_number, run_df, plot_dir):
+    pair_dir = os.path.join(plot_dir, f"{m1}_{m2}")
+    os.makedirs(pair_dir, exist_ok=True)
+    fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(12, 6), sharex=True, sharey=True)
+    for (fixation_type, timeline_of), row_df in run_df.groupby(['fixation_type', 'timeline_of']):
+        row = ['m1', 'm2', 'm1_m2'].index(timeline_of)
+        col = ['eyes', 'face'].index(fixation_type)
+        if row_df.empty:
+            axes[row, col].set_visible(False)
+            continue
+        observed_timeline = np.array(row_df.iloc[0]['observed_timeline'])
+        predicted_states = np.array(row_df.iloc[0]['predicted_states'])
+        unique_states = np.unique(predicted_states)
+        for state in unique_states:
+            mask = predicted_states == state
+            axes[row, col].fill_between(range(len(predicted_states)), -0.5, 1.5, where=mask, color=f'C{state}', alpha=0.4)
+        if timeline_of == 'm1_m2':
+            axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 0], color='blue', alpha=0.6)
+            axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 1], color='red', alpha=0.6)
+        else:
+            axes[row, col].step(range(len(observed_timeline)), observed_timeline, color='blue', alpha=0.7)
+        axes[row, col].set_title(f"{timeline_of.upper()} - {fixation_type.capitalize()}")
+        axes[row, col].set_ylim(-0.5, 1.5)
+    # Create a single legend for all subplots
+    handles = [plt.Line2D([0], [0], color=f'C{i}', lw=4, label=f'State {i}') for i in range(5)]
+    handles.append(plt.Line2D([0], [0], color='blue', lw=2, label='M1 Observed'))
+    handles.append(plt.Line2D([0], [0], color='red', lw=2, label='M2 Observed'))
+    fig.legend(handles=handles, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.02))
+    fig.suptitle(f"Session {session_name}, Run {run_number} - {m1} & {m2} HMM State Predictions")
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
+    # Save plot
+    plot_filename = f"session-{session_name}_run-{run_number}_hmm_state_predictions.png"
+    plot_path = os.path.join(pair_dir, plot_filename)
+    fig.savefig(plot_path)
+    plt.close(fig)
 
 # ** Call to main() **
 
