@@ -44,8 +44,9 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'refit_hmm': False,
-        'remake_predicted_states': False,
+        'refit_hmm': True,
+        'remake_predicted_states': True,
+        'transition_matrix_stickiness': 0.5,
         'randomization_key_seed': 42,
         'num_indep_model_initiations': 10,
         'num_states_hmm': 3, # predicted social states: high, low, other
@@ -139,10 +140,29 @@ def invoke_model_dict(params, key):
     n_states = params.get('num_states_hmm', 0)
     n_states_joint = params.get('num_states_hmm_joint', 0)
     key_m1, key_m2, key_m1_m2 = jr.split(key, 3)
+    transition_matrix_stickiness = params.get('transition_matrix_stickiness', 0.5)
     return {
-        'm1': (BernoulliHMM(n_states, 1), key_m1),
-        'm2': (BernoulliHMM(n_states, 1), key_m2),
-        'm1_m2': (BernoulliHMM(n_states_joint, 2), key_m1_m2)
+        'm1': (
+            BernoulliHMM(
+                n_states,
+                1,
+                transition_matrix_stickiness=transition_matrix_stickiness
+            ),
+            key_m1),
+        'm2': (
+            BernoulliHMM(
+                n_states,
+                1,
+                transition_matrix_stickiness=transition_matrix_stickiness
+            ),
+            key_m2),
+        'm1_m2': (
+            BernoulliHMM(
+                n_states_joint,
+                2,
+                transition_matrix_stickiness=transition_matrix_stickiness
+            ),
+            key_m1_m2)
     }
 
 
