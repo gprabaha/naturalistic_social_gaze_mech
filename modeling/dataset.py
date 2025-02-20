@@ -23,22 +23,27 @@ class FiringRateDataset(Dataset):
         """
         self.dataframe = dataframe.copy()  # Avoid modifying the original dataframe
         self.group_by_columns = group_by_columns or [
-            "session_name", "region", "behavior_type", "location", 
+            "region", "behavior_type", "location", 
             "from_location", "to_location", "behav_duration_category"
         ]
         
-        # Replace None/NaN with a placeholder to ensure proper grouping
         self.dataframe[self.group_by_columns] = self.dataframe[self.group_by_columns].fillna("UNKNOWN")
 
         # Group by specified columns (ensuring same region and behavior type are in a batch)
-        self.groups = list(self.dataframe.groupby(self.group_by_columns))
+        self.groups = self.dataframe.groupby(self.group_by_columns, sort=False)
 
     def __len__(self):
-        return len(self.groups)
+        length = 0
+        for i, _ in enumerate(self.groups):
+            length += 1
+        return length
+            
 
     def __getitem__(self, idx):
         """Fetches a batch corresponding to a group."""
-        group_key, group_df = self.groups[idx]
+        for i, (group_key, group_df) in enumerate(self.groups): 
+            if i == idx:
+                break
 
         # Extract firing rate timelines (all units in this group)
         firing_rates = [torch.tensor(fr, dtype=torch.float32) for fr in group_df["firing_rate_timeline"]]
@@ -48,6 +53,7 @@ class FiringRateDataset(Dataset):
 
         # Ensure batch consistency (transpose to batch_first format)
         firing_rates = firing_rates.permute(1, 0)  # Shape: (1, sequence_length, n_units)
+        print(firing_rates.shape)
 
         return firing_rates, group_key  # Return the key for debugging & analysis
 

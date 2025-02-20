@@ -50,10 +50,14 @@ def main():
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
     )
+    print('loading data...')
     df = load_data.get_data_df(behav_firing_rate_df_file_path)
 
+    print('creating fr dataset...')
     dataset = FiringRateDataset(df)
+    print('creating batch sampler...')
     batch_sampler = DurationCategoryBatchSampler(df, batch_size=4)
+    print('creating dataloader...')
     dataloader = DataLoader(dataset, batch_sampler=batch_sampler, collate_fn=collate_fn)
 
     for batch in dataloader:
