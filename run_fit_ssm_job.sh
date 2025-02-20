@@ -2,8 +2,8 @@
 #SBATCH --job-name=fit_ssm
 #SBATCH --output=fit_ssm.out
 #SBATCH --error=fit_ssm.out
-#SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=8G
+#SBATCH --cpus-per-task=40
+#SBATCH --mem-per-cpu=6G
 #SBATCH --partition=psych_day
 #SBATCH --time=10:00:00
 

@@ -42,8 +42,10 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
-        'refit_hmm': True,
+        'refit_hmm': False,
+        'remake_predicted_states': True,
         'randomization_key_seed': 42,
+        'num_indep_model_initiations': 10,
         'num_states_hmm': 3, # predicted social states: high, low, other
         'num_states_hmm_joint': 5 # predicted joint social states: high-high, high-low, low-high, low-low, other
     }
@@ -70,21 +72,28 @@ def main():
     # Define paths
     eye_mvm_behav_df_file_path = os.path.join(processed_data_dir, 'eye_mvm_behav_df.pkl')
     monkeys_per_session_dict_file_path = os.path.join(processed_data_dir, 'ephys_days_and_monkeys.pkl')
-    fix_binary_vector_file = os.path.join(processed_data_dir, 'fix_binary_vector_df.pkl')
+    fix_binary_vector_file_path = os.path.join(processed_data_dir, 'fix_binary_vector_df.pkl')
 
     logger.info("Loading data files")
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
-    fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
+    fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file_path)
     logger.info("Data loaded successfully")
 
     # Merge monkey names into behavioral data
     eye_mvm_behav_df = eye_mvm_behav_df.merge(monkeys_per_session_df, on="session_name", how="left")
     fix_binary_vector_df = fix_binary_vector_df.merge(monkeys_per_session_df, on="session_name", how="left")
 
-    # Fit hmm models
-    fit_bernoulli_hmm_models(fix_binary_vector_df, params)
-
+    predicted_states_file_path = os.path.join(params['processed_data_dir'], 'bernoulli_predicted_states.pkl')
+    if params.get('remake_predicted_states', True):
+        # Fit hmm models
+        logger.info("Predicting states in timeline again...")
+        predicted_states_df = fit_bernoulli_hmm_models(fix_binary_vector_df, params)
+    else:
+        logger.info("Loading previously indentified states dataframe...")
+        predicted_states_df = load_data.get_data_df(predicted_states_file_path)
+    pdb.set_trace()
+    return 0
 
 
 def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
@@ -93,6 +102,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
     if params.get('refit_hmm', True):
         logger.info("Refitting BernoulliHMM models...")
         rand_key_seed = params.get('randomization_key_seed', 42)
+        num_indep_inits = params.get('num_indep_model_initiations', 5)
         all_hmm_models = {}
         for (m1, m2), group_df in fix_binary_vector_df.groupby(['m1', 'm2']):
             logger.info(f"Fitting models for {m1}-{m2}")
@@ -101,7 +111,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
             hmm_models = {}
             for fixation_type in ['eyes', 'face']:
                 fix_type_df = group_df[group_df['fixation_type'] == fixation_type]
-                hmm_models[fixation_type] = fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type)
+                hmm_models[fixation_type] = fit_model_for_fix_type(fix_type_df, models, m1, m2, fixation_type, num_indep_inits)
             if hmm_models:
                 model_path = os.path.join(params['ssm_models_dir'], f"{m1}_{m2}_bernoulli_hmm.pkl")
                 with open(model_path, 'wb') as f:
@@ -114,6 +124,7 @@ def fit_bernoulli_hmm_models(fix_binary_vector_df, params):
     predicted_states_df = predict_hidden_states(fix_binary_vector_df, all_hmm_models)
     predicted_states_df.to_pickle(os.path.join(params['processed_data_dir'], 'bernoulli_predicted_states.pkl'))
     logger.info("BernoulliHMM predictions saved.")
+    return predicted_states_df
 
 
 def invoke_model_dict(params, key):
@@ -253,7 +264,8 @@ def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
                         'interaction_type': row['interaction_type'],
                         'run_number': row['run_number'],
                         'm1': m1, 'm2': m2,
-                        'agent': agent, 'fixation_type': fixation_type,
+                        'timeline_of': agent, 'fixation_type': fixation_type,
+                        'observed_timeline': data.tolist(),
                         'predicted_states': pred_states.tolist()
                     })
                     if agent == 'm1':
@@ -269,7 +281,8 @@ def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
                             'interaction_type': row['interaction_type'],
                             'run_number': row['run_number'],
                             'm1': m1, 'm2': m2,
-                            'agent': 'm1_m2', 'fixation_type': fixation_type,
+                            'timeline_of': 'm1_m2', 'fixation_type': fixation_type,
+                            'observed_timeline': paired_data.tolist(),
                             'predicted_states': pred_states_m1_m2.tolist()
                         })
     return pd.DataFrame(predicted_states_list)
