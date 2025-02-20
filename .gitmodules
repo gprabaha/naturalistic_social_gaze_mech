@@ -1,0 +1,3 @@
+[submodule "modeling/mRNNTorch"]
+	path = modeling/mRNNTorch
+	url = https://github.com/JohnLazzari/mRNNTorch.git

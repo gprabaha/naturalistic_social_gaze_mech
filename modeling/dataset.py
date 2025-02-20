@@ -100,19 +100,6 @@ class DurationCategoryBatchSampler(Sampler):
         return sum(len(indices) // self.batch_size + (1 if len(indices) % self.batch_size else 0)
                    for indices in self.duration_groups.values())
 
-
-def _initialize_params():
-    params = {
-        'remake_firing_rate_df': False,
-        'neural_data_bin_size': 10,  # 10 ms in seconds
-        'smooth_spike_counts': True,
-        'gaussian_smoothing_sigma': 2,
-        'time_window_before_event': 500
-    }
-    params = curate_data.add_root_data_to_params(params)
-    params = curate_data.add_processed_data_to_params(params)
-    return params
-
 # **Updated collate function to ensure consistent sequence lengths in each batch**
 def collate_fn(batch):
     """Custom collate function to ensure all sequences in a batch have the same length."""
@@ -125,21 +112,3 @@ def collate_fn(batch):
     inputs = torch.cat(inputs, dim=0)  # Shape: (batch_size, sequence_length, n_units)
     
     return inputs, group_keys  # Returning group keys for debugging if needed
-
-if __name__ == "__main__":
-    # Load processed dataframe
-    params = _initialize_params()
-    behav_firing_rate_df_file_path = os.path.join(
-        params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
-    )
-    df = load_data.get_data_df(behav_firing_rate_df_file_path)
-
-    dataset = FiringRateDataset(df)
-    batch_sampler = DurationCategoryBatchSampler(df, batch_size=4)
-    dataloader = DataLoader(dataset, batch_sampler=batch_sampler, collate_fn=collate_fn)
-
-    for batch in dataloader:
-        x, group_keys = batch
-        print("Input batch shape:", x.shape)  # Expected: (batch_size, sequence_length, n_units)
-        print("Batch group keys:", group_keys)  # Debugging - Check grouped categories
-        break  # Only checking one batch

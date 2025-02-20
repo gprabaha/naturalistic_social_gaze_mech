@@ -37,11 +37,14 @@ def add_root_data_to_params(params):
     - params (dict): Updated dictionary with the 'root_data_dir' field added.
     """
     logger.info("Setting root data directory based on whether on the cluster or not and whether on Grace or Milgram.")
-    if params.get('is_cluster', True):
+    if params.get('is_cluster') is True:
         root_data_dir = "/gpfs/gibbs/project/chang/pg496/data_dir/social_gaze/" if params.get('is_grace', False) \
                         else "/gpfs/milgram/project/chang/pg496/data_dir/social_gaze/"
     else:
-        root_data_dir = "/Users/prabaha/data_dir/social_gaze"
+        root_data_dir = os.path.dirname(os.path.abspath(__file__)) + "/social_gaze"
+    
+    if params.get('path_name') is not None:
+        root_data_dir = params['path_name']
     params['root_data_dir'] = root_data_dir
     logger.info(f"Root data directory set to: {root_data_dir}")
     return params
