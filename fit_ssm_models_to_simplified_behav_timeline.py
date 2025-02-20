@@ -47,7 +47,7 @@ def _initialize_params():
         'refit_hmm': False,
         'remake_predicted_states': False,
         'randomization_key_seed': 42,
-        'num_indep_model_initiations': 20,
+        'num_indep_model_initiations': 10,
         'num_states_hmm': 3, # predicted social states: high, low, other
         'num_states_hmm_joint': 5, # predicted joint social states: high-high, high-low, low-high, low-low, other
         'make_hmm_state_plots': True
@@ -309,6 +309,7 @@ def plot_hmm_state_predictions(predicted_states_df, params):
                         for (m1, m2, session_name, run_number), run_df in tqdm(predicted_states_df.groupby(['m1', 'm2', 'session_name', 'run_number']), desc='Generating plots'))
 
 
+
 def generate_plot(m1, m2, session_name, run_number, run_df, plot_dir):
     pair_dir = os.path.join(plot_dir, f"{m1}_{m2}")
     os.makedirs(pair_dir, exist_ok=True)
@@ -322,16 +323,19 @@ def generate_plot(m1, m2, session_name, run_number, run_df, plot_dir):
         observed_timeline = np.array(row_df.iloc[0]['observed_timeline'])
         predicted_states = np.array(row_df.iloc[0]['predicted_states'])
         unique_states = np.unique(predicted_states)
+        time_axis = np.arange(len(predicted_states)) / 1000  # Convert to seconds
         for state in unique_states:
             mask = predicted_states == state
-            axes[row, col].fill_between(range(len(predicted_states)), -0.5, 1.5, where=mask, color=f'C{state}', alpha=0.4)
+            axes[row, col].fill_between(time_axis, -0.5, 1.5, where=mask, color=f'C{state}', alpha=0.4)
         if timeline_of == 'm1_m2':
-            axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 0], color='blue', alpha=0.6)
-            axes[row, col].step(range(len(observed_timeline)), observed_timeline[:, 1], color='red', alpha=0.6)
+            axes[row, col].step(time_axis, observed_timeline[:, 0], color='blue', alpha=0.6)
+            axes[row, col].step(time_axis, observed_timeline[:, 1], color='red', alpha=0.6)
         else:
-            axes[row, col].step(range(len(observed_timeline)), observed_timeline, color='blue', alpha=0.7)
+            axes[row, col].step(time_axis, observed_timeline, color='blue', alpha=0.7)
         axes[row, col].set_title(f"{timeline_of.upper()} - {fixation_type.capitalize()}")
         axes[row, col].set_ylim(-0.5, 1.5)
+        axes[row, col].set_xlabel("Time (seconds)")
+        axes[row, col].set_ylabel("State / Observed Timeline")
     # Create a single legend for all subplots
     handles = [plt.Line2D([0], [0], color=f'C{i}', lw=4, label=f'State {i}') for i in range(5)]
     handles.append(plt.Line2D([0], [0], color='blue', lw=2, label='M1 Observed'))
