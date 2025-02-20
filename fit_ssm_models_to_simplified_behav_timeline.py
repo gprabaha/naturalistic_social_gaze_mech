@@ -251,8 +251,10 @@ def predict_hidden_states(fix_binary_vector_df, all_hmm_models):
         logger.info(f"Making state predictions for {m1}-{m2}")
         hmm_models = all_hmm_models[(m1, m2)]
         for fixation_type, models in hmm_models.items():
-            for _, session_df in group_df[group_df['fixation_type'] == fixation_type].groupby(
-                    ['session_name', 'interaction_type', 'run_number']):
+            for (session, _, _), session_df in tqdm(
+                group_df[group_df['fixation_type'] == fixation_type].groupby(
+                    ['session_name', 'interaction_type', 'run_number']), 
+                desc=f"{fixation_type} fixations"):
                 for _, row in session_df.iterrows():
                     agent = row['agent']
                     data = jnp.array(row['binary_vector'])[:, None]
