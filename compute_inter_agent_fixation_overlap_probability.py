@@ -239,7 +239,7 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     out_run_length = min(out_fix_data["run_length"], time_window)
 
     # Create a figure with 4 rows x 2 columns.
-    fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(14, 10))
+    fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(14, 6))
     
     # Row 1: M1 timeline.
     _plot_intervals(axes[0,0], face_fix_data["m1"], face_run_length, color=face_m1_color, height=bar_height, time_window=time_window)
@@ -250,10 +250,10 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     _plot_intervals(axes[1,1], out_fix_data["m2"], out_run_length, color=out_m2_color, height=bar_height, time_window=time_window)
     
     # Row 3: Overlay timeline (M1 and M2 drawn at the same vertical position).
-    _plot_intervals(axes[2,0], face_fix_data["m1"], face_run_length, color=face_m1_color, y_pos=0, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[2,0], face_fix_data["m2"], face_run_length, color=face_m2_color, y_pos=0, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[2,1], out_fix_data["m1"], out_run_length, color=out_m1_color, y_pos=0, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[2,1], out_fix_data["m2"], out_run_length, color=out_m2_color, y_pos=0, height=bar_height, time_window=time_window)
+    _plot_intervals(axes[2,0], face_fix_data["m1"], face_run_length, color=face_m1_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
+    _plot_intervals(axes[2,0], face_fix_data["m2"], face_run_length, color=face_m2_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
+    _plot_intervals(axes[2,1], out_fix_data["m1"], out_run_length, color=out_m1_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
+    _plot_intervals(axes[2,1], out_fix_data["m2"], out_run_length, color=out_m2_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
     
     # Row 4: Overlap only.
     _plot_intervals(axes[3,0], face_fix_data["overlap"], face_run_length, color=face_overlap_color, height=bar_height, time_window=time_window)
