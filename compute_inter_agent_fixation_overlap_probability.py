@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
-from scipy.stats import ttest_rel, wilcoxon, shapiro
+from scipy.stats import ttest_rel, wilcoxon, shapiro, ks_2samp
 import pingouin as pg
 
 import pdb
@@ -406,18 +406,23 @@ def _finalize_and_save(fig, params, fig_name):
 def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params):
     """
     Generate probability comparison plots (violin plots) for all fixation categories,
-    averaged across runs (one value per monkey pair per category). The violin plots (with inner quartile markers)
-    compare "P(m1)*P(m2)" vs "P(m1&m2)" with distinct colors for each probability type.
-    In addition, for each monkey pair the two aggregated points are overlaid and connected by a low-alpha line,
-    with a unique color assigned to each monkey pair.
-    
-    The resulting figure is saved as a PDF with a transparent background so that it can later be edited in Illustrator.
+    averaged across runs (one value per monkey pair per category) based on the median.
+    The violin plots (with inner quartile markers) compare "P(m1)*P(m2)" vs "P(m1&m2)"
+    using fixed colors for each probability type. In addition, for each monkey pair the two
+    aggregated median values are overlaid and connected by a low-alpha line (using a unique
+    color for each monkey pair).
+
+    IMPORTANT: The statistical test compares the full run-level distributions for each category
+    using a Kolmogorov–Smirnov test. The test result is annotated as either "Different" (if KS p < 0.05)
+    or "Not Different", thereby comparing the entire distribution shapes rather than just the medians.
+
+    The resulting figure is saved as a PDF with a transparent background so that it can later be
+    edited in Illustrator.
     
     Saved file path:
        params['root_data_dir']/plots/fix_prob_distributions/<date_dir>/joint_fixation_prob_distributions.pdf
     """
-
-    # Recompute the joint probabilities.
+    # Recompute the joint probabilities (each row corresponds to a run).
     joint_df = compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df)
     
     logger.info("Generating joint fixation probability comparison plots")
@@ -425,43 +430,55 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
     # Define the fixation categories to plot.
     categories = ["eyes", "non_eye_face", "face", "out_of_roi"]
     
-    # Aggregate data: average across runs for each monkey pair and category.
+    # Aggregate data: compute the median across runs for each monkey pair and category.
     aggregated_df = joint_df.groupby(["monkey_pair", "fixation_category"]).agg({
-        "P(m1)*P(m2)": "mean",
-        "P(m1&m2)": "mean"
+        "P(m1)*P(m2)": "median",
+        "P(m1&m2)": "median"
     }).reset_index()
     
-    # Create a unique color palette for monkey pairs.
+    # Create a unique color palette for monkey pairs (for overlaid data points and connecting lines).
     unique_monkey_pairs = aggregated_df["monkey_pair"].unique()
     monkey_palette = sns.color_palette("Set2", n_colors=len(unique_monkey_pairs))
     monkey_color_dict = {mp: monkey_palette[i] for i, mp in enumerate(unique_monkey_pairs)}
     
     # Define fixed colors for the two violins.
-    violin_palette = {"P(m1)*P(m2)": "#66c2a5",  # e.g., a greenish hue
-                      "P(m1&m2)": "#8da0cb"}    # e.g., a blueish hue
+    violin_palette = {"P(m1)*P(m2)": "#66c2a5",  # greenish hue
+                      "P(m1&m2)": "#8da0cb"}    # blueish hue
     
     # Create a figure with one row and four columns (one subplot per category).
     fig, axes = plt.subplots(1, 4, figsize=(16, 8))
     
     for i, category in enumerate(categories):
         ax = axes[i]
-        # Filter aggregated data for the current category.
+        # Filter the aggregated (median) data for the current category.
         cat_data = aggregated_df[aggregated_df["fixation_category"] == category]
         
         if not cat_data.empty:
-            # Melt the data so that we have one column for the probability type.
-            melted_data = cat_data.melt(id_vars=["monkey_pair", "fixation_category"],
-                                        value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
-                                        var_name="Probability Type", value_name="Probability")
+            # Melt the aggregated data so that we have one column for the probability type.
+            melted_data = cat_data.melt(
+                id_vars=["monkey_pair", "fixation_category"],
+                value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
+                var_name="Probability Type", 
+                value_name="Probability"
+            )
             
             # Create a violin plot with inner quartile markers.
-            sns.violinplot(data=melted_data, x="Probability Type", y="Probability",
-                           ax=ax, inner="quartile", palette=violin_palette)
-            # Lower the opacity of the violins.
+            # Passing hue and legend=False avoids the deprecation warning.
+            sns.violinplot(
+                data=melted_data, 
+                x="Probability Type", 
+                y="Probability",
+                hue="Probability Type",
+                ax=ax, 
+                inner="quartile", 
+                palette=violin_palette,
+                legend=False
+            )
+            # Increase the opacity of the violin elements.
             for coll in ax.collections:
-                coll.set_alpha(0.5)
+                coll.set_alpha(0.7)
             
-            # Overlay data points for each monkey pair, connecting the two points with a line.
+            # Overlay the aggregated median data points for each monkey pair and connect them.
             for mp in cat_data["monkey_pair"].unique():
                 mp_data = cat_data[cat_data["monkey_pair"] == mp]
                 if not mp_data.empty:
@@ -469,23 +486,28 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
                     x_vals = [0, 1]
                     y_val_1 = mp_data["P(m1)*P(m2)"].values[0]
                     y_val_2 = mp_data["P(m1&m2)"].values[0]
-                    # Plot a connecting line with low alpha.
-                    ax.plot(x_vals, [y_val_1, y_val_2], color=monkey_color_dict[mp], alpha=0.3, zorder=10)
-                    # Plot the individual points with low alpha.
-                    ax.scatter([0], [y_val_1], color=monkey_color_dict[mp], s=30, alpha=0.3, zorder=10)
-                    ax.scatter([1], [y_val_2], color=monkey_color_dict[mp], s=30, alpha=0.3, zorder=10)
+                    # Plot a connecting line with moderate opacity.
+                    ax.plot(x_vals, [y_val_1, y_val_2], color=monkey_color_dict[mp],
+                            alpha=0.5, zorder=10)
+                    # Plot the individual median points.
+                    ax.scatter([0], [y_val_1], color=monkey_color_dict[mp],
+                               s=30, alpha=0.5, zorder=10)
+                    ax.scatter([1], [y_val_2], color=monkey_color_dict[mp],
+                               s=30, alpha=0.5, zorder=10)
             
-            # Perform a paired Wilcoxon test (by default) on the aggregated data for this category.
-            if cat_data.shape[0] > 0:
-                _, p_val = wilcoxon(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
-                test_result_text = f"Wilcoxon p = {p_val:.4f}"
+            # Perform a KS test on the full distribution for this category.
+            stat_data = joint_df[joint_df["fixation_category"] == category]
+            if stat_data.shape[0] > 0:
+                ks_stat, ks_p = ks_2samp(stat_data["P(m1)*P(m2)"], stat_data["P(m1&m2)"])
+                test_result_text = f"KS p = {ks_p:.4f}"
+                test_result_text += "\nDifferent" if ks_p < 0.05 else "\nNot Different"
                 # Annotate the test result in the subplot.
                 ax.text(0.5, 0.9, test_result_text, ha='center', va='center',
                         transform=ax.transAxes, fontsize=10)
             
             ax.set_title(f"{category} Fixation Probabilities")
     
-    plt.suptitle("Fixation Probability Comparisons (Averaged Across Runs)", fontsize=16)
+    plt.suptitle("Fixation Probability Comparisons (All Runs Combined)", fontsize=16)
     plt.tight_layout()
     
     # Save the figure as a PDF with a transparent background.
@@ -501,6 +523,8 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
     plt.close(fig)
     
     logger.info(f"Joint fixation probability plots saved at {file_path}")
+
+
 
 
 
