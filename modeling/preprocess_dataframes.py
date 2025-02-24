@@ -29,6 +29,7 @@ def _initialize_params():
     logger.info("Initializing parameters")
     params = {
         'remake_firing_rate_df': False,
+        'prabaha_local': True,
         'neural_data_bin_size': 10,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'gaussian_smoothing_sigma': 2,
@@ -68,6 +69,8 @@ def main():
     else:
         logger.info("Loading trial-wise firing-rate dataframe")
         behav_firing_rate_df = load_data.get_data_df(behav_firing_rate_df_file_path)
+
+    pdb.set_trace()
 
     group_by_columns = [
             "region", "behavior_type", "location", 
