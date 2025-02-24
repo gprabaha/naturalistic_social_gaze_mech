@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 from torch.utils.data import Dataset, DataLoader, Sampler
+import train_config
 
 import sys
 import os
@@ -16,7 +17,7 @@ sys.path.append(str(root_dir))
 import curate_data
 import load_data
 import itertools
-from dataset import FiringRateDataset, DurationCategoryBatchSampler, collate_fn
+from dataset import FiringRateDataset
 import pdb
 
 def _initialize_params(
@@ -43,9 +44,13 @@ def _initialize_params(
 
 def main():
 
+    ### PARAMETERS ###
+    parser = train_config.config_parser()
+    args = parser.parse_args()
+
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
@@ -55,15 +60,11 @@ def main():
 
     print('creating fr dataset...')
     dataset = FiringRateDataset(df)
-    print('creating batch sampler...')
-    batch_sampler = DurationCategoryBatchSampler(df, batch_size=4)
     print('creating dataloader...')
-    dataloader = DataLoader(dataset, batch_sampler=batch_sampler, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset)
 
     for batch in dataloader:
-        x, group_keys = batch
-        print("Input batch shape:", x.shape)  # Expected: (batch_size, sequence_length, n_units)
-        print("Batch group keys:", group_keys)  # Debugging - Check grouped categories
+        print(batch[0].shape)
 
 if __name__ == "__main__":
     main()
