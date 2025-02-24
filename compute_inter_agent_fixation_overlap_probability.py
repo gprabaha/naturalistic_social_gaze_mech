@@ -13,7 +13,9 @@ import pdb
 
 import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['svg.fonttype'] = 'none'
 mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['text.usetex'] = False
 
 import load_data
 import curate_data
@@ -494,7 +496,7 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
                       "P(m1&m2)": "#8da0cb"}    # blueish hue
     
     # Create a figure with one row and four columns (one subplot per category).
-    fig, axes = plt.subplots(1, 4, figsize=(16, 8))
+    fig, axes = plt.subplots(1, 4, figsize=(16, 6))
     
     for i, category in enumerate(categories):
         ax = axes[i]
@@ -534,14 +536,16 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
                     x_vals = [0, 1]
                     y_val_1 = mp_data["P(m1)*P(m2)"].values[0]
                     y_val_2 = mp_data["P(m1&m2)"].values[0]
-                    # Plot a connecting line with moderate opacity.
-                    ax.plot(x_vals, [y_val_1, y_val_2], color=monkey_color_dict[mp],
+                    jitter = 0.005 * (hash(mp) % 10 - 5)  # a tiny offset based on the monkey pair
+                    # Plot the connecting line (you can also add a slight jitter here if needed)
+                    ax.plot([0, 1], [y_val_1, y_val_2],
+                            color=monkey_color_dict[mp],
                             alpha=0.5, zorder=10, rasterized=True)
-                    # Plot the individual median points.
-                    ax.scatter([0], [y_val_1], color=monkey_color_dict[mp],
-                               s=30, alpha=0.5, zorder=10, rasterized=True)
-                    ax.scatter([1], [y_val_2], color=monkey_color_dict[mp],
-                               s=30, alpha=0.5, zorder=10, rasterized=True)
+                    # Plot the individual median points with a slight horizontal offset
+                    ax.scatter([0+jitter], [y_val_1], color=monkey_color_dict[mp],
+                            s=30, alpha=0.7, zorder=10, rasterized=True)
+                    ax.scatter([1+jitter], [y_val_2], color=monkey_color_dict[mp],
+                            s=30, alpha=0.7, zorder=10, rasterized=True)
             
             # Perform a KS test on the full distribution for this category.
             stat_data = joint_df[joint_df["fixation_category"] == category]
