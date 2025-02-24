@@ -64,14 +64,14 @@ def main():
         analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
         logger.info("Analysis and plotting complete")
 
-    # plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params)
+    plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params)
 
-    logger.info("Plotting best runs timeline")
-    best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
-    logger.info("Plotting best runs timeline finished")
+    # logger.info("Plotting best runs timeline")
+    # best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
+    # logger.info("Plotting best runs timeline finished")
 
-    print("Best face run: ", best_face_run)
-    print("Best out run: ", best_out_run)
+    # print("Best face run: ", best_face_run)
+    # print("Best out run: ", best_out_run)
 
     return 0
 
@@ -536,7 +536,7 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
                     y_val_2 = mp_data["P(m1&m2)"].values[0]
                     # Plot a connecting line with moderate opacity.
                     ax.plot(x_vals, [y_val_1, y_val_2], color=monkey_color_dict[mp],
-                            alpha=0.5, zorder=10)
+                            alpha=0.5, zorder=10, rasterized=True)
                     # Plot the individual median points.
                     ax.scatter([0], [y_val_1], color=monkey_color_dict[mp],
                                s=30, alpha=0.5, zorder=10, rasterized=True)
