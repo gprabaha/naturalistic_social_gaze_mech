@@ -75,8 +75,7 @@ def get_data_df(data_file_path):
     - missing_data_paths (list): The loaded list of missing data paths.
     """
     try:
-        with open(data_file_path, 'rb') as f:
-            data_df = pickle.load(f)
+        data_df = pd.read_pickle(data_file_path)
         return data_df
     except Exception as e:
         logger.error(f"Failed to load gaze data: {e}")

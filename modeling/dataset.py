@@ -24,7 +24,7 @@ class FiringRateDataset(Dataset):
         """
         self.dataframe = dataframe.copy()  # Avoid modifying the original dataframe
         self.group_by_columns = group_by_columns or [
-            "region", "behavior_type", "location", 
+            "behavior_type", "location", 
             "from_location", "to_location", "behav_duration_category"
         ]
         
@@ -46,6 +46,6 @@ class FiringRateDataset(Dataset):
             firing_rates.append(torch.tensor(fr, dtype=torch.float32))
 
         # Stack firing rates along the last dimension (n_units)
-        firing_rates = torch.stack(firing_rates, dim=-1).unsqueeze(0)  # Shape: (sequence_length, n_units)
+        firing_rates = torch.stack(firing_rates, dim=-1)  # Shape: (sequence_length, n_units)
 
         return firing_rates, group_key  # Return the key for debugging & analysis
