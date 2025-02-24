@@ -60,14 +60,14 @@ def main():
         analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
         logger.info("Analysis and plotting complete")
 
-    plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params)
+    # plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params)
 
-    # logger.info("Plotting best runs timeline")
-    # best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
-    # logger.info("Plotting best runs timeline finished")
+    logger.info("Plotting best runs timeline")
+    best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
+    logger.info("Plotting best runs timeline finished")
 
-    # print("Best face run: ", best_face_run)
-    # print("Best out run: ", best_out_run)
+    print("Best face run: ", best_face_run)
+    print("Best out run: ", best_out_run)
 
     return 0
 
@@ -189,40 +189,38 @@ def plot_joint_fixation_distributions(joint_prob_df, params, group_by="monkey_pa
         # display(fig)
 
 
+
 def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params):
     """
     Computes fixation joint probabilities and selects:
-      - the run with the highest difference (P(m1&m2) - P(m1)*P(m2)) for face fixations,
-      - the run with the difference closest to zero for out_of_roi fixations.
+      - For face fixations: the run with the highest sum of individual fixation probabilities (P(m1)+P(m2)).
+      - For out-of-ROI fixations: the run with the smallest sum (P(m1)+P(m2)).
       
-    Then creates a single schematic graphic with two columns (face fixations on the left, 
-    out_of_roi fixations on the right) and four rows (M1 timeline, M2 timeline, overlay, 
-    and overlap) that displays only the timeline bars and textual identifiers (without any axes).
-    
-    Only the first 45 seconds (45,000 samples at 1KHz) are plotted, using a bar height of 2.
-    All bars are drawn with 0.5 alpha. In the overlay row, both M1 and M2 bars are drawn at the 
-    same vertical position so that their colors overlap and blend.
+    Then creates a schematic graphic with two columns (face fixations on the left, 
+    out-of-ROI fixations on the right) and four rows (M1 timeline, M2 timeline, overlay, and overlap).
+    Instead of simply taking the first 40 seconds, the densest 40-second window is determined
+    (using fixation duration as a density metric), and only that segment is plotted.
     
     The schematic is saved as a PDF with a transparent background in:
-       params['root_data_dir']/plots/best_fix_prob_timeline/date_dir/fig_name.pdf
+       params['root_data_dir']/plots/best_fix_prob_timeline/<date_dir>/combined_fixation_schematic_first_40s.pdf
     """
     # Compute joint probabilities.
     joint_df = compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df)
-    joint_df["diff"] = joint_df["P(m1&m2)"] - joint_df["P(m1)*P(m2)"]
+    # Compute the sum of individual fixation probabilities.
+    joint_df["sum_p"] = joint_df["P(m1)"] + joint_df["P(m2)"]
 
-    # Select runs.
+    # Select runs based on sum:
     face_df = joint_df[joint_df["fixation_category"] == "face"]
-    best_face_run = face_df.loc[face_df["diff"].idxmax()]
+    best_face_run = face_df.loc[face_df["sum_p"].idxmax()]
 
     out_df = joint_df[joint_df["fixation_category"] == "out_of_roi"].copy()
-    out_df["abs_diff"] = out_df["diff"].abs()
-    best_out_run = out_df.loc[out_df["abs_diff"].idxmin()]
+    best_out_run = out_df.loc[out_df["sum_p"].idxmin()]
 
     # Extract fixation intervals.
     face_fix_data = _extract_run_fixations(eye_mvm_behav_df, best_face_run, fixation_category="face")
     out_fix_data  = _extract_run_fixations(eye_mvm_behav_df, best_out_run, fixation_category="out_of_roi")
 
-    # Updated color definitions (distinct for each condition).
+    # Define colors.
     face_m1_color = "#0072B2"      # blue
     face_m2_color = "#E69F00"      # orange
     face_overlap_color = "#009E73" # green
@@ -231,14 +229,13 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     out_m2_color = "#CC79A7"       # purple
     out_overlap_color = "#F0E442"  # yellow
 
-    # Set alpha for all plots.
     alpha_val = 0.5
 
-    # Define the time window (first 45 seconds at 1KHz) and bar height.
+    # Use a time window of 40,000 samples (40 seconds).
     time_window = 40000
     bar_height = 2
 
-    # Compute effective run lengths (clip to time_window).
+    # Clip the run lengths to the time window.
     face_run_length = min(face_fix_data["run_length"], time_window)
     out_run_length = min(out_fix_data["run_length"], time_window)
 
@@ -257,7 +254,7 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     _plot_intervals(axes[1,1], out_fix_data["m2"], out_run_length, color=out_m2_color, 
                     height=bar_height, time_window=time_window, alpha=alpha_val)
     
-    # Row 3: Overlay timeline (M1 and M2 drawn at the same vertical position with alpha blending).
+    # Row 3: Overlay (M1 and M2 together).
     _plot_intervals(axes[2,0], face_fix_data["m1"], face_run_length, color=face_m1_color, 
                     y_pos=0, height=bar_height, time_window=time_window, alpha=alpha_val)
     _plot_intervals(axes[2,0], face_fix_data["m2"], face_run_length, color=face_m2_color, 
@@ -273,7 +270,7 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     _plot_intervals(axes[3,1], out_fix_data["overlap"], out_run_length, color=out_overlap_color, 
                     height=bar_height, time_window=time_window, alpha=alpha_val)
 
-    # Remove all axes lines, ticks, and labels.
+    # Remove axes elements.
     for ax in axes.flat:
         ax.set_xticks([])
         ax.set_yticks([])
@@ -282,7 +279,7 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
         ax.set_facecolor("none")
         ax.set_xlim(0, time_window)
 
-    # Add global column labels at the top.
+    # Add global column labels.
     fig.text(0.25, 0.95, "Face Fixations\n{} Run {}".format(best_face_run["session_name"],
                                                                best_face_run["run_number"]),
              ha="center", fontsize=14, fontweight='bold')
@@ -290,13 +287,13 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
                                                                   best_out_run["run_number"]),
              ha="center", fontsize=14, fontweight='bold')
     
-    # Add row labels on the left margin.
+    # Add row labels.
     row_labels = ["M1 Timeline", "M2 Timeline", "Overlay", "Overlap"]
-    row_positions = [0.82, 0.62, 0.42, 0.22]  # approximate positions in figure fraction
+    row_positions = [0.82, 0.62, 0.42, 0.22]
     for pos, label in zip(row_positions, row_labels):
         fig.text(0.05, pos, label, va="center", ha="left", fontsize=14, fontweight="bold")
     
-    # Save the schematic as a PDF with a transparent background.
+    # Save the figure.
     _finalize_and_save(fig, params, "combined_fixation_schematic_first_40s")
     plt.close(fig)
     
@@ -346,31 +343,78 @@ def _extract_run_fixations(eye_mvm_behav_df, run_info, fixation_category):
     
     return {"run_length": run_length, "m1": fix_data.get("m1", []), "m2": fix_data.get("m2", []), "overlap": overlap_intervals}
 
-def _plot_intervals(ax, intervals, run_length, color, y_pos=0, height=2, time_window=45000, alpha=0.5):
+
+def _plot_intervals(ax, intervals, run_length, color, y_pos=0, height=2, time_window=40000, alpha=0.5):
     """
     Plot fixation intervals as horizontal bars using broken_barh.
-    Each interval is a tuple (start, stop) and the width is computed as (clipped_stop - start + 1).
-    Only the first 'time_window' samples are plotted.
+    Instead of plotting from time 0, this function finds the densest 40-second segment 
+    and plots intervals within that segment (shifted so that the window starts at 0).
     
     Parameters:
-      - y_pos: vertical position to place the bar.
+      - intervals: list of (start, stop) tuples.
+      - run_length: total length of the run.
+      - color: bar color.
+      - y_pos: vertical position.
       - height: height of the bar.
-      - alpha: transparency for the bars (default 1.0).
+      - time_window: window size (default 40,000 samples).
+      - alpha: transparency.
     """
-    effective_run_length = min(run_length, time_window)
+    # Find the start of the densest window.
+    t0 = _find_densest_window(intervals, time_window, run_length)
+    effective_run_length = time_window
     bars = []
     for start, stop in intervals:
-        if start >= time_window:
+        # Skip intervals that do not intersect the window [t0, t0+time_window).
+        if stop < t0 or start >= t0 + time_window:
             continue
-        clipped_stop = min(stop, time_window - 1)
-        width = clipped_stop - start + 1
+        # Clip the interval to [t0, t0+time_window-1]
+        clipped_start = max(start, t0)
+        clipped_stop = min(stop, t0 + time_window - 1)
+        width = clipped_stop - clipped_start + 1
         if width > 0:
-            bars.append((start, width))
+            # Shift the start to relative time (0 corresponds to t0).
+            bars.append((clipped_start - t0, width))
     if bars:
         ax.broken_barh(bars, (y_pos, height), facecolors=color, alpha=alpha)
     else:
         ax.text(effective_run_length/2, y_pos + height/2, "No fixations", 
                 ha="center", va="center", color="gray", alpha=alpha)
+
+
+def _find_densest_window(intervals, window_size, run_length):
+    """
+    Given a list of fixation intervals (each a tuple of (start, stop)), 
+    find the start time t (0 <= t <= run_length - window_size) for which the
+    total fixation duration within [t, t+window_size] is maximal.
+    If no intervals are present, return 0.
+    """
+    if not intervals:
+        return 0
+    # Candidate window start times: all fixation starts and (fixation end - window_size + 1) values.
+    candidates = set()
+    for s, e in intervals:
+        candidates.add(s)
+        if e - window_size + 1 >= 0:
+            candidates.add(max(0, e - window_size + 1))
+    candidates = sorted(candidates)
+    
+    best_start = 0
+    best_density = 0
+    for t in candidates:
+        # Ensure window does not exceed run_length.
+        if t + window_size > run_length:
+            t = run_length - window_size
+        density = 0
+        # Sum overlapping duration for each fixation.
+        for s, e in intervals:
+            # Compute overlap of [s, e] with [t, t+window_size]
+            overlap = max(0, min(e, t + window_size - 1) - max(s, t) + 1)
+            density += overlap
+        if density > best_density:
+            best_density = density
+            best_start = t
+    return best_start
+
 
 def _compute_overlap(intervals1, intervals2):
     """
@@ -525,10 +569,6 @@ def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, 
     logger.info(f"Joint fixation probability plots saved at {file_path}")
 
 
-
-
-
-    
 
 
 # ** Call to main() **
