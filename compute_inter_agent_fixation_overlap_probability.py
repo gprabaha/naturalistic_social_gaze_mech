@@ -60,12 +60,14 @@ def main():
         analyze_and_plot_fixation_probabilities(eye_mvm_behav_df, monkeys_per_session_df, params, group_by="session_name")
         logger.info("Analysis and plotting complete")
 
-    logger.info("Plotting best runs timeline")
-    best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
-    logger.info("Plotting best runs timeline finished")
+    plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params)
 
-    print("Best face run: ", best_face_run)
-    print("Best out run: ", best_out_run)
+    # logger.info("Plotting best runs timeline")
+    # best_face_run, best_out_run = combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_session_df, params)
+    # logger.info("Plotting best runs timeline finished")
+
+    # print("Best face run: ", best_face_run)
+    # print("Best out run: ", best_out_run)
 
     return 0
 
@@ -195,10 +197,11 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
       
     Then creates a single schematic graphic with two columns (face fixations on the left, 
     out_of_roi fixations on the right) and four rows (M1 timeline, M2 timeline, overlay, 
-    and overlap) that displays only the timeline bars and textual identifiers without any axes.
+    and overlap) that displays only the timeline bars and textual identifiers (without any axes).
     
-    Only the first 60,000 samples (i.e. 1 minute at 1KHz) are plotted. Bar heights are set to 2.
-    In the overlay row the bars for M1 and M2 are drawn at the same vertical position (overlap).
+    Only the first 45 seconds (45,000 samples at 1KHz) are plotted, using a bar height of 2.
+    All bars are drawn with 0.5 alpha. In the overlay row, both M1 and M2 bars are drawn at the 
+    same vertical position so that their colors overlap and blend.
     
     The schematic is saved as a PDF with a transparent background in:
        params['root_data_dir']/plots/best_fix_prob_timeline/date_dir/fig_name.pdf
@@ -219,19 +222,20 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     face_fix_data = _extract_run_fixations(eye_mvm_behav_df, best_face_run, fixation_category="face")
     out_fix_data  = _extract_run_fixations(eye_mvm_behav_df, best_out_run, fixation_category="out_of_roi")
 
-    # Define two distinct color schemes.
-    # Face fixation colors.
+    # Updated color definitions (distinct for each condition).
     face_m1_color = "#0072B2"      # blue
     face_m2_color = "#E69F00"      # orange
     face_overlap_color = "#009E73" # green
 
-    # Out-of-ROI fixation colors.
     out_m1_color = "#D55E00"       # reddish
     out_m2_color = "#CC79A7"       # purple
     out_overlap_color = "#F0E442"  # yellow
 
-    # Define the time window (first 1 minute at 1KHz) and bar height.
-    time_window = 60000
+    # Set alpha for all plots.
+    alpha_val = 0.5
+
+    # Define the time window (first 45 seconds at 1KHz) and bar height.
+    time_window = 40000
     bar_height = 2
 
     # Compute effective run lengths (clip to time_window).
@@ -239,25 +243,35 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
     out_run_length = min(out_fix_data["run_length"], time_window)
 
     # Create a figure with 4 rows x 2 columns.
-    fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(14, 6))
+    fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(16, 3))
     
     # Row 1: M1 timeline.
-    _plot_intervals(axes[0,0], face_fix_data["m1"], face_run_length, color=face_m1_color, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[0,1], out_fix_data["m1"], out_run_length, color=out_m1_color, height=bar_height, time_window=time_window)
+    _plot_intervals(axes[0,0], face_fix_data["m1"], face_run_length, color=face_m1_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[0,1], out_fix_data["m1"], out_run_length, color=out_m1_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
     
     # Row 2: M2 timeline.
-    _plot_intervals(axes[1,0], face_fix_data["m2"], face_run_length, color=face_m2_color, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[1,1], out_fix_data["m2"], out_run_length, color=out_m2_color, height=bar_height, time_window=time_window)
+    _plot_intervals(axes[1,0], face_fix_data["m2"], face_run_length, color=face_m2_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[1,1], out_fix_data["m2"], out_run_length, color=out_m2_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
     
-    # Row 3: Overlay timeline (M1 and M2 drawn at the same vertical position).
-    _plot_intervals(axes[2,0], face_fix_data["m1"], face_run_length, color=face_m1_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
-    _plot_intervals(axes[2,0], face_fix_data["m2"], face_run_length, color=face_m2_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
-    _plot_intervals(axes[2,1], out_fix_data["m1"], out_run_length, color=out_m1_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
-    _plot_intervals(axes[2,1], out_fix_data["m2"], out_run_length, color=out_m2_color, y_pos=0, height=bar_height, time_window=time_window, alpha=0.5)
+    # Row 3: Overlay timeline (M1 and M2 drawn at the same vertical position with alpha blending).
+    _plot_intervals(axes[2,0], face_fix_data["m1"], face_run_length, color=face_m1_color, 
+                    y_pos=0, height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[2,0], face_fix_data["m2"], face_run_length, color=face_m2_color, 
+                    y_pos=0, height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[2,1], out_fix_data["m1"], out_run_length, color=out_m1_color, 
+                    y_pos=0, height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[2,1], out_fix_data["m2"], out_run_length, color=out_m2_color, 
+                    y_pos=0, height=bar_height, time_window=time_window, alpha=alpha_val)
     
     # Row 4: Overlap only.
-    _plot_intervals(axes[3,0], face_fix_data["overlap"], face_run_length, color=face_overlap_color, height=bar_height, time_window=time_window)
-    _plot_intervals(axes[3,1], out_fix_data["overlap"], out_run_length, color=out_overlap_color, height=bar_height, time_window=time_window)
+    _plot_intervals(axes[3,0], face_fix_data["overlap"], face_run_length, color=face_overlap_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
+    _plot_intervals(axes[3,1], out_fix_data["overlap"], out_run_length, color=out_overlap_color, 
+                    height=bar_height, time_window=time_window, alpha=alpha_val)
 
     # Remove all axes lines, ticks, and labels.
     for ax in axes.flat:
@@ -283,10 +297,11 @@ def combined_timeline_plots_for_optimal_runs(eye_mvm_behav_df, monkeys_per_sessi
         fig.text(0.05, pos, label, va="center", ha="left", fontsize=14, fontweight="bold")
     
     # Save the schematic as a PDF with a transparent background.
-    _finalize_and_save(fig, params, "combined_fixation_schematic_first_minute")
+    _finalize_and_save(fig, params, "combined_fixation_schematic_first_40s")
     plt.close(fig)
     
     return best_face_run, best_out_run
+
 
 def _extract_run_fixations(eye_mvm_behav_df, run_info, fixation_category):
     """
@@ -331,15 +346,16 @@ def _extract_run_fixations(eye_mvm_behav_df, run_info, fixation_category):
     
     return {"run_length": run_length, "m1": fix_data.get("m1", []), "m2": fix_data.get("m2", []), "overlap": overlap_intervals}
 
-def _plot_intervals(ax, intervals, run_length, color, y_pos=0, height=2, time_window=60000):
+def _plot_intervals(ax, intervals, run_length, color, y_pos=0, height=2, time_window=45000, alpha=0.5):
     """
     Plot fixation intervals as horizontal bars using broken_barh.
     Each interval is a tuple (start, stop) and the width is computed as (clipped_stop - start + 1).
     Only the first 'time_window' samples are plotted.
     
     Parameters:
-      - y_pos: vertical position to place the bar (default 0).
-      - height: height of the bar (set to 2 for a schematic look).
+      - y_pos: vertical position to place the bar.
+      - height: height of the bar.
+      - alpha: transparency for the bars (default 1.0).
     """
     effective_run_length = min(run_length, time_window)
     bars = []
@@ -351,10 +367,10 @@ def _plot_intervals(ax, intervals, run_length, color, y_pos=0, height=2, time_wi
         if width > 0:
             bars.append((start, width))
     if bars:
-        ax.broken_barh(bars, (y_pos, height), facecolors=color)
+        ax.broken_barh(bars, (y_pos, height), facecolors=color, alpha=alpha)
     else:
         ax.text(effective_run_length/2, y_pos + height/2, "No fixations", 
-                ha="center", va="center", color="gray")
+                ha="center", va="center", color="gray", alpha=alpha)
 
 def _compute_overlap(intervals1, intervals2):
     """
@@ -385,6 +401,107 @@ def _finalize_and_save(fig, params, fig_name):
     file_path = os.path.join(save_dir, fig_name + ".pdf")
     fig.savefig(file_path, format="pdf", transparent=True, bbox_inches="tight")
 
+
+
+def plot_joint_fixation_distributions(eye_mvm_behav_df, monkeys_per_session_df, params):
+    """
+    Generate probability comparison plots (violin plots) for all fixation categories,
+    averaged across runs (one value per monkey pair per category). The violin plots (with 0.5 alpha)
+    compare "P(m1)*P(m2)" vs "P(m1&m2)" and individual monkey pair averages are overlaid in distinct colors.
+    
+    The resulting figure is saved as a PDF with a transparent background so that it can later be edited in Illustrator.
+    
+    Saved file path:
+       params['root_data_dir']/plots/best_fix_prob_timeline/<date_dir>/joint_fixation_prob_distributions.pdf
+    """
+
+    # Recompute the joint probabilities using your provided function.
+    joint_df = compute_fixation_statistics(eye_mvm_behav_df, monkeys_per_session_df)
+    
+    # Log the start of plotting.
+    logger.info("Generating joint fixation probability comparison plots")
+    
+    # Define the fixation categories to plot.
+    categories = ["eyes", "non_eye_face", "face", "out_of_roi"]
+    
+    # Aggregate data: average across runs for each monkey pair and category.
+    aggregated_df = joint_df.groupby(["monkey_pair", "fixation_category"]).agg({
+        "P(m1)*P(m2)": "mean",
+        "P(m1&m2)": "mean"
+    }).reset_index()
+    
+    # Create a unique color palette for monkey pairs.
+    unique_monkey_pairs = aggregated_df["monkey_pair"].unique()
+    palette = sns.color_palette("Set2", n_colors=len(unique_monkey_pairs))
+    monkey_color_dict = {mp: palette[i] for i, mp in enumerate(unique_monkey_pairs)}
+    
+    # Create a figure with one row and four columns (one subplot per category).
+    fig, axes = plt.subplots(1, 4, figsize=(16, 8))
+    
+    for i, category in enumerate(categories):
+        ax = axes[i]
+        # Filter aggregated data for the current category.
+        cat_data = aggregated_df[aggregated_df["fixation_category"] == category]
+        
+        if not cat_data.empty:
+            # Melt the data so that we have one column for the probability type.
+            melted_data = cat_data.melt(id_vars=["monkey_pair", "fixation_category"],
+                                        value_vars=["P(m1)*P(m2)", "P(m1&m2)"],
+                                        var_name="Probability Type", value_name="Probability")
+            
+            # Create a violin plot with no inner markings.
+            sns.violinplot(data=melted_data, x="Probability Type", y="Probability",
+                           ax=ax, inner=None)
+            # Set the transparency (alpha) for the violins to 0.5.
+            for coll in ax.collections:
+                coll.set_alpha(0.5)
+            
+            # Overlay each monkey pair's aggregated data point in its own color.
+            for mp in unique_monkey_pairs:
+                mp_data = cat_data[cat_data["monkey_pair"] == mp]
+                if not mp_data.empty:
+                    # x positions: 0 for "P(m1)*P(m2)" and 1 for "P(m1&m2)".
+                    x_positions = [0, 1]
+                    y_values = [mp_data["P(m1)*P(m2)"].values[0],
+                                mp_data["P(m1&m2)"].values[0]]
+                    ax.scatter(x_positions, y_values, color=monkey_color_dict[mp],
+                               s=50, zorder=10, alpha=0.5)
+            
+            # Perform a paired statistical test on the aggregated data for this category.
+            if cat_data.shape[0] > 0:
+                shapiro1 = shapiro(cat_data["P(m1)*P(m2)"])[1]
+                shapiro2 = shapiro(cat_data["P(m1&m2)"])[1]
+                is_normal = (shapiro1 > 0.05) and (shapiro2 > 0.05)
+                if is_normal:
+                    t_stat, p_val = ttest_rel(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                    bf = pg.bayesfactor_ttest(t_stat, cat_data.shape[0])
+                    test_result_text = f"T-test p = {p_val:.4f}\nBF = {bf:.2f}"
+                else:
+                    _, p_val = wilcoxon(cat_data["P(m1)*P(m2)"], cat_data["P(m1&m2)"])
+                    test_result_text = f"Wilcoxon p = {p_val:.4f}"
+                
+                # Place the test result text in the upper center of the subplot.
+                ax.text(0.5, 0.9, test_result_text, ha='center', va='center',
+                        transform=ax.transAxes, fontsize=10)
+            
+            ax.set_title(f"{category} Fixation Probabilities")
+    
+    plt.suptitle("Fixation Probability Comparisons (Averaged Across Runs)", fontsize=16)
+    plt.tight_layout()
+    
+    # Save the figure as a PDF with a transparent background.
+    date_dir = datetime.now().strftime("%Y%m%d")
+    save_dir = os.path.join(params['root_data_dir'], "plots", "best_fix_prob_timeline", date_dir)
+    os.makedirs(save_dir, exist_ok=True)
+    file_path = os.path.join(save_dir, "joint_fixation_prob_distributions.pdf")
+    
+    fig.patch.set_alpha(0)
+    for ax in fig.get_axes():
+        ax.set_facecolor("none")
+    fig.savefig(file_path, format="pdf", transparent=True, bbox_inches="tight")
+    plt.close(fig)
+    
+    logger.info(f"Joint fixation probability plots saved at {file_path}")
 
 
     
