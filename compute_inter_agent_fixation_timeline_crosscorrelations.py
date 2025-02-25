@@ -240,6 +240,8 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
     m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles)
     m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles)
 
+    plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5)
+
     # Compute shuffled cross-correlations in parallel
     shuffled_crosscorrs = Parallel(n_jobs=num_threads)(
         delayed(fft_crosscorrelation_both)(gaussian_filter1d(m1, sigma), gaussian_filter1d(m2, sigma))
@@ -688,6 +690,66 @@ def compute_significant_crosscorr_stats_auto(x, max_timepoints, alpha=0.05, use_
         "significant_bins_m2_m1": significant_bins_m2_m1,
     })
 
+
+
+def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5):
+    """
+    Plots the original fixation vectors for M1 and M2 as broken bars in the first row,
+    and separate subplots for shuffled fixation vectors in subsequent rows.
+    
+    Parameters:
+    - m1_vector: np.array, binary fixation vector for M1
+    - m2_vector: np.array, binary fixation vector for M2
+    - m1_shuffled_vectors: np.array, 2D array of shuffled fixation vectors for M1
+    - m2_shuffled_vectors: np.array, 2D array of shuffled fixation vectors for M2
+    - num_shuffles_to_plot: int, number of shuffled versions to plot
+    """
+
+    num_rows = num_shuffles_to_plot + 1  # +1 for the original
+    fig, axes = plt.subplots(nrows=num_rows, ncols=2, figsize=(12, 2 * num_rows), sharex=True, sharey=True)
+    
+    # Function to plot broken bars
+    def plot_broken_bars(ax, vector, color="black", alpha=1.0, label=None):
+        """Plots broken bars for binary fixation vectors."""
+        on_intervals = np.where(vector == 1)[0]
+        if len(on_intervals) > 0:
+            starts = np.where(np.diff(np.concatenate(([0], on_intervals, [len(vector)]))) > 1)[0]
+            stops = np.where(np.diff(np.concatenate((on_intervals, [len(vector)]))) > 1)[0]
+            bars = [(on_intervals[s], on_intervals[e] - on_intervals[s]) for s, e in zip(starts, stops)]
+            ax.broken_barh(bars, (0, 0.8), facecolors=color, alpha=alpha, label=label)
+
+    # Plot original vectors in the first row
+    axes[0, 0].set_title("M1 Fixation Vectors")
+    axes[0, 1].set_title("M2 Fixation Vectors")
+
+    plot_broken_bars(axes[0, 0], m1_vector, color="black", label="Original")
+    plot_broken_bars(axes[0, 1], m2_vector, color="black", label="Original")
+
+    # Select random shuffled vectors to plot
+    m1_random_shuffles = np.random.choice(m1_shuffled_vectors.shape[0], num_shuffles_to_plot, replace=False)
+    m2_random_shuffles = np.random.choice(m2_shuffled_vectors.shape[0], num_shuffles_to_plot, replace=False)
+
+    # Plot shuffled vectors in separate subplots
+    for i, idx in enumerate(m1_random_shuffles):
+        plot_broken_bars(axes[i+1, 0], m1_shuffled_vectors[idx], color=f"C{i}", alpha=0.6, label=f"Shuffle {i+1}")
+
+    for i, idx in enumerate(m2_random_shuffles):
+        plot_broken_bars(axes[i+1, 1], m2_shuffled_vectors[idx], color=f"C{i}", alpha=0.6, label=f"Shuffle {i+1}")
+
+    # Formatting
+    for i, ax_row in enumerate(axes):
+        for ax in ax_row:
+            ax.set_ylabel(f"Shuffle {i}" if i > 0 else "Original")
+            ax.set_yticks([])
+            ax.legend(loc="upper right")
+
+    axes[-1, 0].set_xlabel("Time (ms)")
+    axes[-1, 1].set_xlabel("Time (ms)")
+
+    plt.tight_layout()
+    plt.show()
+    pdb.set_trace()
+    plt.close()
 
 
 # ** Call to main() **
