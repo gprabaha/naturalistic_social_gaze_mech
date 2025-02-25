@@ -52,7 +52,7 @@ def compute_mean_crosscorr(v1, v2, num_shuffles=100):
         shuffled_corrs.append(fft_crosscorr(v1, v2))
     return np.mean(shuffled_corrs, axis=0)
 
-def plot_crosscorr():
+def plot_crosscorr(params):
     """Generate example traces and plot their cross-correlations."""
     length = 1000
     num_shuffles = 100
@@ -75,7 +75,7 @@ def plot_crosscorr():
 
     # Define time lags
     taus = np.arange(len(mean_corr_90))
-
+    print("Plotting cross-correlations")
     # Plot results
     plt.figure(figsize=(8, 5))
     plt.plot(taus, mean_corr_90, color='black', label="Mean 90% 1s")

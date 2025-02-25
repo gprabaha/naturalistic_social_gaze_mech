@@ -282,14 +282,24 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
         "std_shuffled_m2_m1": np.std(shuffled_crosscorrs_m2_m1, axis=0)
     }
 
+
 def fft_crosscorrelation_both(x, y):
-    """Compute cross-correlation using fftconvolve."""
-    full_corr = fftconvolve(x, y[::-1], mode='full')
-
+    """Compute normalized cross-correlation using FFT, returning both positive and negative lags."""
     n = len(x)
+    # Subtract mean
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    x = x - x_mean
+    y = y - y_mean
+    # Compute cross-correlation
+    full_corr = fftconvolve(x, y[::-1], mode='full')
+    # Normalize
+    norm_factor = np.sqrt(np.sum(x ** 2) * np.sum(y ** 2))
+    full_corr /= norm_factor
+    # Extract positive and negative lags
     mid = len(full_corr) // 2
+    return full_corr[mid:mid + n], full_corr[:mid][::-1]  # (Positive lags, Negative lags)
 
-    return full_corr[mid:mid + n], full_corr[:mid][::-1]
 
 def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, interaction, run, fixation_type, agent, num_shuffles, num_threads):
     """
