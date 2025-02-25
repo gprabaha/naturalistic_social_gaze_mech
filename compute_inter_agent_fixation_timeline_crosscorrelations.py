@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 from joblib import Parallel, delayed
 import multiprocessing
-from numba import njit, prange
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -464,13 +463,6 @@ def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, para
 
     logger.info(f"All plots saved in {root_dir}")
 
-@njit(parallel=True)
-def compute_wilcoxon(crosscorr, shuffled, max_time):
-    p_values = np.empty(max_time)
-    for i in prange(max_time):
-        p_values[i] = wilcoxon(crosscorr[:, i], shuffled[:, i], alternative='two-sided')[1]
-    return p_values
-
 def process_crosscorrelations(subset, max_time):
     crosscorr_m1_m2 = np.array([x[:max_time] for x in subset['crosscorr_m1_m2']])
     crosscorr_m2_m1 = np.array([x[:max_time] for x in subset['crosscorr_m2_m1']])
@@ -483,21 +475,38 @@ def process_crosscorrelations(subset, max_time):
     
     max_val = max(np.max(mean_crosscorr_m1_m2), np.max(mean_crosscorr_m2_m1)) * 1.05
     
-    p_values_m1_m2 = compute_wilcoxon(crosscorr_m1_m2, mean_shuffled_m1_m2, max_time)
-    p_values_m2_m1 = compute_wilcoxon(crosscorr_m2_m1, mean_shuffled_m2_m1, max_time)
+    def extract_p_value(x, y):
+        return wilcoxon(x, y, alternative='two-sided')[1]  # Extract only the p-value
     
-    significant_bins_m1_m2 = p_values_m1_m2 < 0.05
-    significant_bins_m2_m1 = p_values_m2_m1 < 0.05
+    p_values_m1_m2 = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m1_m2[:, i], mean_shuffled_m1_m2[:, i]) for i in range(max_time))
+    p_values_m2_m1 = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m2_m1[:, i], mean_shuffled_m2_m1[:, i]) for i in range(max_time))
     
-    diff_p_values = compute_wilcoxon(crosscorr_m1_m2, crosscorr_m2_m1, max_time)
-    significant_diff_bins = diff_p_values < 0.05
+    significant_bins_m1_m2 = np.array(p_values_m1_m2) < 0.05
+    significant_bins_m2_m1 = np.array(p_values_m2_m1) < 0.05
+    
+    diff_p_values = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m1_m2[:, i], crosscorr_m2_m1[:, i]) for i in range(max_time))
+    significant_diff_bins = np.array(diff_p_values) < 0.05
     
     return mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 # ** Old Plotting Functions **
+
+
 
 # Plot difference between fix-vector crosscorr and shuffled vec crosscorr
 def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
