@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import logging
-import psutil
+import random
 import subprocess
 import re
 from scipy.ndimage import gaussian_filter1d
@@ -730,8 +730,9 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
     plot_broken_bars(axes[0, 1], m2_vector, color="black", label="Original")
 
     # Select random shuffled vectors to plot
-    m1_random_shuffles = np.random.choice(m1_shuffled_vectors.shape[0], num_shuffles_to_plot, replace=False)
-    m2_random_shuffles = np.random.choice(m2_shuffled_vectors.shape[0], num_shuffles_to_plot, replace=False)
+    m1_random_shuffles = random.sample(range(len(m1_shuffled_vectors)), num_shuffles_to_plot)
+    m2_random_shuffles = random.sample(range(len(m2_shuffled_vectors)), num_shuffles_to_plot)
+
 
     # Plot shuffled vectors in separate subplots
     for i, idx in enumerate(m1_random_shuffles):
