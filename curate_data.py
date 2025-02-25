@@ -9,6 +9,7 @@ Created on Wed Sep 19 17::48:42 2024
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Pool
+import multiprocessing
 from tqdm import tqdm
 import os
 import re
@@ -87,6 +88,27 @@ def add_raw_data_dir_to_params(params):
     logger.info("Raw data directories added to params.")
     return params
 
+
+def add_num_cpus_to_params(params):
+    """
+    Adds 'num_cpus' to the params dictionary.
+    
+    - If 'is_cluster' is True, it retrieves the number of allocated CPUs from SLURM (`SLURM_CPUS_PER_TASK`).
+    - If 'is_cluster' is False or missing, it sets 'num_cpus' to the number of CPUs available on the local machine.
+
+    Parameters:
+    - params (dict): Dictionary where 'num_cpus' will be added.
+
+    Returns:
+    - Updated params dictionary with 'num_cpus' key.
+    """
+    if params.get("is_cluster"):
+        num_cpus = int(os.getenv("SLURM_CPUS_PER_TASK", 1))  # Default to 1 if not found
+    else:
+        num_cpus = multiprocessing.cpu_count()  # Get local CPU count
+    
+    params["num_cpus"] = num_cpus
+    return params  # Return modified dictionary (not strictly needed if modifying in-place)
 
 def add_paths_to_all_data_files_to_params(params):
     """

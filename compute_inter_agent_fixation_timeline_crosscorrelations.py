@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster': True,
+        'is_cluster': False,
+        'prabaha_local': True,
         'is_grace': False,
         'use_parallel': False,
         'make_shuffle_stringent': False,
@@ -45,6 +46,7 @@ def _initialize_params():
         'remake_crosscorr_plots': True,
         'remake_sig_crosscorr_plots': True
     }
+    params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
@@ -89,7 +91,7 @@ def main():
 
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
-        inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr_parallel(
+        inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr(
             fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=1000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
@@ -301,8 +303,10 @@ def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, i
     total_fixation_duration = sum(fixation_durations)
     available_non_fixation_duration = run_length - total_fixation_duration
 
+    n_jobs = min(num_shuffles, params["num_cpus"]) if params.get("is_cluster") else -1
+
     # Parallel execution using joblib
-    shuffled_vectors = Parallel(n_jobs=num_shuffles)(
+    shuffled_vectors = Parallel(n_jobs=n_jobs)(
         delayed(generate_single_shuffled_vector)(
             params, agent_vector, fixation_durations, available_non_fixation_duration, len(fixation_durations), run_length
         ) for _ in range(num_shuffles)
