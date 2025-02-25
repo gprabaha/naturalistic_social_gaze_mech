@@ -40,7 +40,7 @@ def _initialize_params():
         'prabaha_local': True,
         'is_grace': False,
         'use_parallel': False,
-        'make_shuffle_stringent': False,
+        'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': True,
         'remake_crosscorr_plots': True,
@@ -279,7 +279,7 @@ def fft_crosscorrelation_both(x, y):
 def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, interaction, run, fixation_type, agent, num_shuffles):
     """
     Generate shuffled versions of a binary fixation vector by randomly redistributing fixation intervals.
-    Uses joblib for parallelization.
+    Runs in parallel if 'use_parallel' is True in params.
     """
 
     row = eye_mvm_behav_df[
@@ -303,14 +303,19 @@ def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, i
     total_fixation_duration = sum(fixation_durations)
     available_non_fixation_duration = run_length - total_fixation_duration
 
-    n_jobs = min(num_shuffles, params["num_cpus"]) if params.get("is_cluster") else -1
-
-    # Parallel execution using joblib
-    shuffled_vectors = Parallel(n_jobs=n_jobs)(
-        delayed(generate_single_shuffled_vector)(
-            params, agent_vector, fixation_durations, available_non_fixation_duration, len(fixation_durations), run_length
-        ) for _ in range(num_shuffles)
-    )
+    if params.get("use_parallel", False):
+        n_jobs = min(num_shuffles, params["num_cpus"]) if params.get("is_cluster") else params["num_cpus"]
+        shuffled_vectors = Parallel(n_jobs=n_jobs)(
+            delayed(generate_single_shuffled_vector)(
+                params, agent_vector, fixation_durations, available_non_fixation_duration, len(fixation_durations), run_length
+            ) for _ in range(num_shuffles)
+        )
+    else:
+        shuffled_vectors = [
+            generate_single_shuffled_vector(
+                params, agent_vector, fixation_durations, available_non_fixation_duration, len(fixation_durations), run_length
+            ) for _ in range(num_shuffles)
+        ]
 
     return shuffled_vectors
 
@@ -322,9 +327,9 @@ def generate_single_shuffled_vector(params, agent_vector, fixation_durations, av
         non_fixation_durations = generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
 
         all_segments = create_labeled_segments(fixation_durations, non_fixation_durations)
-
-        np.random.shuffle(all_segments)
+        
         shuffled_vector = construct_shuffled_vector(all_segments, run_length)
+        pdb.set_trace()
     else:
         shuffled_vector = np.random.permutation(agent_vector)
     return shuffled_vector
@@ -336,17 +341,13 @@ def generate_uniformly_distributed_partitions(total_duration, num_partitions):
     """
     if num_partitions == 1:
         return [total_duration]  # Only one partition, so it gets all the time
-
     # Step 1: Generate `num_partitions - 1` random breakpoints in [0, total_duration]
     cut_points = np.sort(np.random.choice(np.arange(1, total_duration), num_partitions - 1, replace=False))
-
     # Step 2: Compute partition sizes as the differences between consecutive breakpoints
     partitions = np.diff(np.concatenate(([0], cut_points, [total_duration]))).astype(int)
-
     # Step 3: Adjust rounding errors to ensure the exact sum
     while np.sum(partitions) != total_duration:
         diff = total_duration - partitions.sum()
-
         if diff > 0:
             idx = np.random.choice(len(partitions), size=diff, replace=True)
             for i in idx:
@@ -355,16 +356,24 @@ def generate_uniformly_distributed_partitions(total_duration, num_partitions):
             idx = np.random.choice(np.where(partitions > 1)[0], size=-diff, replace=True)
             for i in idx:
                 partitions[i] -= 1  # Reduce partitions to match the total
-
     return partitions.tolist()
 
 def create_labeled_segments(fixation_durations, non_fixation_durations):
     """
-    Create labeled segments for fixation (1) and non-fixation (0) intervals.
+    Create labeled segments for fixation (1) and non-fixation (0) intervals, ensuring they alternate.
     """
+    assert len(non_fixation_durations) == len(fixation_durations) + 1, "non_fixation_durations must have exactly one more element than fixation_durations."
+    np.random.shuffle(fixation_durations)
+    np.random.shuffle(non_fixation_durations)
     fixation_labels = [(dur, 1) for dur in fixation_durations]
     non_fixation_labels = [(dur, 0) for dur in non_fixation_durations]
-    return fixation_labels + non_fixation_labels
+    # Interleave non-fixation and fixation intervals
+    all_segments = []
+    for i in range(len(fixation_durations)):
+        all_segments.append(non_fixation_labels[i])
+        all_segments.append(fixation_labels[i])
+    all_segments.append(non_fixation_labels[-1])  # Append the last non-fixation segment
+    return all_segments
 
 def construct_shuffled_vector(segments, run_length):
     """
@@ -710,17 +719,20 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
     """
 
     num_rows = num_shuffles_to_plot + 1  # +1 for the original
-    fig, axes = plt.subplots(nrows=num_rows, ncols=2, figsize=(12, 2 * num_rows), sharex=True, sharey=True)
+    fig, axes = plt.subplots(nrows=num_rows, ncols=2, figsize=(6, 1 * num_rows), sharex=True, sharey=True)
     
     # Function to plot broken bars
     def plot_broken_bars(ax, vector, color="black", alpha=1.0, label=None):
         """Plots broken bars for binary fixation vectors."""
         on_intervals = np.where(vector == 1)[0]
         if len(on_intervals) > 0:
-            starts = np.where(np.diff(np.concatenate(([0], on_intervals, [len(vector)]))) > 1)[0]
-            stops = np.where(np.diff(np.concatenate((on_intervals, [len(vector)]))) > 1)[0]
+            starts = np.where(np.diff(np.concatenate(([0], on_intervals, [len(vector)-1]))) > 1)[0]
+            stops = np.where(np.diff(np.concatenate((on_intervals, [len(vector)-1]))) > 1)[0]
+            # Ensure e is within bounds
+            stops = np.clip(stops, 0, len(on_intervals) - 1)
             bars = [(on_intervals[s], on_intervals[e] - on_intervals[s]) for s, e in zip(starts, stops)]
             ax.broken_barh(bars, (0, 0.8), facecolors=color, alpha=alpha, label=label)
+
 
     # Plot original vectors in the first row
     axes[0, 0].set_title("M1 Fixation Vectors")
@@ -732,7 +744,6 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
     # Select random shuffled vectors to plot
     m1_random_shuffles = random.sample(range(len(m1_shuffled_vectors)), num_shuffles_to_plot)
     m2_random_shuffles = random.sample(range(len(m2_shuffled_vectors)), num_shuffles_to_plot)
-
 
     # Plot shuffled vectors in separate subplots
     for i, idx in enumerate(m1_random_shuffles):
