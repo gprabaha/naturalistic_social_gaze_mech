@@ -9,6 +9,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
 from tqdm import tqdm
 from joblib import Parallel, delayed
+import multiprocessing
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.stats import sem
@@ -69,7 +70,7 @@ def main():
     monkeys_per_session_df = pd.DataFrame(load_data.get_data_df(monkeys_per_session_dict_file_path))
     logger.info("Data loaded successfully")
 
-    num_cpus, threads_per_cpu = get_slurm_cpus_and_threads()
+    num_cpus, threads_per_cpu = get_slurm_cpus_and_threads(params)
     
     # Fix-related binary vectors
     fix_binary_vector_file = os.path.join(processed_data_dir, 'fix_binary_vector_df.pkl')
