@@ -1,0 +1,16 @@
+inp_dim = 36
+epochs = 10000
+lr = 1e-4
+dt = 10
+tau = 100
+weight_decay = 1e-3
+constrained = False
+batch_first = True
+seed = 123456
+tol = 1e-2
+patience = 50
+inp_noise = 0.001
+act_noise = 0.05
+save_path = "checkpoints/"
+model_specifications_path = "checkpoints/model_specifications/"
+mrnn_config_file = "modeling/configurations/mRNN.json"

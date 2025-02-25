@@ -19,6 +19,7 @@ import load_data
 import itertools
 from dataset import FiringRateDataset
 import pdb
+from models import Model
 
 def _initialize_params(
     remake_firing_rate_df=False,
@@ -42,6 +43,11 @@ def _initialize_params(
     params = curate_data.add_processed_data_to_params(params)
     return params
 
+def const_input(key, timesteps, dataset):
+    input_series = torch.zeros(size=(1, timesteps, dataset.num_conds))
+    input_series[..., dataset.input_key[key]] = 1
+    return input_series 
+
 # Currently 36 different conditions
 def main():
 
@@ -51,20 +57,56 @@ def main():
 
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
     )
     print('loading data...')
     df = load_data.get_data_df(behav_firing_rate_df_file_path)
-
     print('creating fr dataset...')
     dataset = FiringRateDataset(df)
+    
+    # Training variables
+    model = Model(
+        args.mrnn_config_file, 
+        100, 
+        dataset.units_per_region["dmpfc"], 
+        dataset.units_per_region["accg"], 
+        dataset.units_per_region["ofc"], 
+        dataset.units_per_region["bla"], 
+        args.dt, 
+        args.tau, 
+        args.inp_noise, 
+        args.act_noise,
+        args.constrained,
+        args.batch_first
+    ).cuda()
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
+    # Start training
     for epoch in range(args.epochs):
-        batch = dataset.sample_batch(args.batch_size)
-        print(batch.shape)
+
+        batch, key = dataset.sample_batch(args.batch_size)
+        batch = batch.unsqueeze(0)
+        inp = const_input(key, batch.shape[1], dataset)
+
+        # Put to device
+        batch = batch.cuda()
+        inp = inp.cuda()
+
+        xn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
+
+        out, hn = model(xn, inp)
+
+        loss = criterion(out, batch)
+
+        print(f"Loss: {loss.item()}")
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
 if __name__ == "__main__":
     main()

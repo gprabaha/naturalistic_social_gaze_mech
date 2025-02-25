@@ -6,19 +6,14 @@ def config_parser():
     
     parser.add_argument("--config", is_config_file=True, help="config file path")
     
-    parser.add_argument('--out_dim', 
-                        type=int, 
-                        default=778,
-                        help='dimension of output layer')
-
     parser.add_argument('--inp_dim', 
                         type=int, 
-                        default=1, 
+                        default=36, 
                         help='dimension of input')
 
     parser.add_argument('--batch_size', 
                         type=int, 
-                        default=32, 
+                        default=1, 
                         help='number of elements in batch')
 
     parser.add_argument('--epochs', 
@@ -72,6 +67,7 @@ def config_parser():
                         help='set manual seed')
 
     parser.add_argument('--constrained', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--batch_first', action=argparse.BooleanOptionalAction)
 
     parser.add_argument('--save_path', 
                         type=str, 

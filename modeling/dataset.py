@@ -33,15 +33,34 @@ class FiringRateDataset():
 
         # Group by specified columns (ensuring same region and behavior type are in a batch)
         self.groups = list(self.dataframe.groupby(self.group_by_columns, sort=False))
-    
-    def get_num_conds(self):
-        return len(self.groups)
+        dataframe_by_regions = self.dataframe.groupby(['region'], sort=False)
 
+        # This will give a list of unit ids and regions
+        # unit ids and region labels should be grouped together within each list
+        # the region at idx i in region_labels is the corresponding region for idx i in unit_ids
+        self.unit_ids = []
+        self.region_labels = []
+        self.units_per_region = {}
+        for region_key, region_df in dataframe_by_regions:
+            print(region_key[0])
+            unit_ids_in_region = region_df["unit_uuid"].unique().tolist()
+            region_label = [region_key[0]] * len(unit_ids_in_region)
+            self.unit_ids.extend(unit_ids_in_region)
+            self.region_labels.extend(region_label)
+            self.units_per_region[region_key[0]] = len(unit_ids_in_region)
+
+        self.num_conds = len(self.groups)
+        self.total_num_units = len(self.unit_ids)
+
+        self.input_key = {}
+        for i, (key, _) in enumerate(self.groups):
+            self.input_key[key] = i
+    
     def sample_batch(self, batch_size, probs=None):
 
         if probs == None:
-            probs = np.ones(36) / 36
-        cond = np.arange(36)
+            probs = np.ones(self.num_conds) / self.num_conds
+        cond = np.arange(self.num_conds)
         # Pick a random number based on the probabilities
         random_cond = np.random.choice(cond, p=probs)
         """Fetches a batch corresponding to a group."""
@@ -50,12 +69,13 @@ class FiringRateDataset():
         group_df_by_id = group_df.groupby(["unit_uuid"], sort=False)
         # Extract firing rate timelines (all units in this group)
 
-        firing_rates = []
-        for group_name, group_id_data in group_df_by_id:
-            rand_idx = random.randint(0, len(group_id_data)-1)
-            firing_rates.append(torch.tensor(group_id_data.loc[rand_idx, 'firing_rate_timeline'], dtype=torch.float32))
-
-        # Stack firing rates along the last dimension (n_units)
-        firing_rates = torch.stack(firing_rates, dim=-1)  # Shape: (sequence_length, n_units)
+        ex_fr = group_df['firing_rate_timeline'].sample(n=1).iloc[0]
+        firing_rates = torch.zeros(size=(len(ex_fr), self.total_num_units))
+        for _, group_id_data in group_df_by_id:
+            rand_idx = random.choice(list(group_id_data.index))
+            # They should all have the same unit ids
+            unit_uuid = group_id_data['unit_uuid'].sample(n=1).iloc[0]
+            unit_idx = self.unit_ids.index(unit_uuid)
+            firing_rates[:, unit_idx] = torch.tensor(group_id_data.loc[rand_idx, 'firing_rate_timeline'], dtype=torch.float32)
 
         return firing_rates, group_key  # Return the key for debugging & analysis

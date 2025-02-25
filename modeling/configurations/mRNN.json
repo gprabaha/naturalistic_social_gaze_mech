@@ -12,46 +12,20 @@
 
     "recurrent_regions": [
       {
-        "name": "",
-        "num_units": 50,
-        "base_firing": 0,
-        "init": 0
+        "name": "pfc",
+        "num_units": 100
       },
       {
-        "name": "d2",
-        "num_units": 50,
-        "base_firing": 0,
-        "init": 0
+        "name": "acc",
+        "num_units": 100
       },
       {
-        "name": "gpe",
-        "num_units": 50,
-        "base_firing": 1,
-        "init": 1
+        "name": "ofc",
+        "num_units": 100
       },
       {
-        "name": "stn",
-        "num_units": 50,
-        "base_firing": 1,
-        "init": 0
-      },
-      {
-        "name": "snr",
-        "num_units": 50,
-        "base_firing": 1,
-        "init": 1
-      },
-      {
-        "name": "thal",
-        "num_units": 50,
-        "base_firing": 1,
-        "init": 0
-      },
-      {
-        "name": "alm",
-        "num_units": 50,
-        "base_firing": 0,
-        "init": 0 
+        "name": "bla",
+        "num_units": 100
       }
     ],
 
@@ -67,83 +41,68 @@
 
     "recurrent_connections": [
       {
-        "src_region": "d1",
-        "dst_region": "d1",
-        "sign": "inhib",
-        "sparsity": 0.7
+        "src_region": "pfc",
+        "dst_region": "pfc"
       },
       {
-        "src_region": "d1",
-        "dst_region": "d2",
-        "sign": "inhib",
-        "sparsity": 0.7
+        "src_region": "pfc",
+        "dst_region": "acc"
       },
       {
-        "src_region": "d2",
-        "dst_region": "d1",
-        "sign": "inhib",
-        "sparsity": 0.7
+        "src_region": "pfc",
+        "dst_region": "ofc"
       },
       {
-        "src_region": "d2",
-        "dst_region": "d2",
-        "sign": "inhib",
-        "sparsity": 0.7
+        "src_region": "pfc",
+        "dst_region": "bla"
       },
       {
-        "src_region": "d2",
-        "dst_region": "gpe",
-        "sign": "inhib"
+        "src_region": "acc",
+        "dst_region": "pfc"
       },
       {
-        "src_region": "d1",
-        "dst_region": "snr",
-        "sign": "inhib"
+        "src_region": "acc",
+        "dst_region": "acc"
       },
       {
-        "src_region": "gpe",
-        "dst_region": "stn",
-        "sign": "inhib"
+        "src_region": "acc",
+        "dst_region": "ofc"
       },
       {
-        "src_region": "stn",
-        "dst_region": "snr",
-        "sign": "exc"
+        "src_region": "acc",
+        "dst_region": "bla"
       },
       {
-        "src_region": "snr",
-        "dst_region": "thal",
-        "sign": "inhib"
+        "src_region": "ofc",
+        "dst_region": "pfc"
       },
       {
-        "src_region": "thal",
-        "dst_region": "d1",
-        "sign": "exc"
+        "src_region": "ofc",
+        "dst_region": "acc"
       },
       {
-        "src_region": "thal",
-        "dst_region": "d2",
-        "sign": "exc"
+        "src_region": "ofc",
+        "dst_region": "ofc"
       },
       {
-        "src_region": "thal",
-        "dst_region": "alm",
-        "sign": "exc"
+        "src_region": "ofc",
+        "dst_region": "bla"
       },
       {
-        "src_region": "alm",
-        "dst_region": "alm",
-        "sign": "exc"
+        "src_region": "bla",
+        "dst_region": "pfc"
       },
       {
-        "src_region": "alm",
-        "dst_region": "d1",
-        "sign": "exc"
+        "src_region": "bla",
+        "dst_region": "acc"
       },
       {
-        "src_region": "alm",
-        "dst_region": "d2",
-        "sign": "exc"
+        "src_region": "bla",
+        "dst_region": "ofc"
+      },
+      {
+        "src_region": "bla",
+        "dst_region": "bla"
       }
     ],
 
@@ -157,8 +116,8 @@
 
     "input_regions": [
       {
-        "num_units": 1,
-        "name": "iti"
+        "num_units": 36,
+        "name": "input"
       }
     ],
 
@@ -174,16 +133,20 @@
 
     "input_connections": [
       {
-        "src_region": "iti",
-        "dst_region": "d1",
-        "sign": "exc",
-        "sparsity": 0.5
+        "src_region": "input",
+        "dst_region": "pfc"
       },
       {
-        "src_region": "iti",
-        "dst_region": "d2",
-        "sign": "exc",
-        "sparsity": 0.5
+        "src_region": "input",
+        "dst_region": "acc"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "ofc"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "bla"
       }
     ]
   }
