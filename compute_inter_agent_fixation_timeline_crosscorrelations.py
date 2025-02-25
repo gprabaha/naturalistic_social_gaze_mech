@@ -101,7 +101,7 @@ def main():
     if params.get('recompute_crosscorr', False):
         logger.info("Computing cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = compute_regular_and_shuffled_crosscorr(
-            fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=1000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
+            fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=2000, num_cpus=num_cpus, threads_per_cpu=threads_per_cpu
         )
         inter_agent_behav_cross_correlation_df.to_pickle(inter_agent_cross_corr_file)
         logger.info(f"Cross-correlations and shuffled statistics computed and saved to {inter_agent_cross_corr_file}")
@@ -752,21 +752,34 @@ def plot_regular_fixation_vectors_and_example_shuffled_vectors(
     num_rows = num_shuffles_to_plot + 1  # +1 for the original
     fig, axes = plt.subplots(nrows=num_rows, ncols=2, figsize=(6, 1 * num_rows), sharex=True, sharey=True)
 
-    # Function to plot broken bars
+    def get_fixation_intervals(on_intervals):
+        """Returns the start and stop indices of fixation periods."""
+        if len(on_intervals) == 0:
+            return [], []
+
+        # Identify start and stop indices of fixation islands
+        start_mask = np.insert(np.diff(on_intervals) > 1, 0, True)  # Always include first element
+        stop_mask = np.append(np.diff(on_intervals) > 1, True)  # Always include last element
+
+        starts = on_intervals[start_mask]
+        stops = on_intervals[stop_mask]
+
+        return starts, stops
+
     def plot_broken_bars(ax, vector, color="black", alpha=1.0, label=None):
-        """Plots broken bars for binary fixation vectors."""
+        """Plots broken bars for binary fixation vectors, handling cases where no fixations exist."""
         on_intervals = np.where(vector == 1)[0]
+
         if len(on_intervals) > 0:
-            starts = np.where(np.diff(np.concatenate(([0], on_intervals, [len(vector)-1]))) > 1)[0]
-            stops = np.where(np.diff(np.concatenate((on_intervals, [len(vector)-1]))) > 1)[0]
-            stops = np.clip(stops, 0, len(on_intervals) - 1)
-            bars = [(on_intervals[s], on_intervals[e] - on_intervals[s]) for s, e in zip(starts, stops)]
+            starts, stops = get_fixation_intervals(on_intervals)
+            bars = [(s, e - s + 1) for s, e in zip(starts, stops)]  # +1 to include last index
             ax.broken_barh(bars, (0, 0.8), facecolors=color, alpha=alpha, label=label)
+        else:
+            ax.text(0.5, 0.5, "No Fixations", ha="center", va="center", fontsize=8, color="gray")
 
     # Set title with session, interaction, run, and fixation type
     fig.suptitle(f"Fixation Vectors - Session: {session}, Interaction: {interaction}, Run: {run}, Type: {fixation_type}",
                  fontsize=12, fontweight="bold")
-
     axes[0, 0].set_title("M1 Fixation Vectors", fontsize=10)
     axes[0, 1].set_title("M2 Fixation Vectors", fontsize=10)
 
@@ -774,9 +787,10 @@ def plot_regular_fixation_vectors_and_example_shuffled_vectors(
     plot_broken_bars(axes[0, 0], m1_vector, color="black", label="Original")
     plot_broken_bars(axes[0, 1], m2_vector, color="black", label="Original")
 
-    # Select random shuffled vectors to plot
-    m1_random_shuffles = random.sample(range(len(m1_shuffled_vectors)), num_shuffles_to_plot)
-    m2_random_shuffles = random.sample(range(len(m2_shuffled_vectors)), num_shuffles_to_plot)
+    # Ensure we do not request more shuffled samples than available
+    num_shuffles_available = min(len(m1_shuffled_vectors), num_shuffles_to_plot)
+    m1_random_shuffles = random.sample(range(len(m1_shuffled_vectors)), num_shuffles_available)
+    m2_random_shuffles = random.sample(range(len(m2_shuffled_vectors)), num_shuffles_available)
 
     # Plot shuffled vectors
     for i, idx in enumerate(m1_random_shuffles):
@@ -790,7 +804,10 @@ def plot_regular_fixation_vectors_and_example_shuffled_vectors(
         for ax in ax_row:
             ax.set_ylabel(f"Shuffle {i}" if i > 0 else "Original", fontsize=8)
             ax.set_yticks([])
-            ax.legend(loc="upper right", fontsize=6)
+            
+            # Only add legend if data exists
+            if len(ax.patches) > 0:
+                ax.legend(loc="upper right", fontsize=6)
 
     axes[-1, 0].set_xlabel("Time (ms)", fontsize=10)
     axes[-1, 1].set_xlabel("Time (ms)", fontsize=10)
@@ -798,6 +815,7 @@ def plot_regular_fixation_vectors_and_example_shuffled_vectors(
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit title
     plt.savefig(save_path, format="pdf")
     plt.close()
+
 
 
 # ** Call to main() **
