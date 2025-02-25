@@ -8,9 +8,17 @@ import re
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import fftconvolve
 from tqdm import tqdm
+
 from joblib import Parallel, delayed
 import multiprocessing
+
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['svg.fonttype'] = 'none'
+mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['text.usetex'] = False
+
 from datetime import datetime
 from scipy.stats import sem
 import random
@@ -246,7 +254,10 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
     m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles, num_threads)
     m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles, num_threads)
 
-    # plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5)
+    plot_regular_fixation_vectors_and_example_shuffled_vectors(
+        m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, 
+        params, session, interaction, run, fixation_type, num_shuffles_to_plot=5
+    )
 
     # Compute shuffled cross-correlations in parallel
     shuffled_crosscorrs = Parallel(n_jobs=num_threads)(
@@ -708,7 +719,9 @@ def compute_significant_crosscorr_stats_auto(x, max_timepoints, alpha=0.05, use_
 
 
 
-def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5):
+def plot_regular_fixation_vectors_and_example_shuffled_vectors(
+    m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors,
+    params, session, interaction, run, fixation_type, num_shuffles_to_plot=5):
     """
     Plots the original fixation vectors for M1 and M2 as broken bars in the first row,
     and separate subplots for shuffled fixation vectors in subsequent rows.
@@ -718,12 +731,27 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
     - m2_vector: np.array, binary fixation vector for M2
     - m1_shuffled_vectors: np.array, 2D array of shuffled fixation vectors for M1
     - m2_shuffled_vectors: np.array, 2D array of shuffled fixation vectors for M2
+    - params: dict, parameter dictionary containing 'root_data_dir'
+    - session: str, session name
+    - interaction: str, interaction type
+    - run: int, run number
+    - fixation_type: str, type of fixation
     - num_shuffles_to_plot: int, number of shuffled versions to plot
     """
 
+    today_date = datetime.today().strftime('%Y-%m-%d')
+    save_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vectors", today_date)
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Generate a unique filename including session, interaction, run, and fixation type
+    filename = f"fixation_vectors_{session}_{interaction}_run{run}_{fixation_type}.pdf"
+    filename = filename.replace(" ", "_")  # Replace spaces with underscores for compatibility
+    save_path = os.path.join(save_dir, filename)
+
+    # Define number of rows for plotting
     num_rows = num_shuffles_to_plot + 1  # +1 for the original
     fig, axes = plt.subplots(nrows=num_rows, ncols=2, figsize=(6, 1 * num_rows), sharex=True, sharey=True)
-    
+
     # Function to plot broken bars
     def plot_broken_bars(ax, vector, color="black", alpha=1.0, label=None):
         """Plots broken bars for binary fixation vectors."""
@@ -731,16 +759,18 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
         if len(on_intervals) > 0:
             starts = np.where(np.diff(np.concatenate(([0], on_intervals, [len(vector)-1]))) > 1)[0]
             stops = np.where(np.diff(np.concatenate((on_intervals, [len(vector)-1]))) > 1)[0]
-            # Ensure e is within bounds
             stops = np.clip(stops, 0, len(on_intervals) - 1)
             bars = [(on_intervals[s], on_intervals[e] - on_intervals[s]) for s, e in zip(starts, stops)]
             ax.broken_barh(bars, (0, 0.8), facecolors=color, alpha=alpha, label=label)
 
+    # Set title with session, interaction, run, and fixation type
+    fig.suptitle(f"Fixation Vectors - Session: {session}, Interaction: {interaction}, Run: {run}, Type: {fixation_type}",
+                 fontsize=12, fontweight="bold")
 
-    # Plot original vectors in the first row
-    axes[0, 0].set_title("M1 Fixation Vectors")
-    axes[0, 1].set_title("M2 Fixation Vectors")
+    axes[0, 0].set_title("M1 Fixation Vectors", fontsize=10)
+    axes[0, 1].set_title("M2 Fixation Vectors", fontsize=10)
 
+    # Plot original vectors
     plot_broken_bars(axes[0, 0], m1_vector, color="black", label="Original")
     plot_broken_bars(axes[0, 1], m2_vector, color="black", label="Original")
 
@@ -748,25 +778,25 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
     m1_random_shuffles = random.sample(range(len(m1_shuffled_vectors)), num_shuffles_to_plot)
     m2_random_shuffles = random.sample(range(len(m2_shuffled_vectors)), num_shuffles_to_plot)
 
-    # Plot shuffled vectors in separate subplots
+    # Plot shuffled vectors
     for i, idx in enumerate(m1_random_shuffles):
         plot_broken_bars(axes[i+1, 0], m1_shuffled_vectors[idx], color=f"C{i}", alpha=0.6, label=f"Shuffle {i+1}")
 
     for i, idx in enumerate(m2_random_shuffles):
         plot_broken_bars(axes[i+1, 1], m2_shuffled_vectors[idx], color=f"C{i}", alpha=0.6, label=f"Shuffle {i+1}")
 
-    # Formatting
+    # Formatting for better readability
     for i, ax_row in enumerate(axes):
         for ax in ax_row:
-            ax.set_ylabel(f"Shuffle {i}" if i > 0 else "Original")
+            ax.set_ylabel(f"Shuffle {i}" if i > 0 else "Original", fontsize=8)
             ax.set_yticks([])
-            ax.legend(loc="upper right")
+            ax.legend(loc="upper right", fontsize=6)
 
-    axes[-1, 0].set_xlabel("Time (ms)")
-    axes[-1, 1].set_xlabel("Time (ms)")
+    axes[-1, 0].set_xlabel("Time (ms)", fontsize=10)
+    axes[-1, 1].set_xlabel("Time (ms)", fontsize=10)
 
-    plt.tight_layout()
-    plt.show()
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit title
+    plt.savefig(save_path, format="pdf")
     plt.close()
 
 
