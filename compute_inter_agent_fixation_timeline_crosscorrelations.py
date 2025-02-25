@@ -51,7 +51,7 @@ def _initialize_params():
         'use_parallel': True,
         'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': True,
+        'recompute_crosscorr': False,
         'remake_crosscorr_plots': True,
         'remake_sig_crosscorr_plots': True
     }
@@ -108,6 +108,13 @@ def main():
     else:
         logger.info("Loading precomputed cross-correlations and shuffled statistics")
         inter_agent_behav_cross_correlation_df = load_data.get_data_df(inter_agent_cross_corr_file)
+
+    # Merge session-wise monkey data into correlation dataframe
+    inter_agent_behav_cross_correlation_df = inter_agent_behav_cross_correlation_df.merge(monkeys_per_session_df, on="session_name")
+    # Define monkey pair column
+    inter_agent_behav_cross_correlation_df["monkey_pair"] = inter_agent_behav_cross_correlation_df["m1"] + "_" + inter_agent_behav_cross_correlation_df["m2"]
+
+    pdb.set_trace()
 
     if params.get('remake_crosscorr_plots', False):
         logger.info("Plotting cross-correlation timecourse averaged across sessions")
@@ -418,6 +425,87 @@ def compute_shuffled_crosscorr_both_wrapper(pair):
     """Helper function to compute cross-correlations for shuffled vectors."""
     return fft_crosscorrelation_both(pair[0], pair[1])
 
+
+
+# ** New Plotting Function **
+
+
+def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, params, max_time=60):
+    max_time = int(max_time * 1000)  # Convert seconds to milliseconds (assuming 1KHz sampling rate)
+    group_by = "monkey_pair"
+    today_date = f"{datetime.today().strftime('%Y-%m-%d')}_{group_by}" + ("_stringent" if params.get('make_shuffle_stringent', False) else "")
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_updated", today_date)
+    os.makedirs(root_dir, exist_ok=True)
+    
+    logger.info(f"Processing cross-correlations, saving results to {root_dir}")
+    
+    grouped = inter_agent_behav_cross_correlation_df.groupby(group_by)
+    
+    for monkey_pair, group_df in grouped:
+        logger.info(f"Processing monkey pair: {monkey_pair}")
+        fixation_types = group_df['fixation_type'].unique()
+        num_fixations = len(fixation_types)
+        fig, axes = plt.subplots(num_fixations, 1, figsize=(12, 4 * num_fixations), sharex=True)
+        
+        if num_fixations == 1:
+            axes = [axes]
+        
+        for ax, fixation in zip(axes, fixation_types):
+            logger.info(f"Processing fixation type: {fixation}")
+            subset = group_df[group_df['fixation_type'] == fixation]
+            
+            mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins = process_crosscorrelations(subset, max_time)
+            
+            time_bins = np.linspace(0, max_time / 1000, max_time)  # Convert time bins to seconds
+            
+            ax.plot(time_bins, mean_crosscorr_m1_m2, label='m1->m2', color='blue', alpha=0.5)
+            ax.plot(time_bins, mean_crosscorr_m2_m1, label='m2->m1', color='red', alpha=0.5)
+            
+            ax.scatter(time_bins[significant_bins_m1_m2], mean_crosscorr_m1_m2[significant_bins_m1_m2], color='blue', s=20, label='sig m1->m2', edgecolors='black', linewidth=1.5)
+            ax.scatter(time_bins[significant_bins_m2_m1], mean_crosscorr_m2_m1[significant_bins_m2_m1], color='red', s=20, label='sig m2->m1', edgecolors='black', linewidth=1.5)
+            ax.scatter(time_bins[significant_diff_bins], np.full_like(time_bins[significant_diff_bins], max_val), color='black', marker='*', s=25, label='m1-m2 diff')
+            
+            ax.set_title(f"Monkey Pair: {monkey_pair} | Fixation: {fixation}")
+            ax.legend()
+            ax.set_ylabel("Cross-correlation")
+        
+        ax.set_xlabel("Time (seconds)")
+        plt.tight_layout()
+        
+        save_path = os.path.join(root_dir, f"{monkey_pair}_crosscorr_plots.png")
+        plt.savefig(save_path, dpi=300)
+        plt.close(fig)
+        logger.info(f"Saved plot for {monkey_pair} at {save_path}")
+
+    logger.info(f"All plots saved in {root_dir}")
+
+def process_crosscorrelations(subset, max_time):
+    crosscorr_m1_m2 = np.array([x[:max_time] for x in subset['crosscorr_m1_m2']])
+    crosscorr_m2_m1 = np.array([x[:max_time] for x in subset['crosscorr_m2_m1']])
+    
+    mean_shuffled_m1_m2 = np.array([x[:max_time] for x in subset['mean_shuffled_m1_m2']])
+    mean_shuffled_m2_m1 = np.array([x[:max_time] for x in subset['mean_shuffled_m2_m1']])
+    
+    mean_crosscorr_m1_m2 = np.mean(crosscorr_m1_m2, axis=0)
+    mean_crosscorr_m2_m1 = np.mean(crosscorr_m2_m1, axis=0)
+    
+    max_val = max(np.max(mean_crosscorr_m1_m2), np.max(mean_crosscorr_m2_m1)) * 1.05
+    
+    p_values_m1_m2 = np.array([wilcoxon(crosscorr_m1_m2[:, i], mean_shuffled_m1_m2[:, i], alternative='two-sided')[1] for i in range(max_time)])
+    p_values_m2_m1 = np.array([wilcoxon(crosscorr_m2_m1[:, i], mean_shuffled_m2_m1[:, i], alternative='two-sided')[1] for i in range(max_time)])
+    
+    significant_bins_m1_m2 = p_values_m1_m2 < 0.05
+    significant_bins_m2_m1 = p_values_m2_m1 < 0.05
+    
+    diff_p_values = np.array([wilcoxon(crosscorr_m1_m2[:, i], crosscorr_m2_m1[:, i], alternative='two-sided')[1] for i in range(max_time)])
+    significant_diff_bins = diff_p_values < 0.05
+    
+    return mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins
+
+
+
+
+# ** Old Plotting Functions **
 
 # Plot difference between fix-vector crosscorr and shuffled vec crosscorr
 def plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
