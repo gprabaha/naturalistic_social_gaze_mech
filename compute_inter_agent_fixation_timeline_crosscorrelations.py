@@ -242,7 +242,7 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
     m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles)
     m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles)
 
-    plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5)
+    # plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5)
 
     # Compute shuffled cross-correlations in parallel
     shuffled_crosscorrs = Parallel(n_jobs=num_threads)(
@@ -327,9 +327,8 @@ def generate_single_shuffled_vector(params, agent_vector, fixation_durations, av
         non_fixation_durations = generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
 
         all_segments = create_labeled_segments(fixation_durations, non_fixation_durations)
-        
+
         shuffled_vector = construct_shuffled_vector(all_segments, run_length)
-        pdb.set_trace()
     else:
         shuffled_vector = np.random.permutation(agent_vector)
     return shuffled_vector
@@ -764,7 +763,6 @@ def plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled
 
     plt.tight_layout()
     plt.show()
-    pdb.set_trace()
     plt.close()
 
 
