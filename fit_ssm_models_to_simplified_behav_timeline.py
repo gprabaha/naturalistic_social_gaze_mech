@@ -46,7 +46,7 @@ def _initialize_params():
         'is_grace': False,
         'refit_hmm': True,
         'remake_predicted_states': True,
-        'transition_matrix_stickiness': 0.5,
+        'transition_matrix_stickiness': 0.9,
         'randomization_key_seed': 42,
         'num_indep_model_initiations': 10,
         'num_states_hmm': 3, # predicted social states: high, low, other

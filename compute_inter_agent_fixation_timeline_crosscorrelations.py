@@ -36,10 +36,10 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster': False,
+        'is_cluster': True,
         'prabaha_local': True,
         'is_grace': False,
-        'use_parallel': False,
+        'use_parallel': True,
         'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': True,
@@ -126,17 +126,20 @@ def main():
 
 
 
-def get_slurm_cpus_and_threads():
-    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings."""
-    # Get number of CPUs allocated by SLURM
-    slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
-    slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+def get_slurm_cpus_and_threads(params):
+    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings or local multiprocessing."""
+    if params.get("is_cluster", False):
+        # Get number of CPUs allocated by SLURM
+        slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+        slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+    else:
+        # Get number of available CPUs using multiprocessing
+        slurm_cpus = multiprocessing.cpu_count()
     # Default to 4 threads per CPU unless num_cpus is less than 4
     threads_per_cpu = 4 if slurm_cpus >= 4 else 1
     # Compute num_cpus by dividing total CPUs by threads per CPU
     num_cpus = max(1, slurm_cpus // threads_per_cpu)  # Ensure at least 1 CPU
     return num_cpus, threads_per_cpu
-
 
 
 ## Fixation timeline binary vector generation
@@ -239,8 +242,8 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
     crosscorr_m1_m2, crosscorr_m2_m1 = fft_crosscorrelation_both(m1_smooth, m2_smooth)
 
     # Generate shuffled vectors
-    m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles)
-    m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles)
+    m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles, num_threads)
+    m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles, num_threads)
 
     # plot_fixation_vectors(m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, num_shuffles_to_plot=5)
 
@@ -276,7 +279,7 @@ def fft_crosscorrelation_both(x, y):
 
     return full_corr[mid:mid + n], full_corr[:mid][::-1]
 
-def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, interaction, run, fixation_type, agent, num_shuffles):
+def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, interaction, run, fixation_type, agent, num_shuffles, num_threads):
     """
     Generate shuffled versions of a binary fixation vector by randomly redistributing fixation intervals.
     Runs in parallel if 'use_parallel' is True in params.
@@ -304,7 +307,7 @@ def generate_shuffled_vectors(eye_mvm_behav_df, agent_vector, params, session, i
     available_non_fixation_duration = run_length - total_fixation_duration
 
     if params.get("use_parallel", False):
-        n_jobs = min(num_shuffles, params["num_cpus"]) if params.get("is_cluster") else params["num_cpus"]
+        n_jobs = min(num_shuffles, num_threads) if params.get("is_cluster") else params["num_cpus"]
         shuffled_vectors = Parallel(n_jobs=n_jobs)(
             delayed(generate_single_shuffled_vector)(
                 params, agent_vector, fixation_durations, available_non_fixation_duration, len(fixation_durations), run_length
@@ -382,7 +385,7 @@ def construct_shuffled_vector(segments, run_length):
     index = 0
     for duration, label in segments:
         if index >= run_length:
-            logging.warning("Index exceeded run length during shuffle generation")
+            logging.warning(f"Index {index} exceeded run length {run_length}")
             break
         if label == 1:
             shuffled_vector[index: index + duration] = 1  # Fixation interval
