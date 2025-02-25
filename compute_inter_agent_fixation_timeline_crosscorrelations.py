@@ -38,6 +38,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'is_grace': False,
+        'use_parallel': False,
         'make_shuffle_stringent': False,
         'recompute_fix_binary_vector': False,
         'recompute_crosscorr': True,
@@ -192,22 +193,28 @@ def categorize_fixations(fix_locations):
 
 
 ## Compute crosscorrelation between m1 and m2 fixation events
-def compute_regular_and_shuffled_crosscorr_parallel(fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=100, num_cpus=16, threads_per_cpu=8):
+def compute_regular_and_shuffled_crosscorr(fix_binary_vector_df, eye_mvm_behav_df, params, sigma=3, num_shuffles=100, num_cpus=16, threads_per_cpu=8):
     """
-    Optimized parallelized computation of Gaussian-smoothed cross-correlation
-    between m1 and m2's fixation behaviors using joblib for multiprocessing.
+    Compute Gaussian-smoothed cross-correlation between m1 and m2's fixation behaviors.
+    Runs in parallel if `params['use_parallel']` is True, otherwise runs in serial.
     """
 
     grouped = list(fix_binary_vector_df.groupby(["session_name", "interaction_type", "run_number", "fixation_type"]))
 
-    # Run parallel processing across session groups
-    results = Parallel(n_jobs=num_cpus)(
-        delayed(compute_crosscorr_for_group)(
-            group_tuple, eye_mvm_behav_df, params, sigma, num_shuffles, threads_per_cpu
-        ) for group_tuple in tqdm(grouped, desc="Processing groups")
-    )
+    if params.get("use_parallel", True):  # Default to parallel if flag is missing
+        results = Parallel(n_jobs=num_cpus)(
+            delayed(compute_crosscorr_for_group)(
+                group_tuple, eye_mvm_behav_df, params, sigma, num_shuffles, threads_per_cpu
+            ) for group_tuple in tqdm(grouped, desc="Processing groups")
+        )
+    else:
+        results = [
+            compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, num_shuffles, threads_per_cpu)
+            for group_tuple in tqdm(grouped, desc="Processing groups")
+        ]
 
     return pd.DataFrame([res for res in results if res])  # Filter out empty results
+
 
 def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, num_shuffles, num_threads):
     """
