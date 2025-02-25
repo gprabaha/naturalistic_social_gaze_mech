@@ -42,6 +42,7 @@ def _initialize_params(
     params = curate_data.add_processed_data_to_params(params)
     return params
 
+# Currently 36 different conditions
 def main():
 
     ### PARAMETERS ###
@@ -50,7 +51,7 @@ def main():
 
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
@@ -60,11 +61,10 @@ def main():
 
     print('creating fr dataset...')
     dataset = FiringRateDataset(df)
-    print('creating dataloader...')
-    dataloader = DataLoader(dataset)
 
-    for batch in dataloader:
-        print(batch[0].shape)
+    for epoch in range(args.epochs):
+        batch = dataset.sample_batch(args.batch_size)
+        print(batch.shape)
 
 if __name__ == "__main__":
     main()
