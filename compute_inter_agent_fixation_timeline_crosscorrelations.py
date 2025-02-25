@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from joblib import Parallel, delayed
 import multiprocessing
+from numba import njit, prange
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -116,25 +117,9 @@ def main():
 
     pdb.set_trace()
 
-    if params.get('remake_crosscorr_plots', False):
-        logger.info("Plotting cross-correlation timecourse averaged across sessions")
-        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                            group_by="session_name", plot_duration_seconds=60)
-        logger.info("Plotting cross-correlation timecourse averaged across monkey pairs")
-        plot_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_correlation_df, monkeys_per_session_df, params, 
-                            group_by="monkey_pair", plot_duration_seconds=60)
-
-    if params.get('remake_sig_crosscorr_plots', False):
-        logger.info("Plotting significant cross-correlation timecourse averaged across sessions")
-        plot_significant_fixation_crosscorr_minus_shuffled(
-            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-            params, group_by="session_name", plot_duration_seconds=60, alpha=0.05)
-        logger.info("Plotting significant cross-correlation timecourse averaged across monkey-pairs")
-        plot_significant_fixation_crosscorr_minus_shuffled(
-            inter_agent_behav_cross_correlation_df, monkeys_per_session_df,
-            params, group_by="monkey_pair", plot_duration_seconds=60, alpha=0.05)
-        
-        logger.info("Finished cross-correlation timecourse plot generation")
+    plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, params)
+    
+    logger.info("Finished cross-correlation timecourse plot generation")
 
 
 
@@ -479,6 +464,13 @@ def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, para
 
     logger.info(f"All plots saved in {root_dir}")
 
+@njit(parallel=True)
+def compute_wilcoxon(crosscorr, shuffled, max_time):
+    p_values = np.empty(max_time)
+    for i in prange(max_time):
+        p_values[i] = wilcoxon(crosscorr[:, i], shuffled[:, i], alternative='two-sided')[1]
+    return p_values
+
 def process_crosscorrelations(subset, max_time):
     crosscorr_m1_m2 = np.array([x[:max_time] for x in subset['crosscorr_m1_m2']])
     crosscorr_m2_m1 = np.array([x[:max_time] for x in subset['crosscorr_m2_m1']])
@@ -491,13 +483,13 @@ def process_crosscorrelations(subset, max_time):
     
     max_val = max(np.max(mean_crosscorr_m1_m2), np.max(mean_crosscorr_m2_m1)) * 1.05
     
-    p_values_m1_m2 = np.array([wilcoxon(crosscorr_m1_m2[:, i], mean_shuffled_m1_m2[:, i], alternative='two-sided')[1] for i in range(max_time)])
-    p_values_m2_m1 = np.array([wilcoxon(crosscorr_m2_m1[:, i], mean_shuffled_m2_m1[:, i], alternative='two-sided')[1] for i in range(max_time)])
+    p_values_m1_m2 = compute_wilcoxon(crosscorr_m1_m2, mean_shuffled_m1_m2, max_time)
+    p_values_m2_m1 = compute_wilcoxon(crosscorr_m2_m1, mean_shuffled_m2_m1, max_time)
     
     significant_bins_m1_m2 = p_values_m1_m2 < 0.05
     significant_bins_m2_m1 = p_values_m2_m1 < 0.05
     
-    diff_p_values = np.array([wilcoxon(crosscorr_m1_m2[:, i], crosscorr_m2_m1[:, i], alternative='two-sided')[1] for i in range(max_time)])
+    diff_p_values = compute_wilcoxon(crosscorr_m1_m2, crosscorr_m2_m1, max_time)
     significant_diff_bins = diff_p_values < 0.05
     
     return mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins
