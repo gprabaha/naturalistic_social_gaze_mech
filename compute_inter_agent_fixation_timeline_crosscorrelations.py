@@ -273,8 +273,13 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
 
 
 def fft_crosscorrelation_both(x, y):
-    """Compute normalized cross-correlation using FFT, returning both positive and negative lags."""
+    """Compute normalized cross-correlation using FFT, returning both positive and negative lags.
+    If either x or y (or both) are all zeros, returns an array of zeros instead of NaNs.
+    """
     n = len(x)
+    # Handle cases where either x or y (or both) are all zeros
+    if np.all(x == 0) or np.all(y == 0):
+        return np.zeros(n), np.zeros(n)  # Return zero arrays of appropriate length
     # Subtract mean
     x_mean = np.mean(x)
     y_mean = np.mean(y)
@@ -283,7 +288,9 @@ def fft_crosscorrelation_both(x, y):
     # Compute cross-correlation
     full_corr = fftconvolve(x, y[::-1], mode='full')
     # Normalize
-    norm_factor = np.sqrt(np.sum(x ** 2) * np.sum(y ** 2))
+    norm_factor = np.sqrt(np.sum(x ** 2) * np.sum(y ** 2)) 
+    if norm_factor == 0:  # Avoid division by zero
+        return np.zeros(n), np.zeros(n)
     full_corr /= norm_factor
     # Extract positive and negative lags
     mid = len(full_corr) // 2
@@ -337,6 +344,8 @@ def generate_single_shuffled_vector(params, agent_vector, fixation_durations, av
     """
     Generates a single shuffled binary vector by redistributing fixation intervals.
     """
+    if N == 0:
+        return np.zeros(run_length, dtype=int)  # No fixations, return all zeros
     if params.get("make_shuffle_stringent", False):
         non_fixation_durations = generate_uniformly_distributed_partitions(available_non_fixation_duration, N + 1)
 
