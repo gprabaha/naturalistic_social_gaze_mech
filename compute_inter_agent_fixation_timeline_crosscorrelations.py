@@ -285,7 +285,6 @@ def generate_shuffled_vectors(
     Generate shuffled versions of a binary fixation vector by randomly redistributing fixation intervals.
     Runs in parallel if 'use_parallel' is True in params.
     """
-
     row = eye_mvm_behav_df[
         (eye_mvm_behav_df["session_name"] == session) &
         (eye_mvm_behav_df["interaction_type"] == interaction) &
@@ -380,8 +379,8 @@ def construct_shuffled_vector(segments, run_length):
     index = 0
     for duration, label in segments:
         if index >= run_length:
-            logging.warning(f"Index {index} exceeded run length {run_length}")
-            logging.info(f"All segments: {segments}")
+            logger.warning(f"Index {index} exceeded run length {run_length}")
+            logger.info(f"All segments: {segments}")
             break
         if label == 1:
             shuffled_vector[index: index + duration] = 1  # Fixation interval
