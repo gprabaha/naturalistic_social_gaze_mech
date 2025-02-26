@@ -628,7 +628,7 @@ def plot_significant_fixation_crosscorr_minus_shuffled(inter_agent_behav_cross_c
 
     # Merge session-wise monkey data into correlation dataframe
     merged_df = inter_agent_behav_cross_correlation_df.merge(monkeys_per_session_df, on="session_name")
-
+    pdb.set_trace()
     # Define monkey pair column
     merged_df["monkey_pair"] = merged_df["m1"] + "_" + merged_df["m2"]
 
