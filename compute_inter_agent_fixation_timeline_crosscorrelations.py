@@ -45,13 +45,13 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster': True,
+        'is_cluster': False,
         'prabaha_local': True,
         'is_grace': False,
         'use_parallel': True,
         'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': True
+        'recompute_crosscorr': False
     }
     params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
@@ -112,8 +112,13 @@ def main():
     # Define monkey pair column
     inter_agent_behav_cross_correlation_df["monkey_pair"] = inter_agent_behav_cross_correlation_df["m1"] + "_" + inter_agent_behav_cross_correlation_df["m2"]
 
+    # Plotting
+    logger.info("Generating cross-correlation plots for monkey pairs")
     plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, params)
-    
+    # Plot summary of fixation cross-correlations
+    logger.info("Generating summary of fixation cross-correlations")
+    plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_df, params)
+
     logger.info("Finished cross-correlation timecourse plot generation")
 
 
@@ -415,7 +420,7 @@ def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, para
             logger.info(f"Processing fixation type: {fixation}")
             subset = group_df[group_df['fixation_type'] == fixation]
             mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins \
-                = process_crosscorrelations(subset, max_time)
+                = compute_crosscorr_means_and_stats(subset, max_time)
             time_bins = np.linspace(0, max_time / 1000, max_time)  # Convert time bins to seconds
             ax.plot(time_bins, mean_crosscorr_m1_m2, label='m1->m2', color='blue', alpha=0.5)
             ax.plot(time_bins, mean_crosscorr_m2_m1, label='m2->m1', color='red', alpha=0.5)
@@ -438,7 +443,7 @@ def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, para
         logger.info(f"Saved plot for {monkey_pair} at {save_path}")
     logger.info(f"All plots saved in {root_dir}")
 
-def process_crosscorrelations(subset, max_time):
+def compute_crosscorr_means_and_stats(subset, max_time):
     crosscorr_m1_m2 = np.array([x[:max_time] for x in subset['crosscorr_m1_m2']])
     crosscorr_m2_m1 = np.array([x[:max_time] for x in subset['crosscorr_m2_m1']])
     mean_shuffled_m1_m2 = np.array([x[:max_time] for x in subset['mean_shuffled_m1_m2']])
@@ -459,12 +464,88 @@ def process_crosscorrelations(subset, max_time):
     return mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins
 
 
+def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_df, params, max_time=30):
+    """
+    Plots the summary of fixation cross-correlations for monkey pairs.
+    - Identifies monkey pairs where m1->m2 face cross-correlation is greater than m2->m1 in the first 10s.
+    - Plots face and out-of-ROI fixation cross-correlations for these monkey pairs.
+    - Highlights significant cross-correlation bins and significant differences.
+    """
+    max_time = int(max_time * 1000)  # Convert seconds to milliseconds (assuming 1KHz sampling rate)
+    first_10_sec = int(10 * 1000)
+    group_by = "monkey_pair"
+    today_date = f"{datetime.today().strftime('%Y-%m-%d')}" + ("_stringent" if params.get('make_shuffle_stringent', False) else "")
+    root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_summary", today_date)
+    os.makedirs(root_dir, exist_ok=True)
+    logger.info(f"Processing cross-correlations, saving results to {root_dir}")
+    grouped = inter_agent_behav_cross_correlation_df.groupby(group_by)
+    pairs_m1_greater = []
+    pairs_m2_greater = []
+    for monkey_pair, group_df in grouped:
+        subset = group_df[group_df['fixation_type'] == 'face']
+        if not subset.empty:
+            mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, _ = compute_mean_crosscorr(subset, max_time)
+            if np.mean(mean_crosscorr_m1_m2[:first_10_sec]) > np.mean(mean_crosscorr_m2_m1[:first_10_sec]):
+                pairs_m1_greater.append(group_df)
+            else:
+                pairs_m2_greater.append(group_df)
+    pairs_m1_greater = pd.concat(pairs_m1_greater) if pairs_m1_greater else pd.DataFrame()
+    pairs_m2_greater = pd.concat(pairs_m2_greater) if pairs_m2_greater else pd.DataFrame()
+    conditions_to_plot = ['m1_greater', 'm2_greater']
+    rois_to_plot = ['face', 'out_of_roi']
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3), sharex=True)
+    for ax, condition in zip(axes, conditions_to_plot):
+        for roi in rois_to_plot:
+            subset = pairs_m1_greater if condition == 'm1_greater' else pairs_m2_greater
+            subset = subset[subset['fixation_type'] == roi]
+            if subset.empty:
+                continue
+            plot_colors = ['#FF4500', '#008B8B'] if roi == 'face' else ['black', 'gray']
+            mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val = compute_mean_crosscorr(subset, max_time)
+            significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins = statistically_compare_crosscorrelations(subset, max_time)
+            time_bins = np.linspace(0, max_time / 1000, max_time)
+            ax.plot(time_bins, mean_crosscorr_m1_m2, label=f'm1->m2 ({roi})', color=plot_colors[0], alpha=0.5, linewidth=1)
+            ax.plot(time_bins, mean_crosscorr_m2_m1, label=f'm2->m1 ({roi})', color=plot_colors[1], alpha=0.5, linewidth=1)
+            ax.plot(time_bins[significant_bins_m1_m2], mean_crosscorr_m1_m2[significant_bins_m1_m2], color=plot_colors[0], linewidth=2)
+            ax.plot(time_bins[significant_bins_m2_m1], mean_crosscorr_m2_m1[significant_bins_m2_m1], color=plot_colors[1], linewidth=2)
+            if roi == 'face':
+                ax.scatter(time_bins[significant_diff_bins], np.full_like(time_bins[significant_diff_bins], max_val),
+                    color='black', marker='*', label=f'm1-m2 diff ({roi})', s=25)
+        ax.set_title("m1->m2 > m2->m1" if condition == 'm1_greater' else "m2->m1 > m1->m2")
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Cross-correlation")
+        ax.legend()
+    plt.tight_layout()
+    save_path = os.path.join(root_dir, "fixation_crosscorr_summary.pdf")
+    plt.savefig(save_path, format='pdf', dpi=300)
+    plt.close(fig)
+    logger.info(f"All plots saved in {root_dir}")
 
+def compute_mean_crosscorr(subset, max_time):
+    """
+    Computes the mean cross-correlation values for m1->m2 and m2->m1.
+    """
+    crosscorr_m1_m2 = np.mean(np.vstack(subset['crosscorr_m1_m2'].apply(lambda x: x[:max_time])), axis=0)
+    crosscorr_m2_m1 = np.mean(np.vstack(subset['crosscorr_m2_m1'].apply(lambda x: x[:max_time])), axis=0)
+    max_val = max(np.max(crosscorr_m1_m2), np.max(crosscorr_m2_m1)) * 1.05
+    return crosscorr_m1_m2, crosscorr_m2_m1, max_val
 
-
-
-
-
+def statistically_compare_crosscorrelations(subset, max_time):
+    """
+    Performs statistical comparisons between cross-correlations and shuffled distributions.
+    """
+    crosscorr_m1_m2 = np.array([x[:max_time] for x in subset['crosscorr_m1_m2']])
+    crosscorr_m2_m1 = np.array([x[:max_time] for x in subset['crosscorr_m2_m1']])
+    mean_shuffled_m1_m2 = np.array([x[:max_time] for x in subset['mean_shuffled_m1_m2']])
+    mean_shuffled_m2_m1 = np.array([x[:max_time] for x in subset['mean_shuffled_m2_m1']])
+    
+    def extract_p_value(x, y):
+        return wilcoxon(x, y, alternative='two-sided')[1]
+    
+    p_values_m1_m2 = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m1_m2[:, i], mean_shuffled_m1_m2[:, i]) for i in range(max_time))
+    p_values_m2_m1 = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m2_m1[:, i], mean_shuffled_m2_m1[:, i]) for i in range(max_time))
+    diff_p_values = Parallel(n_jobs=-1)(delayed(extract_p_value)(crosscorr_m1_m2[:, i], crosscorr_m2_m1[:, i]) for i in range(max_time))
+    return np.array(p_values_m1_m2) < 0.05, np.array(p_values_m2_m1) < 0.05, np.array(diff_p_values) < 0.05
 
 
 
