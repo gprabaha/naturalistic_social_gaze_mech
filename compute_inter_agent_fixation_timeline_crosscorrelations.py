@@ -51,7 +51,7 @@ def _initialize_params():
         'use_parallel': True,
         'make_shuffle_stringent': True,
         'recompute_fix_binary_vector': False,
-        'recompute_crosscorr': False,
+        'recompute_crosscorr': True,
         'remake_crosscorr_plots': True,
         'remake_sig_crosscorr_plots': True
     }
@@ -113,8 +113,6 @@ def main():
     inter_agent_behav_cross_correlation_df = inter_agent_behav_cross_correlation_df.merge(monkeys_per_session_df, on="session_name")
     # Define monkey pair column
     inter_agent_behav_cross_correlation_df["monkey_pair"] = inter_agent_behav_cross_correlation_df["m1"] + "_" + inter_agent_behav_cross_correlation_df["m2"]
-
-    pdb.set_trace()
 
     plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, params)
     
@@ -245,10 +243,10 @@ def compute_crosscorr_for_group(group_tuple, eye_mvm_behav_df, params, sigma, nu
     m1_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m1_vector, params, session, interaction, run, fixation_type, "m1", num_shuffles, num_threads)
     m2_shuffled_vectors = generate_shuffled_vectors(eye_mvm_behav_df, m2_vector, params, session, interaction, run, fixation_type, "m2", num_shuffles, num_threads)
 
-    plot_regular_fixation_vectors_and_example_shuffled_vectors(
-        m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, 
-        params, session, interaction, run, fixation_type, num_shuffles_to_plot=5
-    )
+    # plot_regular_fixation_vectors_and_example_shuffled_vectors(
+    #     m1_vector, m2_vector, m1_shuffled_vectors, m2_shuffled_vectors, 
+    #     params, session, interaction, run, fixation_type, num_shuffles_to_plot=5
+    # )
 
     # Compute shuffled cross-correlations in parallel
     shuffled_crosscorrs = Parallel(n_jobs=num_threads)(
@@ -445,8 +443,8 @@ def plot_fixation_crosscorrelations(inter_agent_behav_cross_correlation_df, para
             ax.plot(time_bins, mean_crosscorr_m1_m2, label='m1->m2', color='blue', alpha=0.5)
             ax.plot(time_bins, mean_crosscorr_m2_m1, label='m2->m1', color='red', alpha=0.5)
             
-            ax.scatter(time_bins[significant_bins_m1_m2], mean_crosscorr_m1_m2[significant_bins_m1_m2], color='blue', s=20, label='sig m1->m2', edgecolors='black', linewidth=1.5)
-            ax.scatter(time_bins[significant_bins_m2_m1], mean_crosscorr_m2_m1[significant_bins_m2_m1], color='red', s=20, label='sig m2->m1', edgecolors='black', linewidth=1.5)
+            ax.scatter(time_bins[significant_bins_m1_m2], mean_crosscorr_m1_m2[significant_bins_m1_m2], color='blue', s=20, label='sig m1->m2', linewidth=1.5)
+            ax.scatter(time_bins[significant_bins_m2_m1], mean_crosscorr_m2_m1[significant_bins_m2_m1], color='red', s=20, label='sig m2->m1', linewidth=1.5)
             ax.scatter(time_bins[significant_diff_bins], np.full_like(time_bins[significant_diff_bins], max_val), color='black', marker='*', s=25, label='m1-m2 diff')
             
             ax.set_title(f"Monkey Pair: {monkey_pair} | Fixation: {fixation}")
@@ -488,6 +486,17 @@ def process_crosscorrelations(subset, max_time):
     significant_diff_bins = np.array(diff_p_values) < 0.05
     
     return mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val, significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins
+
+
+
+
+
+
+
+
+
+
+
 
 
 
