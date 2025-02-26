@@ -84,6 +84,8 @@ def main():
     ).cuda()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    cur_loss = 0
+    losses = []
 
     # Start training
     for epoch in range(args.epochs):
@@ -101,8 +103,30 @@ def main():
         out, hn = model(xn, inp)
 
         loss = criterion(out, batch)
+        cur_loss += loss.item()
 
-        print(f"Loss: {loss.item()}")
+        if epoch % 100 == 0 and epoch > 0:
+
+            # Get the directory part of the save path
+            directory = os.path.dirname(args.save_dir)
+            # Check if the directory exists, and create it if it doesn't
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+            torch.save(model.state_dict(), args.save_dir + args.model_save_name)
+
+            mean_loss = cur_loss / 100
+            losses.append(mean_loss)
+
+            with open(args.save_dir + "losses.txt", "w") as output:
+                output.write(str(losses))            
+
+            cur_loss = 0
+
+            print("===========================================================")
+            print("Mean training loss at epoch {}:{}".format(epoch, mean_loss))
+            print("===========================================================")
+            print("")
 
         optimizer.zero_grad()
         loss.backward()

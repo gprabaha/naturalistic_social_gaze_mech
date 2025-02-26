@@ -69,9 +69,14 @@ def config_parser():
     parser.add_argument('--constrained', action=argparse.BooleanOptionalAction)
     parser.add_argument('--batch_first', action=argparse.BooleanOptionalAction)
 
-    parser.add_argument('--save_path', 
+    parser.add_argument('--save_dir', 
                         type=str, 
-                        default="checkpoints/", 
+                        default="checkpoints/social_mrnn/", 
+                        help='path to save network')
+
+    parser.add_argument('--model_save_name', 
+                        type=str, 
+                        default="social_mrnn.pth", 
                         help='path to save network')
 
     parser.add_argument('--model_specifications_path', 

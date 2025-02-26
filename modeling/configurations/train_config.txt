@@ -1,5 +1,5 @@
 inp_dim = 36
-epochs = 10000
+epochs = 100000
 lr = 1e-4
 dt = 10
 tau = 100
@@ -11,6 +11,7 @@ tol = 1e-2
 patience = 50
 inp_noise = 0.001
 act_noise = 0.05
-save_path = "checkpoints/"
+save_dir = "checkpoints/social_mrnn/"
+model_save_name = "social_mrnn.pth"
 model_specifications_path = "checkpoints/model_specifications/"
 mrnn_config_file = "modeling/configurations/mRNN.json"
