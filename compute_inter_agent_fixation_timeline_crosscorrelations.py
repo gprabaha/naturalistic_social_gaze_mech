@@ -558,10 +558,12 @@ def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_d
     today_date = f"{datetime.today().strftime('%Y-%m-%d')}" + ("_stringent" if params.get('make_shuffle_stringent', False) else "")
     root_dir = os.path.join(params['root_data_dir'], "plots", "fixation_vector_crosscorrelations_summary", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    logger.info(f"Processing cross-correlations, saving results to {root_dir}")
+    logger.info(f"Processing cross-correlation summaries; saving results to {root_dir}")
     grouped = inter_agent_behav_cross_correlation_df.groupby(group_by)
     pairs_m1_greater = []
     pairs_m2_greater = []
+    handles = []
+    labels = []
     for monkey_pair, group_df in grouped:
         subset = group_df[group_df['fixation_type'] == 'face']
         if not subset.empty:
@@ -585,8 +587,8 @@ def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_d
             mean_crosscorr_m1_m2, mean_crosscorr_m2_m1, max_val = compute_mean_crosscorr(subset, max_time)
             significant_bins_m1_m2, significant_bins_m2_m1, significant_diff_bins = statistically_compare_crosscorrelations(subset, max_time)
             time_bins = np.linspace(0, max_time / 1000, max_time)
-            ax.plot(time_bins, mean_crosscorr_m1_m2, label=f'm1->m2 ({roi})', color=plot_colors[0], alpha=0.5, linewidth=1)
-            ax.plot(time_bins, mean_crosscorr_m2_m1, label=f'm2->m1 ({roi})', color=plot_colors[1], alpha=0.5, linewidth=1)
+            line1, = ax.plot(time_bins, mean_crosscorr_m1_m2, label=f'm1→m2 ({roi})', color=plot_colors[0], alpha=0.5, linewidth=1)
+            line2, = ax.plot(time_bins, mean_crosscorr_m2_m1, label=f'm2→m1 ({roi})', color=plot_colors[1], alpha=0.5, linewidth=1)
             mean_crosscorr_m1_m2_highlight = np.full_like(mean_crosscorr_m1_m2, np.nan)
             mean_crosscorr_m2_m1_highlight = np.full_like(mean_crosscorr_m2_m1, np.nan)
             mean_crosscorr_m1_m2_highlight[significant_bins_m1_m2] = mean_crosscorr_m1_m2[significant_bins_m1_m2]
@@ -595,11 +597,14 @@ def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_d
             ax.plot(time_bins, mean_crosscorr_m2_m1_highlight, color=plot_colors[1], linewidth=2)
             if roi == 'face':
                 ax.scatter(time_bins[significant_diff_bins], np.full_like(time_bins[significant_diff_bins], max_val),
-                    color='black', marker='*', label=f'm1-m2 diff ({roi})', s=25)
-        ax.set_title("m1->m2 > m2->m1" if condition == 'm1_greater' else "m2->m1 > m1->m2")
+                    color='black', marker='.', label=f'm1-m2 diff ({roi})', s=25)
+            if condition == 'm1_greater':
+                handles.extend([line1, line2])
+                labels.extend([f'm1→m2 ({roi})', f'm2→m1 ({roi})'])
+        ax.set_title("m1→m2 > m2→m1 pairs" if condition == 'm1_greater' else "m2→m1 > m1→m2 pairs")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Cross-correlation")
-        ax.legend()
+    fig.legend(handles, labels, loc='best')
     plt.tight_layout()
     save_path = os.path.join(root_dir, "fixation_crosscorr_summary.pdf")
     plt.savefig(save_path, format='pdf', dpi=300)
