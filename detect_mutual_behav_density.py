@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster': False,
+        'is_cluster': True,
         'prabaha_local': True,
         'recalculate_mutual_density_df': True,
         'fixation_type_to_process': 'face',
@@ -103,9 +103,9 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
     n_jobs = os.cpu_count() - 2  # Use all but one CPU
-    results = Parallel(n_jobs=n_jobs)(
+    results = Parallel(n_jobs=-1)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
-        for session_name, session_group in session_groups
+        for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
     )
     # Flatten results since `get_fixation_density_in_one_session` returns lists of dictionaries
     all_run_data = [entry for session_results in results for entry in session_results]
@@ -200,13 +200,15 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
     M1, M2, and mutual face fixation density estimates.
     """
     logger.info("Plotting fixation density comparison")
-    # Select 10 random runs with face fixations
-    face_fixations = fix_binary_vector_df[fix_binary_vector_df['fixation_type'] == 'face']
-    selected_runs = face_fixations.sample(n=10, random_state=42)  # Randomly select 10 runs
+    # Randomly select 10 unique runs
+    selected_runs = fix_binary_vector_df[['session_name', 'run_number']].drop_duplicates().sample(n=10, random_state=42)
+    # Retrieve both M1 and M2 data for each sampled run
+    selected_data = fix_binary_vector_df.merge(selected_runs, on=['session_name', 'run_number'])
+    # Set up the figure
     fig, axes = plt.subplots(5, 2, figsize=(14, 18), sharex=True, sharey=True)
     axes = axes.flatten()
-    for i, (_, row) in enumerate(selected_runs.iterrows()):
-        session_name, run_number = row['session_name'], row['run_number']
+    for i, (run_id, run_group) in enumerate(selected_data.groupby(['session_name', 'run_number'])):
+        session_name, run_number = run_id
         # Find corresponding mutual density data
         mutual_row = mutual_behav_density_df[
             (mutual_behav_density_df['session_name'] == session_name) &
@@ -214,19 +216,26 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
         ]
         if mutual_row.empty:
             continue
-        # Extract fixation durations
-        fix_starts, fix_durations = compute_fixation_durations(row['binary_vector'])
+        # Extract fixation data for m1 and m2
+        m1_data = run_group[run_group['agent'] == 'm1']
+        m2_data = run_group[run_group['agent'] == 'm2']
+        if m1_data.empty or m2_data.empty:
+            continue
+        # Compute fixation durations
+        m1_fix_starts, m1_fix_durations = compute_fixation_durations(m1_data['binary_vector'].values[0])
+        m2_fix_starts, m2_fix_durations = compute_fixation_durations(m2_data['binary_vector'].values[0])
         # Get densities
         m1_density = np.array(mutual_row['m1_density'].values[0])
         m2_density = np.array(mutual_row['m2_density'].values[0])
         mutual_density = np.array(mutual_row['mutual_density'].values[0])
-        # Plot fixation durations using broken_barh
-        axes[i].broken_barh(list(zip(fix_starts, fix_durations)), (0.8, 0.4), facecolors='lightblue', alpha=0.6)
+        # Plot fixation durations using broken_barh for m1 and m2
+        axes[i].broken_barh(list(zip(m1_fix_starts, m1_fix_durations)), (1.2, 0.4), facecolors='lightblue', alpha=0.6, label="M1 Fixations")
+        axes[i].broken_barh(list(zip(m2_fix_starts, m2_fix_durations)), (0.4, 0.4), facecolors='orange', alpha=0.6, label="M2 Fixations")
         # Overlay densities
         time_series = np.linspace(0, len(m1_density), len(m1_density))
         axes[i].plot(time_series, m1_density, label="M1 Density", color='blue', alpha=0.7)
         axes[i].plot(time_series, m2_density, label="M2 Density", color='red', alpha=0.7)
-        axes[i].plot(time_series, mutual_density, label="Mutual Density", color='green', alpha=0.9)
+        axes[i].plot(time_series, mutual_density, label="Mutual Density", color='green', alpha=0.9, linewidth=2.5)  # Increased linewidth
         # Titles & Labels
         axes[i].set_title(f"Session {session_name} - Run {run_number}")
         axes[i].set_ylabel("Fixation & Density")
@@ -235,6 +244,7 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
     plt.suptitle("Fixation Durations with Overlaid Densities", fontsize=16)
     plt.tight_layout()
     plt.show()
+
 
 def compute_fixation_durations(binary_vector):
     """
