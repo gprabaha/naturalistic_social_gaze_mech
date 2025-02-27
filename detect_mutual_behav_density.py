@@ -102,10 +102,10 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     # Ensure output directory exists
     os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
-    n_jobs = os.cpu_count() - 1  # Use all but one CPU
+    n_jobs = os.cpu_count() - 2  # Use all but one CPU
     results = Parallel(n_jobs=n_jobs)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
-        for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
+        for session_name, session_group in session_groups
     )
     # Flatten results since `get_fixation_density_in_one_session` returns lists of dictionaries
     all_run_data = [entry for session_results in results for entry in session_results]
