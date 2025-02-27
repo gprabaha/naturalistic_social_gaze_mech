@@ -66,21 +66,22 @@ def get_spike_times_df(file_path):
 
 def get_data_df(data_file_path):
     """
-    Loads the gaze data dictionary and missing data paths from saved pickle files.
+    Loads the gaze data dictionary from a saved pickle file.
     Parameters:
-    - gaze_data_file_path (str): Path to the saved gaze data dictionary file.
-    - missing_data_file_path (str): Path to the saved missing data paths file.
+    - data_file_path (str): Path to the saved gaze data dictionary file.
     Returns:
-    - gaze_data_dict (dict): The loaded gaze data dictionary.
-    - missing_data_paths (list): The loaded list of missing data paths.
+    - data_df (pd.DataFrame or dict): The loaded gaze data dictionary.
     """
     try:
         with open(data_file_path, 'rb') as f:
-            data_df = pickle.load(f)
-        return data_df
+            return pickle.load(f)
     except Exception as e:
-        logger.error(f"Failed to load gaze data: {e}")
-        raise
+        logger.warning(f"pickle.load failed: {e}. Trying pd.read_pickle instead.")
+        try:
+            return pd.read_pickle(data_file_path)
+        except Exception as e:
+            logger.error(f"Both pickle.load and pd.read_pickle failed: {e}")
+            raise
 
 
 def load_fixation_and_saccade_dfs(fixation_file_path, saccade_file_path):

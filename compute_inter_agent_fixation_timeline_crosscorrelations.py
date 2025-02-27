@@ -576,7 +576,7 @@ def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_d
     pairs_m2_greater = pd.concat(pairs_m2_greater) if pairs_m2_greater else pd.DataFrame()
     conditions_to_plot = ['m1_greater', 'm2_greater']
     rois_to_plot = ['face', 'out_of_roi']
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 3), sharex=True)
     for ax, condition in zip(axes, conditions_to_plot):
         for roi in rois_to_plot:
             subset = pairs_m1_greater if condition == 'm1_greater' else pairs_m2_greater
@@ -604,7 +604,7 @@ def plot_fixation_crosscorrelation_summary(inter_agent_behav_cross_correlation_d
         ax.set_title("m1→m2 > m2→m1 pairs" if condition == 'm1_greater' else "m2→m1 > m1→m2 pairs")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Cross-correlation")
-    fig.legend(handles, labels, loc='best')
+    fig.legend(handles, labels, loc='center right')
     plt.tight_layout()
     save_path = os.path.join(root_dir, "fixation_crosscorr_summary.pdf")
     plt.savefig(save_path, format='pdf', dpi=300)

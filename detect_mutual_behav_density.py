@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
+        'is_cluster': False,
+        'prabaha_local': True,
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'time_window_before_and_after_event_for_psth': 0.5,
@@ -59,6 +61,10 @@ def main():
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
+
+    pdb.set_trace()
+
+
     # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
     plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
 
