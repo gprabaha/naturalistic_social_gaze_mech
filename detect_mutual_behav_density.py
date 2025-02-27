@@ -138,19 +138,32 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     density_df = pd.DataFrame(result_list)
     return density_df
 
-
 def compute_fixation_metrics(binary_vector):
-    """ Computes mean fixation duration and inter-fixation interval from binary vector. """
+    """ 
+    Computes mean fixation duration and inter-fixation interval from a binary vector.
+    Handles cases where the vector starts with 1 (fixation) or 0 (non-fixation).
+    """
     binary_vector = np.array(binary_vector)
-    change_indices = np.where(np.diff([0] + binary_vector.tolist() + [0]) != 0)[0]  # Start & stop indices
-    if len(change_indices) < 2:
-        return 0, 0  # No fixations found
-    durations = np.diff(change_indices)  # Durations of 1s and 0s alternately
-    fix_durations = durations[::2]  # Every alternate segment is a fixation
-    ifi_durations = durations[1::2] if len(durations) > 1 else [0]  # IFIs are the gaps
+    if np.all(binary_vector == 0):  # No fixations at all
+        return 0, 0
+    if np.all(binary_vector == 1):  # Continuous fixation, no IFI
+        return len(binary_vector), 0
+    # Detect change points (fixation starts/stops)
+    change_indices = np.where(np.diff(np.pad(binary_vector, (1, 1), 'constant')) != 0)[0]
+    # Compute durations of alternating segments
+    durations = np.diff(change_indices)
+    # Determine whether the first segment is a fixation or an IFI
+    first_segment_is_fixation = binary_vector[0] == 1
+    if first_segment_is_fixation:
+        fix_durations = durations[::2]  # Fixations at even indices
+        ifi_durations = durations[1::2] if len(durations) > 1 else [0]  # IFIs at odd indices
+    else:
+        fix_durations = durations[1::2] if len(durations) > 1 else [0]  # Fixations at odd indices
+        ifi_durations = durations[::2]  # IFIs at even indices
     mean_fix_dur = np.mean(fix_durations) if len(fix_durations) > 0 else 0
     mean_ifi = np.mean(ifi_durations) if len(ifi_durations) > 0 else 0
     return mean_fix_dur, mean_ifi
+
 
 
 def plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_df):
@@ -198,15 +211,26 @@ def plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_
 def compute_fixation_durations(binary_vector):
     """
     Computes fixation durations (consecutive 1s) and their start times from a binary vector.
+    Handles cases where the binary vector starts with 1 or 0.
     """
     binary_vector = np.array(binary_vector)
+    if np.all(binary_vector == 0):  # No fixations at all
+        return [], []
+    if np.all(binary_vector == 1):  # Continuous fixation
+        return [0], [len(binary_vector)]
+    # Detect change points (fixation starts/stops)
     change_indices = np.where(np.diff(np.pad(binary_vector, (1, 1), 'constant')) != 0)[0]
-    if len(change_indices) < 2:
-        return [], []  # No fixations found
-    durations = np.diff(change_indices)  # Durations of 1s and 0s alternately
-    fix_durations = durations[::2]  # Every alternate segment is a fixation
-    fix_starts = change_indices[:-1:2]  # Start indices of fixations
+    durations = np.diff(change_indices)
+    # Determine whether the first segment is a fixation or an IFI
+    first_segment_is_fixation = binary_vector[0] == 1
+    if first_segment_is_fixation:
+        fix_starts = change_indices[::2]  # Fixations at even indices
+        fix_durations = durations[::2]   # Durations at even indices
+    else:
+        fix_starts = change_indices[1::2]  # Fixations at odd indices
+        fix_durations = durations[1::2]    # Durations at odd indices
     return fix_starts, fix_durations
+
 
 
 
