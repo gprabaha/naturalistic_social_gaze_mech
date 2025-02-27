@@ -31,7 +31,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'prabaha_local': True,
-        'recalculate_mutual_density_df': True,
+        'recalculate_mutual_density_df': False,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
@@ -65,9 +65,9 @@ def main():
         processed_data_dir, 'fix_binary_vector_df.pkl'
     )
     logger.info("Loading data files")
-    sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
-    eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-    spike_times_df = load_data.get_data_df(spike_times_file_path)
+    # sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
+    # eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
+    # spike_times_df = load_data.get_data_df(spike_times_file_path)
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
     # Check if density df recalculation is needed
@@ -77,8 +77,8 @@ def main():
     if params.get('recalculate_mutual_density_df', False) or not os.path.exists(mutual_density_file_path):
         mutual_behav_density_df = detect_mutual_face_fixation_density(fix_binary_vector_df, params)
     else:
+        logger.info(f"Loading precalculated mutual fixation density data from {mutual_density_file_path}")
         mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
-        logger.info(f"Loaded mutual fixation density data from {mutual_density_file_path}")
     
     plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df)
 
