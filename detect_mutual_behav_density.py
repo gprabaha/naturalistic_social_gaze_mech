@@ -11,7 +11,6 @@ from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
 from joblib import Parallel, delayed
-import itertools
 
 import pdb
 
@@ -32,7 +31,7 @@ def _initialize_params():
     params = {
         'is_cluster': False,
         'prabaha_local': True,
-        'recalculate_mutual_density_df': False,
+        'recalculate_mutual_density_df': True,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
@@ -71,7 +70,7 @@ def main():
     spike_times_df = load_data.get_data_df(spike_times_file_path)
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
-    # Check if recalculation is needed
+    # Check if density df recalculation is needed
     fixation_type = params.get('fixation_type_to_process', 'face')
     mutual_density_filename = f"mutual_fixation_density_{fixation_type}.pkl"
     mutual_density_file_path = os.path.join(processed_data_dir, mutual_density_filename)
@@ -80,6 +79,7 @@ def main():
     else:
         mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
         logger.info(f"Loaded mutual fixation density data from {mutual_density_file_path}")
+    
     plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df)
 
     logger.info("Script finished running!")
@@ -102,11 +102,12 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     # Ensure output directory exists
     os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
-    results = Parallel(n_jobs=-1)(
+    n_jobs = os.cpu_count() - 1  # Use all but one CPU
+    results = Parallel(n_jobs=n_jobs)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
         for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
     )
-    # Flatten results since `_process_session` returns lists of dictionaries
+    # Flatten results since `get_fixation_density_in_one_session` returns lists of dictionaries
     all_run_data = [entry for session_results in results for entry in session_results]
     # Convert to DataFrame
     density_df = pd.DataFrame(all_run_data)
@@ -122,7 +123,8 @@ def get_fixation_density_in_one_session(session_name, session_group, fixation_ty
     """Processes all runs in a session sequentially."""
     session_results = []
     run_groups = session_group.groupby('run_number')
-    for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}", leave=False):
+    for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}"):
+    # for run_number, run_group in run_groups:
         m1_fixations = run_group[(run_group['agent'] == 'm1') & (run_group['fixation_type'] == fixation_type)]
         m2_fixations = run_group[(run_group['agent'] == 'm2') & (run_group['fixation_type'] == fixation_type)]
         if m1_fixations.empty or m2_fixations.empty:
@@ -256,6 +258,15 @@ def compute_fixation_durations(binary_vector):
         fix_starts = change_indices[1::2]  # Fixations at odd indices
         fix_durations = durations[1::2]    # Durations at odd indices
     return fix_starts, fix_durations
+
+
+
+
+
+
+
+
+
 
 
 
