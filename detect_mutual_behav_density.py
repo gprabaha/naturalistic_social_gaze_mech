@@ -31,6 +31,7 @@ def _initialize_params():
     params = {
         'is_cluster': False,
         'prabaha_local': True,
+        'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'time_window_before_and_after_event_for_psth': 0.5,
@@ -38,6 +39,7 @@ def _initialize_params():
         'min_consecutive_sig_bins': 5,
         'min_total_sig_bins': 25
     }
+    params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
     logger.info("Parameters initialized successfully")
@@ -57,16 +59,106 @@ def main():
     spike_times_file_path = os.path.join(
         params['processed_data_dir'], 'spike_times_df.pkl'
     )
+    fix_binary_vector_file = os.path.join(
+        params['processed_data_dir'], 'fix_binary_vector_df.pkl'
+    )
     logger.info("Loading data files")
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
+    fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
-    pdb.set_trace()
+    mutual_behav_density_df = detect_mutual_face_fixation_density(eye_mvm_behav_df, fix_binary_vector_df, params)
 
 
     # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
     plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
+
+
+
+
+
+def detect_mutual_face_fixation_density(eye_mvm_behav_df, fix_binary_vector_df, params):
+    """
+    Detects mutual face fixation density across time for each session.
+    Parameters:
+    - eye_mvm_behav_df: DataFrame containing fixation data.
+    - fix_binary_vector_df: DataFrame containing synchronized binary fixation data.
+    - params: Dictionary containing parameters.
+    Returns:
+    - DataFrame with smoothed and normalized mutual face fixation densities for m1 and m2.
+    """
+    fixation_type = params.get('fixation_type_to_process', 'face')
+    logger.info(f"Starting mutual {fixation_type} fixation density detection")
+    result_list = []
+    session_groups = fix_binary_vector_df.groupby('session_name')
+    for session_name, group in tqdm(session_groups, desc="Processing Sessions"):
+        run_groups = group.groupby('run_number')
+        for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}"):
+            m1_fixations = run_group[(run_group['agent'] == 'm1') & (run_group['fixation_type'] == fixation_type)]
+            m2_fixations = run_group[(run_group['agent'] == 'm2') & (run_group['fixation_type'] == fixation_type)]
+            if m1_fixations.empty or m2_fixations.empty:
+                continue
+            m1_binary_vector = np.array(m1_fixations['binary_vector'].values[0])
+            m2_binary_vector = np.array(m2_fixations['binary_vector'].values[0])
+            # Compute mean fixation duration & IFI for sigma estimation (separately for M1 and M2)
+            m1_fix_dur, m1_ifi = compute_fixation_metrics(m1_binary_vector)
+            m2_fix_dur, m2_ifi = compute_fixation_metrics(m2_binary_vector)
+            # Use separate smoothing sigmas
+            m1_sigma = (m1_fix_dur + m1_ifi) / 4
+            m2_sigma = (m2_fix_dur + m2_ifi) / 4
+            # Ensure equal length
+            min_length = min(len(m1_binary_vector), len(m2_binary_vector))
+            m1_binary_vector = m1_binary_vector[:min_length]
+            m2_binary_vector = m2_binary_vector[:min_length]
+            # Apply Gaussian smoothing with separate sigmas
+            m1_density = gaussian_filter1d(m1_binary_vector.astype(float), sigma=m1_sigma, mode='constant')
+            m2_density = gaussian_filter1d(m2_binary_vector.astype(float), sigma=m2_sigma, mode='constant')
+            # Normalize to [0,1]
+            m1_density_norm = (m1_density - np.min(m1_density)) / (np.max(m1_density) - np.min(m1_density) + 1e-8)
+            m2_density_norm = (m2_density - np.min(m2_density)) / (np.max(m2_density) - np.min(m2_density) + 1e-8)
+            # Compute mutual fixation density
+            mutual_density = np.sqrt(m1_density_norm * m2_density_norm)
+            # Store results
+            result_list.append({
+                'session_name': session_name,
+                'run_number': run_number,
+                'fixation_type': fixation_type,
+                'm1_fix_dur': m1_fix_dur,
+                'm2_fix_dur': m2_fix_dur,
+                'm1_ifi': m1_ifi,
+                'm2_ifi': m2_ifi,
+                'm1_sigma': m1_sigma,
+                'm2_sigma': m2_sigma,
+                'm1_density': list(m1_density_norm),
+                'm2_density': list(m2_density_norm),
+                'mutual_density': list(mutual_density)
+            })
+    # Convert to DataFrame
+    density_df = pd.DataFrame(result_list)
+    return density_df
+
+
+def compute_fixation_metrics(binary_vector):
+    """ Computes mean fixation duration and inter-fixation interval from binary vector. """
+    binary_vector = np.array(binary_vector)
+    change_indices = np.where(np.diff([0] + binary_vector.tolist() + [0]) != 0)[0]  # Start & stop indices
+    if len(change_indices) < 2:
+        return 0, 0  # No fixations found
+    durations = np.diff(change_indices)  # Durations of 1s and 0s alternately
+    fix_durations = durations[::2]  # Every alternate segment is a fixation
+    ifi_durations = durations[1::2] if len(durations) > 1 else [0]  # IFIs are the gaps
+    mean_fix_dur = np.mean(fix_durations) if len(fix_durations) > 0 else 0
+    mean_ifi = np.mean(ifi_durations) if len(ifi_durations) > 0 else 0
+    return mean_fix_dur, mean_ifi
+
+
+
+
+
+
+
+
 
 
 
