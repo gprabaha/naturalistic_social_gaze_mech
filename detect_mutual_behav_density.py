@@ -32,6 +32,7 @@ def _initialize_params():
     params = {
         'is_cluster': False,
         'prabaha_local': True,
+        'recalculate_mutual_density_df': False,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
@@ -51,17 +52,18 @@ def _initialize_params():
 def main():
     logger.info("Starting the script")
     params = _initialize_params()
+    processed_data_dir = params.get('processed_data_dir', './processed_data')
     sparse_nan_removed_sync_gaze_data_df_filepath = os.path.join(
-        params['processed_data_dir'], 'sparse_nan_removed_sync_gaze_data_df.pkl'
+        processed_data_dir, 'sparse_nan_removed_sync_gaze_data_df.pkl'
     )
     eye_mvm_behav_df_file_path = os.path.join(
-        params['processed_data_dir'], 'eye_mvm_behav_df.pkl'
+        processed_data_dir, 'eye_mvm_behav_df.pkl'
     )
     spike_times_file_path = os.path.join(
-        params['processed_data_dir'], 'spike_times_df.pkl'
+        processed_data_dir, 'spike_times_df.pkl'
     )
     fix_binary_vector_file = os.path.join(
-        params['processed_data_dir'], 'fix_binary_vector_df.pkl'
+        processed_data_dir, 'fix_binary_vector_df.pkl'
     )
     logger.info("Loading data files")
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
@@ -69,28 +71,36 @@ def main():
     spike_times_df = load_data.get_data_df(spike_times_file_path)
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
-    mutual_behav_density_df = detect_mutual_face_fixation_density(fix_binary_vector_df, params)
+    # Check if recalculation is needed
+    fixation_type = params.get('fixation_type_to_process', 'face')
+    mutual_density_filename = f"mutual_fixation_density_{fixation_type}.pkl"
+    mutual_density_file_path = os.path.join(processed_data_dir, mutual_density_filename)
+    if params.get('recalculate_mutual_density_df', False) or not os.path.exists(mutual_density_file_path):
+        mutual_behav_density_df = detect_mutual_face_fixation_density(fix_binary_vector_df, params)
+    else:
+        mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
+        logger.info(f"Loaded mutual fixation density data from {mutual_density_file_path}")
     plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df)
 
-    # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-    # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
-
-
+    logger.info("Script finished running!")
 
 
 
 
 def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     """
-    Detects mutual face fixation density across time for each session.
+    Detects mutual face fixation density across time for each session and saves the result as a pickle file.
     Parameters:
     - fix_binary_vector_df: DataFrame containing synchronized binary fixation data.
-    - params: Dictionary containing parameters.
+    - params: Dictionary containing parameters, including 'processed_data_dir'.
     Returns:
     - DataFrame with smoothed and normalized mutual face fixation densities for m1 and m2.
     """
     fixation_type = params.get('fixation_type_to_process', 'face')
+    processed_data_dir = params.get('processed_data_dir', './processed_data')  # Default to local dir if missing
     logger.info(f"Starting mutual {fixation_type} fixation density detection")
+    # Ensure output directory exists
+    os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
     results = Parallel(n_jobs=-1)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
@@ -100,6 +110,12 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     all_run_data = [entry for session_results in results for entry in session_results]
     # Convert to DataFrame
     density_df = pd.DataFrame(all_run_data)
+    # Construct output file path
+    output_filename = f"mutual_fixation_density_{fixation_type}.pkl"
+    output_path = os.path.join(processed_data_dir, output_filename)
+    # Save DataFrame as a pickle file
+    density_df.to_pickle(output_path)
+    logger.info(f"Saved mutual fixation density data to {output_path}")
     return density_df
 
 def get_fixation_density_in_one_session(session_name, session_group, fixation_type):
