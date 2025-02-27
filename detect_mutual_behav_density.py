@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
+from joblib import Parallel, delayed
 import itertools
 
 import pdb
@@ -69,10 +70,11 @@ def main():
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
     mutual_behav_density_df = detect_mutual_face_fixation_density(fix_binary_vector_df, params)
-    plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_df)
+    plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df)
 
     # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
     # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
+
 
 
 
@@ -82,7 +84,6 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     """
     Detects mutual face fixation density across time for each session.
     Parameters:
-    - eye_mvm_behav_df: DataFrame containing fixation data.
     - fix_binary_vector_df: DataFrame containing synchronized binary fixation data.
     - params: Dictionary containing parameters.
     Returns:
@@ -90,53 +91,62 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     """
     fixation_type = params.get('fixation_type_to_process', 'face')
     logger.info(f"Starting mutual {fixation_type} fixation density detection")
-    result_list = []
     session_groups = fix_binary_vector_df.groupby('session_name')
-    for session_name, group in tqdm(session_groups, desc="Processing Sessions"):
-        run_groups = group.groupby('run_number')
-        for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}"):
-            m1_fixations = run_group[(run_group['agent'] == 'm1') & (run_group['fixation_type'] == fixation_type)]
-            m2_fixations = run_group[(run_group['agent'] == 'm2') & (run_group['fixation_type'] == fixation_type)]
-            if m1_fixations.empty or m2_fixations.empty:
-                continue
-            m1_binary_vector = np.array(m1_fixations['binary_vector'].values[0])
-            m2_binary_vector = np.array(m2_fixations['binary_vector'].values[0])
-            # Compute mean fixation duration & IFI for sigma estimation (separately for M1 and M2)
-            m1_fix_dur, m1_ifi = compute_fixation_metrics(m1_binary_vector)
-            m2_fix_dur, m2_ifi = compute_fixation_metrics(m2_binary_vector)
-            # Use separate smoothing sigmas
-            m1_sigma = (m1_fix_dur + m1_ifi) / 4
-            m2_sigma = (m2_fix_dur + m2_ifi) / 4
-            # Ensure equal length
-            min_length = min(len(m1_binary_vector), len(m2_binary_vector))
-            m1_binary_vector = m1_binary_vector[:min_length]
-            m2_binary_vector = m2_binary_vector[:min_length]
-            # Apply Gaussian smoothing with separate sigmas
-            m1_density = gaussian_filter1d(m1_binary_vector.astype(float), sigma=m1_sigma, mode='constant')
-            m2_density = gaussian_filter1d(m2_binary_vector.astype(float), sigma=m2_sigma, mode='constant')
-            # Normalize to [0,1]
-            m1_density_norm = (m1_density - np.min(m1_density)) / (np.max(m1_density) - np.min(m1_density) + 1e-8)
-            m2_density_norm = (m2_density - np.min(m2_density)) / (np.max(m2_density) - np.min(m2_density) + 1e-8)
-            # Compute mutual fixation density
-            mutual_density = np.sqrt(m1_density_norm * m2_density_norm)
-            # Store results
-            result_list.append({
-                'session_name': session_name,
-                'run_number': run_number,
-                'fixation_type': fixation_type,
-                'm1_fix_dur': m1_fix_dur,
-                'm2_fix_dur': m2_fix_dur,
-                'm1_ifi': m1_ifi,
-                'm2_ifi': m2_ifi,
-                'm1_sigma': m1_sigma,
-                'm2_sigma': m2_sigma,
-                'm1_density': list(m1_density_norm),
-                'm2_density': list(m2_density_norm),
-                'mutual_density': list(mutual_density)
-            })
+    results = Parallel(n_jobs=-1)(
+        delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
+        for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
+    )
+    # Flatten results since `_process_session` returns lists of dictionaries
+    all_run_data = [entry for session_results in results for entry in session_results]
     # Convert to DataFrame
-    density_df = pd.DataFrame(result_list)
+    density_df = pd.DataFrame(all_run_data)
     return density_df
+
+def get_fixation_density_in_one_session(session_name, session_group, fixation_type):
+    """Processes all runs in a session sequentially."""
+    session_results = []
+    run_groups = session_group.groupby('run_number')
+    for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}", leave=False):
+        m1_fixations = run_group[(run_group['agent'] == 'm1') & (run_group['fixation_type'] == fixation_type)]
+        m2_fixations = run_group[(run_group['agent'] == 'm2') & (run_group['fixation_type'] == fixation_type)]
+        if m1_fixations.empty or m2_fixations.empty:
+            continue  # Skip runs with missing data
+        m1_binary_vector = np.array(m1_fixations['binary_vector'].values[0])
+        m2_binary_vector = np.array(m2_fixations['binary_vector'].values[0])
+        # Compute mean fixation duration & IFI for sigma estimation (separately for M1 and M2)
+        m1_fix_dur, m1_ifi = compute_fixation_metrics(m1_binary_vector)
+        m2_fix_dur, m2_ifi = compute_fixation_metrics(m2_binary_vector)
+        # Use separate smoothing sigmas
+        m1_sigma = (m1_fix_dur + m1_ifi) / 4
+        m2_sigma = (m2_fix_dur + m2_ifi) / 4
+        # Ensure equal length
+        min_length = min(len(m1_binary_vector), len(m2_binary_vector))
+        m1_binary_vector = m1_binary_vector[:min_length]
+        m2_binary_vector = m2_binary_vector[:min_length]
+        # Apply Gaussian smoothing with separate sigmas
+        m1_density = gaussian_filter1d(m1_binary_vector.astype(float), sigma=m1_sigma, mode='constant')
+        m2_density = gaussian_filter1d(m2_binary_vector.astype(float), sigma=m2_sigma, mode='constant')
+        # Normalize to [0,1]
+        m1_density_norm = (m1_density - np.min(m1_density)) / (np.max(m1_density) - np.min(m1_density) + 1e-8)
+        m2_density_norm = (m2_density - np.min(m2_density)) / (np.max(m2_density) - np.min(m2_density) + 1e-8)
+        # Compute mutual fixation density
+        mutual_density = np.sqrt(m1_density_norm * m2_density_norm)
+        # Store results
+        session_results.append({
+            'session_name': session_name,
+            'run_number': run_number,
+            'fixation_type': fixation_type,
+            'm1_fix_dur': m1_fix_dur,
+            'm2_fix_dur': m2_fix_dur,
+            'm1_ifi': m1_ifi,
+            'm2_ifi': m2_ifi,
+            'm1_sigma': m1_sigma,
+            'm2_sigma': m2_sigma,
+            'm1_density': list(m1_density_norm),
+            'm2_density': list(m2_density_norm),
+            'mutual_density': list(mutual_density)
+        })
+    return session_results
 
 def compute_fixation_metrics(binary_vector):
     """ 
@@ -166,7 +176,7 @@ def compute_fixation_metrics(binary_vector):
 
 
 
-def plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_df):
+def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df):
     """
     Plots fixation durations for 10 random runs using broken_barh and overlays
     M1, M2, and mutual face fixation density estimates.
