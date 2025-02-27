@@ -68,17 +68,17 @@ def main():
     spike_times_df = load_data.get_data_df(spike_times_file_path)
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
-    mutual_behav_density_df = detect_mutual_face_fixation_density(eye_mvm_behav_df, fix_binary_vector_df, params)
-
+    mutual_behav_density_df = detect_mutual_face_fixation_density(fix_binary_vector_df, params)
+    plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_df)
 
     # plot_mutual_face_fixation_density(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, params)
-    plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
+    # plot_neural_response_to_mutual_face_fixations(eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, params)
 
 
 
 
 
-def detect_mutual_face_fixation_density(eye_mvm_behav_df, fix_binary_vector_df, params):
+def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     """
     Detects mutual face fixation density across time for each session.
     Parameters:
@@ -152,6 +152,61 @@ def compute_fixation_metrics(binary_vector):
     mean_ifi = np.mean(ifi_durations) if len(ifi_durations) > 0 else 0
     return mean_fix_dur, mean_ifi
 
+
+def plot_fixation_density_comparison(fix_binary_vector_df, mutual_behav_density_df):
+    """
+    Plots fixation durations for 10 random runs using broken_barh and overlays
+    M1, M2, and mutual face fixation density estimates.
+    """
+    logger.info("Plotting fixation density comparison")
+    # Select 10 random runs with face fixations
+    face_fixations = fix_binary_vector_df[fix_binary_vector_df['fixation_type'] == 'face']
+    selected_runs = face_fixations.sample(n=10, random_state=42)  # Randomly select 10 runs
+    fig, axes = plt.subplots(5, 2, figsize=(14, 18), sharex=True, sharey=True)
+    axes = axes.flatten()
+    for i, (_, row) in enumerate(selected_runs.iterrows()):
+        session_name, run_number = row['session_name'], row['run_number']
+        # Find corresponding mutual density data
+        mutual_row = mutual_behav_density_df[
+            (mutual_behav_density_df['session_name'] == session_name) &
+            (mutual_behav_density_df['run_number'] == run_number)
+        ]
+        if mutual_row.empty:
+            continue
+        # Extract fixation durations
+        fix_starts, fix_durations = compute_fixation_durations(row['binary_vector'])
+        # Get densities
+        m1_density = np.array(mutual_row['m1_density'].values[0])
+        m2_density = np.array(mutual_row['m2_density'].values[0])
+        mutual_density = np.array(mutual_row['mutual_density'].values[0])
+        # Plot fixation durations using broken_barh
+        axes[i].broken_barh(list(zip(fix_starts, fix_durations)), (0.8, 0.4), facecolors='lightblue', alpha=0.6)
+        # Overlay densities
+        time_series = np.linspace(0, len(m1_density), len(m1_density))
+        axes[i].plot(time_series, m1_density, label="M1 Density", color='blue', alpha=0.7)
+        axes[i].plot(time_series, m2_density, label="M2 Density", color='red', alpha=0.7)
+        axes[i].plot(time_series, mutual_density, label="Mutual Density", color='green', alpha=0.9)
+        # Titles & Labels
+        axes[i].set_title(f"Session {session_name} - Run {run_number}")
+        axes[i].set_ylabel("Fixation & Density")
+        axes[i].set_xlabel("Time")
+        axes[i].legend(loc='upper right', fontsize=8)
+    plt.suptitle("Fixation Durations with Overlaid Densities", fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+def compute_fixation_durations(binary_vector):
+    """
+    Computes fixation durations (consecutive 1s) and their start times from a binary vector.
+    """
+    binary_vector = np.array(binary_vector)
+    change_indices = np.where(np.diff(np.pad(binary_vector, (1, 1), 'constant')) != 0)[0]
+    if len(change_indices) < 2:
+        return [], []  # No fixations found
+    durations = np.diff(change_indices)  # Durations of 1s and 0s alternately
+    fix_durations = durations[::2]  # Every alternate segment is a fixation
+    fix_starts = change_indices[:-1:2]  # Start indices of fixations
+    return fix_starts, fix_durations
 
 
 
