@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
+        'is_cluster': True,
         'remake_firing_rate_df': False,
         'prabaha_local': True,
         'neural_data_bin_size': 10,  # 10 ms in seconds
@@ -70,22 +71,25 @@ def main():
         logger.info("Loading trial-wise firing-rate dataframe")
         behav_firing_rate_df = load_data.get_data_df(behav_firing_rate_df_file_path)
 
-    pdb.set_trace()
-
     group_by_columns = [
-            "region", "behavior_type", "location", 
+            "region", "unit_uuid", "behavior_type", "location", 
             "from_location", "to_location", "behav_duration_category"
         ]
     behav_firing_rate_df[group_by_columns] = behav_firing_rate_df[group_by_columns].fillna("UNKNOWN")
-    training_groups = behav_firing_rate_df.groupby(group_by_columns)
-    print("Relevant groups for training:")
-    for group_name, group_df in training_groups:
-        print(group_name)
-        neural_groups = group_df.groupby("unit_uuid")
-        for neuron_name, neuron_df in neural_groups:
-            print(neuron_name)
-            print(neuron_df.head())
-        pdb.set_trace()
+    averaged_firing_rate_df = behav_firing_rate_df.groupby(group_by_columns, as_index=False).agg(
+        {"firing_rate_timeline": lambda x: np.mean(np.stack(x), axis=0)}
+    )
+    averaged_firing_rate_path = os.path.join(
+        params.get('processed_data_dir'), "averaged_neural_firing_rate_df.pkl"
+    )
+    averaged_firing_rate_df.to_pickle(averaged_firing_rate_path)
+    logger.info(f"Avg. firing rate df saved to {averaged_firing_rate_path}")
+    aa = averaged_firing_rate_df.groupby(["unit_uuid", "behavior_type", "location", "from_location", "to_location", "behav_duration_category"])
+    for key, group in aa:
+        print(group)
+        break
+    pdb.set_trace()
+
     return 0
 
 
