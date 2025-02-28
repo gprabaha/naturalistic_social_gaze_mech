@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
-        'is_cluster': False,
+        'is_cluster': True,
         'prabaha_local': True,
-        'recalculate_mutual_density_df': False,
+        'recalculate_mutual_density_df': True,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
@@ -135,8 +135,8 @@ def get_fixation_density_in_one_session(session_name, session_group, fixation_ty
         m1_fix_dur, m1_ifi = compute_fixation_metrics(m1_binary_vector)
         m2_fix_dur, m2_ifi = compute_fixation_metrics(m2_binary_vector)
         # Use separate smoothing sigmas
-        m1_sigma = (m1_fix_dur + m1_ifi) / 4
-        m2_sigma = (m2_fix_dur + m2_ifi) / 4
+        m1_sigma = (m1_fix_dur + m1_ifi) / 2
+        m2_sigma = (m2_fix_dur + m2_ifi) / 2
         # Ensure equal length
         min_length = min(len(m1_binary_vector), len(m2_binary_vector))
         m1_binary_vector = m1_binary_vector[:min_length]
