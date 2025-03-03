@@ -25,6 +25,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
+
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {

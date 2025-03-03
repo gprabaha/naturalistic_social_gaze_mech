@@ -16,6 +16,9 @@ import itertools
 import pdb
 import random
 
+def normalization(x):
+    return (x) / (np.percentile(x, 95) - np.percentile(x, 5) + 5)
+
 class FiringRateDataset():
     def __init__(self, dataframe, group_by_columns=None):
         """
@@ -42,7 +45,6 @@ class FiringRateDataset():
         self.region_labels = []
         self.units_per_region = {}
         for region_key, region_df in dataframe_by_regions:
-            print(region_key[0])
             unit_ids_in_region = region_df["unit_uuid"].unique().tolist()
             region_label = [region_key[0]] * len(unit_ids_in_region)
             self.unit_ids.extend(unit_ids_in_region)
@@ -70,12 +72,14 @@ class FiringRateDataset():
         # Extract firing rate timelines (all units in this group)
 
         ex_fr = group_df['firing_rate_timeline'].sample(n=1).iloc[0]
-        firing_rates = torch.zeros(size=(len(ex_fr), self.total_num_units))
+        firing_rates = np.zeros(shape=(len(ex_fr), self.total_num_units))
         for _, group_id_data in group_df_by_id:
-            rand_idx = random.choice(list(group_id_data.index))
             # They should all have the same unit ids
             unit_uuid = group_id_data['unit_uuid'].sample(n=1).iloc[0]
             unit_idx = self.unit_ids.index(unit_uuid)
-            firing_rates[:, unit_idx] = torch.tensor(group_id_data.loc[rand_idx, 'firing_rate_timeline'], dtype=torch.float32)
+            firing_rates[:, unit_idx] = np.array(group_id_data["firing_rate_timeline"].sample(n=len(group_id_data["firing_rate_timeline"])).tolist())
+        
+        firing_rates = normalization(firing_rates)
+        firing_rates = torch.tensor(firing_rates, dtype=torch.float32)
 
         return firing_rates, group_key  # Return the key for debugging & analysis

@@ -56,7 +56,12 @@ def config_parser():
                         default=100, 
                         help='time constant of neurons (default: 100)')
 
-    parser.add_argument('--weight_decay', 
+    parser.add_argument('--l1_weight', 
+                        type=float, 
+                        default=1e-3, 
+                        help='weight decay value (default: 1e-3)')
+
+    parser.add_argument('--l1_rate', 
                         type=float, 
                         default=1e-3, 
                         help='weight decay value (default: 1e-3)')

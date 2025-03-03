@@ -21,6 +21,17 @@ from dataset import FiringRateDataset
 import pdb
 from models import Model
 
+def l1_weight(rnn, scale):
+    l1 = 0
+    for name, param in rnn.named_parameters():
+        l1 += torch.mean(torch.abs(torch.flatten(param)))
+    l1 *= scale
+    return l1
+
+def l1_rate(act, scale):
+    l1 = scale * torch.mean(torch.abs(torch.flatten(act)))
+    return l1
+
 def _initialize_params(
     remake_firing_rate_df=False,
     neural_data_bin_size=10,
@@ -60,7 +71,7 @@ def main():
         path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
-        params['processed_data_dir'], 'behavioral_firing_rate_df.pkl'
+        params['processed_data_dir'], 'averaged_neural_firing_rate_df.pkl'
     )
     print('loading data...')
     df = load_data.get_data_df(behav_firing_rate_df_file_path)
@@ -83,7 +94,7 @@ def main():
         args.batch_first
     ).cuda()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     cur_loss = 0
     losses = []
 
@@ -102,9 +113,14 @@ def main():
 
         out, hn = model(xn, inp)
 
-        loss = criterion(out, batch)
+        # Compute all losses
+        mse_loss = criterion(out, batch)
+        rate_loss = l1_rate(hn, args.l1_rate)
+        weight_loss = l1_weight(model.mrnn, args.l1_weight)
+        loss = mse_loss + rate_loss + weight_loss
         cur_loss += loss.item()
 
+        # Training stats
         if epoch % 100 == 0 and epoch > 0:
 
             # Get the directory part of the save path
@@ -123,10 +139,7 @@ def main():
 
             cur_loss = 0
 
-            print("===========================================================")
             print("Mean training loss at epoch {}:{}".format(epoch, mean_loss))
-            print("===========================================================")
-            print("")
 
         optimizer.zero_grad()
         loss.backward()
