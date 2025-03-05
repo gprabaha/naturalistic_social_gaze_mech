@@ -12,20 +12,36 @@
 
     "recurrent_regions": [
       {
-        "name": "pfc",
-        "num_units": 100
+        "name": "pfc_exc",
+        "num_units": 70
       },
       {
-        "name": "acc",
-        "num_units": 100
+        "name": "pfc_inhib",
+        "num_units": 30
       },
       {
-        "name": "ofc",
-        "num_units": 100
+        "name": "acc_exc",
+        "num_units": 70
       },
       {
-        "name": "bla",
-        "num_units": 100
+        "name": "acc_inhib",
+        "num_units": 30
+      },
+      {
+        "name": "ofc_exc",
+        "num_units": 70
+      },
+      {
+        "name": "ofc_inhib",
+        "num_units": 30
+      },
+      {
+        "name": "bla_exc",
+        "num_units": 70
+      },
+      {
+        "name": "bla_inhib",
+        "num_units": 30
       }
     ],
 
@@ -37,73 +53,6 @@
         "sign: str (exc or inhib)",
         "sparsity: float (between 0 and 1)",
         "]"
-    ],
-
-    "recurrent_connections": [
-      {
-        "src_region": "pfc",
-        "dst_region": "pfc"
-      },
-      {
-        "src_region": "pfc",
-        "dst_region": "acc"
-      },
-      {
-        "src_region": "pfc",
-        "dst_region": "ofc"
-      },
-      {
-        "src_region": "pfc",
-        "dst_region": "bla"
-      },
-      {
-        "src_region": "acc",
-        "dst_region": "pfc"
-      },
-      {
-        "src_region": "acc",
-        "dst_region": "acc"
-      },
-      {
-        "src_region": "acc",
-        "dst_region": "ofc"
-      },
-      {
-        "src_region": "acc",
-        "dst_region": "bla"
-      },
-      {
-        "src_region": "ofc",
-        "dst_region": "pfc"
-      },
-      {
-        "src_region": "ofc",
-        "dst_region": "acc"
-      },
-      {
-        "src_region": "ofc",
-        "dst_region": "ofc"
-      },
-      {
-        "src_region": "ofc",
-        "dst_region": "bla"
-      },
-      {
-        "src_region": "bla",
-        "dst_region": "pfc"
-      },
-      {
-        "src_region": "bla",
-        "dst_region": "acc"
-      },
-      {
-        "src_region": "bla",
-        "dst_region": "ofc"
-      },
-      {
-        "src_region": "bla",
-        "dst_region": "bla"
-      }
     ],
 
     "__comment_input_regions": [
@@ -134,19 +83,35 @@
     "input_connections": [
       {
         "src_region": "input",
-        "dst_region": "pfc"
+        "dst_region": "pfc_exc"
       },
       {
         "src_region": "input",
-        "dst_region": "acc"
+        "dst_region": "pfc_inhib"
       },
       {
         "src_region": "input",
-        "dst_region": "ofc"
+        "dst_region": "acc_exc"
       },
       {
         "src_region": "input",
-        "dst_region": "bla"
+        "dst_region": "acc_inhib"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "ofc_exc"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "ofc_inhib"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "bla_exc"
+      },
+      {
+        "src_region": "input",
+        "dst_region": "bla_inhib"
       }
     ]
   }
