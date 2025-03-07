@@ -48,6 +48,8 @@ def _initialize_params():
 
 
 
+
+
 def main():
     logger.info("Starting the script")
     params = _initialize_params()
