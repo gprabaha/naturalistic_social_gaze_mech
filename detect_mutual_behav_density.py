@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import os
 import logging
-import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d
@@ -11,6 +9,14 @@ from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
 from joblib import Parallel, delayed
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib as mpl
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['svg.fonttype'] = 'none'
+mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['text.usetex'] = False
 
 import pdb
 
@@ -123,6 +129,11 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
 
 def get_fixation_density_in_one_session(session_name, session_group, fixation_type):
     """Processes all runs in a session sequentially."""
+
+    def normalize_density(density):
+    """Normalize a density array to [0,1] range."""
+    return (density - np.min(density)) / (np.max(density) - np.min(density) + 1e-8)
+
     session_results = []
     run_groups = session_group.groupby('run_number')
     for run_number, run_group in tqdm(run_groups, desc=f"Processing Runs in {session_name}"):
@@ -147,10 +158,12 @@ def get_fixation_density_in_one_session(session_name, session_group, fixation_ty
         m1_density = gaussian_filter1d(m1_binary_vector.astype(float), sigma=m1_sigma, mode='constant')
         m2_density = gaussian_filter1d(m2_binary_vector.astype(float), sigma=m2_sigma, mode='constant')
         # Normalize to [0,1]
-        m1_density_norm = (m1_density - np.min(m1_density)) / (np.max(m1_density) - np.min(m1_density) + 1e-8)
-        m2_density_norm = (m2_density - np.min(m2_density)) / (np.max(m2_density) - np.min(m2_density) + 1e-8)
+        m1_density_norm = normalize_density(m1_density)
+        m2_density_norm = normalize_density(m2_density)
         # Compute mutual fixation density
         mutual_density = np.sqrt(m1_density_norm * m2_density_norm)
+        # Normalize mutual fixation density
+        mutual_density_norm = normalize_density(mutual_density)
         # Store results
         session_results.append({
             'session_name': session_name,
@@ -164,7 +177,7 @@ def get_fixation_density_in_one_session(session_name, session_group, fixation_ty
             'm2_sigma': m2_sigma,
             'm1_density': list(m1_density_norm),
             'm2_density': list(m2_density_norm),
-            'mutual_density': list(mutual_density)
+            'mutual_density': list(mutual_density_norm)
         })
     return session_results
 
@@ -245,7 +258,7 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
     root_dir = os.path.join(params['root_data_dir'], "plots", "mutual_face_fix_density", today_date)
     os.makedirs(root_dir, exist_ok=True)
     save_path = os.path.join(root_dir, f"face_fixation_density_random_runs.png")
-    plt.savefig(save_path, dpi=100)  # Set DPI to 100
+    plt.savefig(save_path, dpi=200)  # Set DPI to 200
     plt.close()
 
 
