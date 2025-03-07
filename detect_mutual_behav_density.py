@@ -131,8 +131,8 @@ def get_fixation_density_in_one_session(session_name, session_group, fixation_ty
     """Processes all runs in a session sequentially."""
 
     def normalize_density(density):
-    """Normalize a density array to [0,1] range."""
-    return (density - np.min(density)) / (np.max(density) - np.min(density) + 1e-8)
+        """Normalize a density array to [0,1] range."""
+        return (density - np.min(density)) / (np.max(density) - np.min(density) + 1e-8)
 
     session_results = []
     run_groups = session_group.groupby('run_number')
