@@ -433,22 +433,24 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
     return np.array(spike_counts_per_trial), timeline
 
 
-def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False):
-    """Performs Wilcoxon signed-rank test per bin and applies FDR correction."""
+def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False, params=None):
+    """Performs Wilcoxon signed-rank test per bin in parallel and applies FDR correction."""
     num_bins = len(timeline) - 1
-    p_values = []
-    # Define the time window for counting significant bins
+    p_values = [1.0] * num_bins  # Default non-significant p-values
     time_window_start, time_window_end = -0.45, 0.45
     valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
-    for bin_idx in range(num_bins):
+    
+    def do_wicoxon_for_time_bin(bin_idx):
         try:
-            p_value = wilcoxon(
+            return wilcoxon(
                 high_density_spike_counts[:, bin_idx],
                 low_density_spike_counts[:, bin_idx]
             )[1]
         except ValueError:
-            p_value = 1.0  # If no valid pairs exist, return non-significant p-value
-        p_values.append(p_value)
+            return 1.0  # If no valid pairs exist, return non-significant p-value
+    
+    threads_per_cpu = params.get('threads_per_cpu', 1) if params else 1
+    p_values = Parallel(n_jobs=threads_per_cpu)(delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins))
     # Apply FDR correction
     corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
     significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
