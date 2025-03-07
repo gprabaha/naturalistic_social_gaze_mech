@@ -322,7 +322,7 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
     num_processes = params.get('num_cpus', -1)
     with parallel_backend("loky"):
         results = Parallel(n_jobs=num_processes)(
-            delayed(process_neural_response_to_face_fixations)(
+            delayed(process_neural_response_to_face_fixations_for_session)(
                 session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
                 mutual_behav_density_df, root_dir, params
             ) for session_name in tqdm(session_names, desc="Processing Sessions")
@@ -356,7 +356,7 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
 
 
 
-def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
+def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
                                               spike_times_df, mutual_behav_density_df, root_dir, params):
     """Processes a single session, computing and plotting neural response for mutual face fixation periods."""
     logger.debug(f'Processing session {session_name}')
@@ -382,7 +382,8 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
         # Extract mutual density from mutual_behav_density_df
         mutual_density_data = mutual_behav_density_df[
             (mutual_behav_density_df['session_name'] == session_name) & 
-            (mutual_behav_density_df['run_number'] == run_number)
+            (mutual_behav_density_df['run_number'] == run_number) &
+            (mutual_behav_density_df['fixation_type'] == "face")
         ]
         if mutual_density_data.empty:
             continue
