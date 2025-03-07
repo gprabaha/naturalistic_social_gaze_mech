@@ -37,7 +37,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'prabaha_local': True,
-        'recalculate_mutual_density_df': True,
+        'recalculate_mutual_density_df': False,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
@@ -227,8 +227,8 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
         if mutual_row.empty:
             continue
         # Extract fixation data for m1 and m2
-        m1_data = run_group[run_group['agent'] == 'm1']
-        m2_data = run_group[run_group['agent'] == 'm2']
+        m1_data = run_group[(run_group['agent'] == 'm1') & (run_group['fixation_type']=="face")]
+        m2_data = run_group[(run_group['agent'] == 'm2') & (run_group['fixation_type']=="face")]
         if m1_data.empty or m2_data.empty:
             continue
         # Compute fixation durations
