@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.stats import ttest_ind, wilcoxon
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, parallel_backend
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -320,12 +320,13 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
     # Get unique session names for parallel processing
     session_names = eye_mvm_behav_df['session_name'].unique()
     num_processes = params.get('num_cpus', -1)
-    results = Parallel(n_jobs=num_processes)(
-        delayed(process_neural_response_to_face_fixations)(
-            session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
-            mutual_behav_density_df, root_dir, params
-        ) for session_name in tqdm(session_names, desc="Processing Sessions")
-    )
+    with parallel_backend("loky"):
+        results = Parallel(n_jobs=num_processes)(
+            delayed(process_neural_response_to_face_fixations)(
+                session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
+                mutual_behav_density_df, root_dir, params
+            ) for session_name in tqdm(session_names, desc="Processing Sessions")
+        )
     # Merge results
     merged_sig_units = {}
     merged_non_sig_units = {}
@@ -381,7 +382,7 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
         high_density_counts.setdefault(brain_region, []).append((unit_uuid, high_density_spike_counts))
         low_density_counts.setdefault(brain_region, []).append((unit_uuid, low_density_spike_counts))
         # Perform t-test per bin with FDR correction
-        significant_bins = perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline)
+        significant_bins = perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params)
         groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
         longest_consec_sig_bin_count = max(len(g) for g in groups)  # Ensure last run is considered
         if (longest_consec_sig_bin_count >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
@@ -417,11 +418,14 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
         return spike_counts
 
     threads_per_cpu = params.get('threads_per_cpu', 1)
-    spike_counts_per_trial = Parallel(n_jobs=threads_per_cpu)(delayed(get_spike_counts_for_fixation)(fixation_time) for fixation_time in fixation_times)    
+    with parallel_backend("threading"):
+        spike_counts_per_trial = Parallel(n_jobs=threads_per_cpu)(
+            delayed(get_spike_counts_for_fixation)(fixation_time) for fixation_time in fixation_times
+        )
     return np.array(spike_counts_per_trial), timeline
 
 
-def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False, params=None):
+def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False):
     """Performs Wilcoxon signed-rank test per bin in parallel and applies FDR correction."""
     num_bins = len(timeline) - 1
     p_values = [1.0] * num_bins  # Default non-significant p-values
@@ -437,8 +441,11 @@ def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_count
         except ValueError:
             return 1.0  # If no valid pairs exist, return non-significant p-value
     
-    threads_per_cpu = params.get('threads_per_cpu', 1) if params else 1
-    p_values = Parallel(n_jobs=threads_per_cpu)(delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins))
+    threads_per_cpu = params.get('threads_per_cpu', 1)
+    with parallel_backend("threading"):
+        p_values = Parallel(n_jobs=threads_per_cpu)(
+            delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins)
+        )
     # Apply FDR correction
     corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
     significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
