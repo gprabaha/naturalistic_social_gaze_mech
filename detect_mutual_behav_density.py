@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, wilcoxon
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
 from joblib import Parallel, delayed
@@ -73,9 +73,9 @@ def main():
         processed_data_dir, 'fix_binary_vector_df.pkl'
     )
     logger.info("Loading data files")
-    # sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
-    # eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
-    # spike_times_df = load_data.get_data_df(spike_times_file_path)
+    sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
+    eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
+    spike_times_df = load_data.get_data_df(spike_times_file_path)
     fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
 
     # Check if density df recalculation is needed
@@ -397,7 +397,7 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
         high_density_spike_counts, timeline = compute_spike_counts_per_fixation(high_density_fixations, spike_times, params)
         low_density_spike_counts, _ = compute_spike_counts_per_fixation(low_density_fixations, spike_times, params)
         # Perform t-test per bin with FDR correction
-        significant_bins = perform_ttest_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline)
+        significant_bins = perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline)
         groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
         longest_run = max(len(g) for g in groups)  # Ensure last run is considered
         if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
@@ -406,7 +406,7 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
         else:
             non_sig_units.setdefault(brain_region, []).append(unit_uuid)
         # Plot results
-        plot_neural_response_ti_high_and_low_density_face_fixations(timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
+        plot_neural_response_to_high_and_low_density_face_fixations(timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
                              session_name, unit_uuid, brain_region, root_dir, is_sig)
     return sig_units, non_sig_units
 
@@ -432,19 +432,21 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
     return np.array(spike_counts_per_trial), timeline
 
 
-def perform_ttest_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False):
-    """Performs t-test per bin and applies FDR correction."""
+def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, fdr_correct=False):
+    """Performs Wilcoxon signed-rank test per bin and applies FDR correction."""
     num_bins = len(timeline) - 1
     p_values = []
     # Define the time window for counting significant bins
     time_window_start, time_window_end = -0.45, 0.45
     valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
     for bin_idx in range(num_bins):
-        p_value = ttest_ind(
-            high_density_spike_counts[:, bin_idx],
-            low_density_spike_counts[:, bin_idx],
-            equal_var=False
-        )[1]
+        try:
+            p_value = wilcoxon(
+                high_density_spike_counts[:, bin_idx],
+                low_density_spike_counts[:, bin_idx]
+            )[1]
+        except ValueError:
+            p_value = 1.0  # If no valid pairs exist, return non-significant p-value
         p_values.append(p_value)
     # Apply FDR correction
     corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
@@ -452,7 +454,7 @@ def perform_ttest_with_fdr(high_density_spike_counts, low_density_spike_counts, 
     return significant_bins
 
 
-def plot_neural_response_ti_high_and_low_density_face_fixations(
+def plot_neural_response_to_high_and_low_density_face_fixations(
     timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
     session_name, unit_uuid, brain_region, root_dir, is_sig):
     """Plots the neural response to face fixations in high vs. low mutual density periods."""
