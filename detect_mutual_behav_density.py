@@ -49,7 +49,7 @@ def _initialize_params():
     params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
-    params = get_slurm_cpus_and_threads(params)
+    # params = get_slurm_cpus_and_threads(params)
     logger.info("Parameters initialized successfully")
     return params
 
@@ -397,8 +397,8 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
     return sig_units, non_sig_units, high_density_counts, low_density_counts
 
 
-def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
-    """Computes spike counts per fixation trial in parallel."""
+def compute_spike_counts_per_fixation(fixation_times, spike_times, params, do_parallel=False):
+    """Computes spike counts per fixation trial, optionally in parallel."""
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
     sigma = params["gaussian_smoothing_sigma"]
@@ -417,16 +417,19 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
             spike_counts = gaussian_filter1d(spike_counts, sigma=sigma)
         return spike_counts
 
-    threads_per_cpu = params.get('threads_per_cpu', 1)
-    with parallel_backend("threading"):
-        spike_counts_per_trial = Parallel(n_jobs=threads_per_cpu)(
-            delayed(get_spike_counts_for_fixation)(fixation_time) for fixation_time in fixation_times
-        )
+    if do_parallel:
+        threads_per_cpu = params.get('threads_per_cpu', 1)
+        with parallel_backend("threading"):
+            spike_counts_per_trial = Parallel(n_jobs=threads_per_cpu)(
+                delayed(get_spike_counts_for_fixation)(fixation_time) for fixation_time in fixation_times
+            )
+    else:
+        spike_counts_per_trial = [get_spike_counts_for_fixation(fixation_time) for fixation_time in fixation_times]
     return np.array(spike_counts_per_trial), timeline
 
 
-def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False):
-    """Performs Wilcoxon signed-rank test per bin in parallel and applies FDR correction."""
+def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False, do_parallel=False):
+    """Performs Wilcoxon signed-rank test per bin, optionally in parallel, and applies FDR correction."""
     num_bins = len(timeline) - 1
     p_values = [1.0] * num_bins  # Default non-significant p-values
     time_window_start, time_window_end = -0.45, 0.45
@@ -440,16 +443,20 @@ def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_count
             )[1]
         except ValueError:
             return 1.0  # If no valid pairs exist, return non-significant p-value
-    
-    threads_per_cpu = params.get('threads_per_cpu', 1)
-    with parallel_backend("threading"):
-        p_values = Parallel(n_jobs=threads_per_cpu)(
-            delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins)
-        )
+
+    if do_parallel:
+        threads_per_cpu = params.get('threads_per_cpu', 1)
+        with parallel_backend("threading"):
+            p_values = Parallel(n_jobs=threads_per_cpu)(
+                delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins)
+            )
+    else:
+        p_values = [do_wicoxon_for_time_bin(bin_idx) for bin_idx in range(num_bins)]
     # Apply FDR correction
     corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
     significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
     return significant_bins
+
 
 
 def plot_neural_response_to_high_and_low_density_face_fixations(
