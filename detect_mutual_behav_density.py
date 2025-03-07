@@ -49,11 +49,27 @@ def _initialize_params():
     params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
+    params = get_slurm_cpus_and_threads(params)
     logger.info("Parameters initialized successfully")
     return params
 
 
-
+def get_slurm_cpus_and_threads(params):
+    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings or local multiprocessing."""
+    if params.get("is_cluster", False):
+        # Get number of CPUs allocated by SLURM
+        slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+        slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+    else:
+        # Get number of available CPUs using multiprocessing
+        slurm_cpus = cpu_count()
+    # Default to 4 threads per CPU unless num_cpus is less than 4
+    threads_per_cpu = 4 if slurm_cpus >= 4 else 1
+    # Compute num_cpus by dividing total CPUs by threads per CPU
+    num_cpus = max(1, slurm_cpus // threads_per_cpu)  # Ensure at least 1 CPU
+    params['num_cpus'] = num_cpus
+    params['threads_per_cpu'] = threads_per_cpu
+    return params
 
 
 def main():
@@ -88,6 +104,7 @@ def main():
         logger.info(f"Loading precalculated mutual fixation density data from {mutual_density_file_path}")
         mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
     
+    logger.info("Plotting fixation and density timeline of 10 random runs")
     plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df, params)
 
     merged_sig_units, merged_non_sig_units = analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
@@ -116,8 +133,8 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     # Ensure output directory exists
     os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
-    n_jobs = os.cpu_count() - 2  # Use all but one CPU
-    results = Parallel(n_jobs=-1)(
+    n_jobs = -1
+    results = Parallel(n_jobs=n_jobs)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
         for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
     )
@@ -292,7 +309,7 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params):
     """Runs neural response analysis for mutual face fixation periods in parallel across sessions."""
-    logger.info("Starting neural analysis for mutual face fixation periods")
+    logger.info("Starting neural analysis and individual unit plotting for mutual face fixation periods")
     # Set up plot save directory
     today_date = datetime.today().strftime('%Y-%m-%d')
     min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
@@ -303,7 +320,7 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
     
     # Get unique session names for parallel processing
     session_names = eye_mvm_behav_df['session_name'].unique()
-    num_processes = -1
+    num_processes = params.get('num_cpus', -1)
     results = Parallel(n_jobs=num_processes)(
         delayed(process_neural_response_to_face_fixations)(
             session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
@@ -378,26 +395,28 @@ def process_neural_response_to_face_fixations(session_name, eye_mvm_behav_df, sp
         # Perform t-test per bin with FDR correction
         significant_bins = perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline)
         groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
-        longest_run = max(len(g) for g in groups)  # Ensure last run is considered
-        if (longest_run >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
+        longest_consec_sig_bin_count = max(len(g) for g in groups)  # Ensure last run is considered
+        if (longest_consec_sig_bin_count >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
             is_sig = 1
             sig_units.setdefault(brain_region, []).append(unit_uuid)
         else:
             non_sig_units.setdefault(brain_region, []).append(unit_uuid)
         # Plot results
-        plot_neural_response_to_high_and_low_density_face_fixations(timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
-                             session_name, unit_uuid, brain_region, root_dir, is_sig)
+        plot_neural_response_to_high_and_low_density_face_fixations(
+            timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
+            session_name, unit_uuid, brain_region, root_dir, is_sig)
     return sig_units, non_sig_units, high_density_counts, low_density_counts
 
 
 def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
-    """Computes spike counts per fixation trial."""
+    """Computes spike counts per fixation trial in parallel."""
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
     sigma = params["gaussian_smoothing_sigma"]
     time_window = params['time_window_before_and_after_event_for_psth']
     timeline = np.arange(-time_window, time_window + bin_size, bin_size)
-    for fixation_time in fixation_times:
+    
+    def get_spike_counts_for_fixation(fixation_time):
         bins = np.linspace(
             fixation_time - time_window,
             fixation_time + time_window,
@@ -407,7 +426,10 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params):
         spike_counts = spike_counts / bin_size  # Convert to firing rate
         if params["smooth_spike_counts"]:
             spike_counts = gaussian_filter1d(spike_counts, sigma=sigma)
-        spike_counts_per_trial.append(spike_counts)
+        return spike_counts
+
+    threads_per_cpu = params.get('threads_per_cpu', 1)
+    spike_counts_per_trial = Parallel(n_jobs=threads_per_cpu)(delayed(get_spike_counts_for_fixation)(fixation_time) for fixation_time in fixation_times)    
     return np.array(spike_counts_per_trial), timeline
 
 
