@@ -340,7 +340,8 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
     # Merge results
     merged_sig_units, merged_non_sig_units = {}, {}
     merged_high_density_counts, merged_low_density_counts = {}, {}
-    for sig_units, non_sig_units, high_density_counts, low_density_counts in results:
+    for ind, (sig_units, non_sig_units, high_density_counts, low_density_counts, timeline) in enumerate(results):
+        timeline = timeline
         for region, units in sig_units.items():
             merged_sig_units.setdefault(region, []).extend(units)
         for region, units in non_sig_units.items():
@@ -360,7 +361,7 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     # Generate and save summary plot
-    generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, root_dir, params)
+    generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir, params)
     return merged_sig_units, merged_non_sig_units
 
 
@@ -449,7 +450,7 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
             timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
             session_name, unit_uuid, brain_region, root_dir, is_sig
         )
-    return sig_units, non_sig_units, high_density_counts, low_density_counts
+    return sig_units, non_sig_units, high_density_counts, low_density_counts, timeline
 
 
 
@@ -569,38 +570,48 @@ def plot_neural_response_to_high_and_low_density_face_fixations(
 
 
 
-def generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, root_dir, params):
+def generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir, params):
     """Generates a summary plot of the timecourse index for all significant units in each region."""
     logger.info("Generating summary plot for significant neurons")
-    fig, axes = plt.subplots(len(merged_sig_units), 1, figsize=(10, 5 * len(merged_sig_units)), constrained_layout=True)
-    if len(merged_sig_units) == 1:
-        axes = [axes]
-    for ax, (region, units) in zip(axes, merged_sig_units.items()):
+    num_regions = len(merged_sig_units)
+    num_rows, num_cols = 2, 2  # Fixed 2x2 grid
+    total_plots = min(num_rows * num_cols, num_regions)
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 12), constrained_layout=True)
+    axes = axes.flatten()  # Flatten to simplify indexing
+    for ax in axes:  
+        ax.axis('off')  # Hide any unused subplots
+    for ax, (region, units) in zip(axes[:total_plots], merged_sig_units.items()):
         unit_indices = []
         timecourses = []
         for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
-            _, low_density_spike_counts = next(
-                (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
-            )
-            timeline = np.arange(len(high_density_spike_counts[0]))
+            try:
+                _, low_density_spike_counts = next(
+                    (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
+                )
+            except StopIteration:
+                continue  # Skip units without corresponding low-density data
+            # Compute normalized index
             index = (np.mean(high_density_spike_counts, axis=0) - np.mean(low_density_spike_counts, axis=0)) / \
                     (np.mean(high_density_spike_counts, axis=0) + np.mean(low_density_spike_counts, axis=0) + 1e-6)
-            max_val = np.max(np.abs(index))
-            max_loc = timeline[np.argmax(np.abs(index))]
-            unit_indices.append((unit_uuid, max_val, max_loc, index))
+            # Extract key properties for sorting
+            max_val, max_idx = np.max(index), np.argmax(index)
+            min_val, min_idx = np.min(index), np.argmin(index)
+            max_loc, min_loc = timeline[max_idx], timeline[min_idx]
+            variation = abs(max_val - min_val)  # Measure total fluctuation
+            unit_indices.append((unit_uuid, variation, max_loc, index))
             timecourses.append(index)
         if not timecourses:
             continue
-        # Sort units by magnitude and location of max index value
+        # Sort by total variation (high to low), then by max peak location (earlier peaks first)
         unit_indices.sort(key=lambda x: (-x[1], x[2]))
         sorted_indices = [idx[-1] for idx in unit_indices]
         # Create color-coded heatmap
         im = ax.imshow(sorted_indices, aspect='auto', cmap='RdBu_r', vmin=-1, vmax=1, interpolation='none')
-        ax.set_title(f"{region}: Significant Units")
+        ax.set_title(f"{region}: {len(unit_indices)} Sig. Units")
         ax.set_xlabel("Time from Fixation (ms)")
-        ax.set_ylabel("Unit (sorted by peak response)")
+        ax.set_ylabel("Unit (sorted by variability & peak time)")
         fig.colorbar(im, ax=ax, label="Normalized Index")
-    summary_plot_path = os.path.join(root_dir, "summary_neural_response.png")
+    summary_plot_path = os.path.join(root_dir, "0_summary_neural_response.png")
     plt.savefig(summary_plot_path, dpi=300)
     plt.close(fig)
     logger.info(f"Summary plot saved at {summary_plot_path}")
