@@ -2,29 +2,15 @@
 #SBATCH --job-name=mutual_behav_density
 #SBATCH --output=mutual_behav_density.out
 #SBATCH --error=mutual_behav_density.err
+#SBATCH --partition=psych_week     # Change to psych_week manually if needed
+#SBATCH --cpus-per-task=1        # Change manually if needed
+#SBATCH --mem-per-cpu=450G         # Change manually if needed
+#SBATCH --time=3-00:00:00           # Change manually if needed
 
-# Default settings
-PARTITION="psych_day"
-CPUS=16
-MEMORY=16G
-TIME="12:00:00"  # Default time for psych_day
-
-# Check for external input
-if [[ $1 == "week" ]]; then
-    PARTITION="psych_week"
-    CPUS=1
-    MEMORY=450G
-    TIME="3-00:00:00"  # 3 days
-fi
-
-#SBATCH --partition=$PARTITION
-#SBATCH --cpus-per-task=$CPUS
-#SBATCH --mem-per-cpu=$MEMORY
-#SBATCH --time=$TIME
-
-echo "Running on partition: $PARTITION"
-echo "Using $CPUS CPUs with $MEMORY per CPU"
-echo "Time limit: $TIME"
+echo "Running on partition: $SLURM_JOB_PARTITION"
+echo "Allocated CPUs: $SLURM_CPUS_PER_TASK"
+echo "Memory per CPU: $SLURM_MEM_PER_CPU"
+echo "Time limit: $SLURM_JOB_TIMELIMIT"
 
 module load miniconda
 conda deactivate

@@ -107,10 +107,10 @@ def main():
         logger.info(f"Loading precalculated mutual fixation density data from {mutual_density_file_path}")
         mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
     
-    logger.info("Plotting fixation and density timeline of 10 random runs")
-    plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df, params)
+    # logger.info("Plotting fixation and density timeline of 10 random runs")
+    # plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df, params)
 
-    merged_sig_units, merged_non_sig_units = analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
+    merged_sig_units, merged_non_sig_units = analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params)
 
@@ -307,11 +307,6 @@ def compute_fixation_durations(binary_vector):
 
 
 
-from joblib import Parallel, delayed
-from tqdm import tqdm
-import os
-from datetime import datetime
-
 def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params):
@@ -438,7 +433,7 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         high_density_counts.setdefault(brain_region, []).append((unit_uuid, high_density_spike_counts))
         low_density_counts.setdefault(brain_region, []).append((unit_uuid, low_density_spike_counts))
         # Perform statistical test
-        significant_bins = perform_wilcoxon_with_fdr(
+        significant_bins = perform_ttest_with_fdr(
             high_density_spike_counts, low_density_spike_counts, timeline, params
         )
         # Identify significant units
@@ -455,7 +450,6 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
             session_name, unit_uuid, brain_region, root_dir, is_sig
         )
     return sig_units, non_sig_units, high_density_counts, low_density_counts
-
 
 
 
@@ -488,6 +482,39 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params, do_pa
     else:
         spike_counts_per_trial = [get_spike_counts_for_fixation(fixation_time) for fixation_time in fixation_times]
     return np.array(spike_counts_per_trial), timeline
+
+
+
+def perform_ttest_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False, do_parallel=False):
+    """Performs independent t-tests per bin, optionally in parallel, and applies FDR correction."""
+    num_bins = len(timeline) - 1
+    p_values = [1.0] * num_bins  # Default non-significant p-values
+    time_window_start, time_window_end = -0.45, 0.45
+    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
+    
+    def do_ttest_for_time_bin(bin_idx):
+        try:
+            return ttest_ind(
+                high_density_spike_counts[:, bin_idx],
+                low_density_spike_counts[:, bin_idx],
+                equal_var=False  # Welch's t-test (recommended if variance is unequal)
+            )[1]  # Extract p-value
+        except ValueError:
+            return 1.0  # If no valid samples exist, return non-significant p-value
+
+    if do_parallel:
+        threads_per_cpu = params.get('threads_per_cpu', 1)
+        with parallel_backend("threading"):
+            p_values = Parallel(n_jobs=threads_per_cpu)(
+                delayed(do_ttest_for_time_bin)(bin_idx) for bin_idx in range(num_bins)
+            )
+    else:
+        p_values = [do_ttest_for_time_bin(bin_idx) for bin_idx in range(num_bins)]
+    # Apply FDR correction
+    corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
+    significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
+    return significant_bins
+
 
 
 def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False, do_parallel=False):
