@@ -1,16 +1,33 @@
 #!/bin/bash
-#SBATCH --job-name=5-25_mutual_behav
-#SBATCH --partition=psych_day
-#SBATCH --time=02:00:00                #2 hour time limit
-#SBATCH --cpus-per-task=8            # CPUs
-#SBATCH --mem=100G                     # total memory
-#SBATCH --output=mutual_behav_5-25.out  # Output file
-#SBATCH --error=mutual_behav_5-25.err   # Error file
+#SBATCH --job-name=mutual_behav_density
+#SBATCH --output=mutual_behav_density.out
+#SBATCH --error=mutual_behav_density.err
 
-# Load the necessary module and activate the conda environment
+# Default settings
+PARTITION="psych_day"
+CPUS=16
+MEMORY=16G
+TIME="12:00:00"  # Default time for psych_day
+
+# Check for external input
+if [[ $1 == "week" ]]; then
+    PARTITION="psych_week"
+    CPUS=1
+    MEMORY=450G
+    TIME="3-00:00:00"  # 3 days
+fi
+
+#SBATCH --partition=$PARTITION
+#SBATCH --cpus-per-task=$CPUS
+#SBATCH --mem-per-cpu=$MEMORY
+#SBATCH --time=$TIME
+
+echo "Running on partition: $PARTITION"
+echo "Using $CPUS CPUs with $MEMORY per CPU"
+echo "Time limit: $TIME"
+
 module load miniconda
 conda deactivate
 conda activate gaze_processing
 
-# Run your script
 python detect_mutual_behav_density.py
