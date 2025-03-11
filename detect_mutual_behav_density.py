@@ -9,6 +9,7 @@ from scipy.stats import ttest_ind, wilcoxon
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
 from joblib import Parallel, delayed, parallel_backend
+from functools import partial
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -37,6 +38,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'prabaha_local': True,
+        'parallelize_over_sessions': False,
         'recalculate_mutual_density_df': False,
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
@@ -49,7 +51,7 @@ def _initialize_params():
     params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
-    # params = get_slurm_cpus_and_threads(params)
+    params = get_slurm_cpus_and_threads(params)
     logger.info("Parameters initialized successfully")
     return params
 
@@ -58,15 +60,16 @@ def get_slurm_cpus_and_threads(params):
     """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings or local multiprocessing."""
     if params.get("is_cluster", False):
         # Get number of CPUs allocated by SLURM
-        slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
-        slurm_cpus = int(slurm_cpus) if slurm_cpus else 1  # Default to 1 if not in SLURM
+        available_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+        available_cpus = int(available_cpus) if available_cpus else 1  # Default to 1 if not in SLURM
     else:
         # Get number of available CPUs using multiprocessing
-        slurm_cpus = cpu_count()
+        available_cpus = cpu_count()
     # Default to 4 threads per CPU unless num_cpus is less than 4
-    threads_per_cpu = 4 if slurm_cpus >= 4 else 1
+    threads_per_cpu = 4 if available_cpus >= 4 else 1
     # Compute num_cpus by dividing total CPUs by threads per CPU
-    num_cpus = max(1, slurm_cpus // threads_per_cpu)  # Ensure at least 1 CPU
+    num_cpus = max(1, available_cpus // threads_per_cpu)  # Ensure at least 1 CPU
+    params['available_cpus'] = available_cpus
     params['num_cpus'] = num_cpus
     params['threads_per_cpu'] = threads_per_cpu
     return params
@@ -133,7 +136,7 @@ def detect_mutual_face_fixation_density(fix_binary_vector_df, params):
     # Ensure output directory exists
     os.makedirs(processed_data_dir, exist_ok=True)
     session_groups = fix_binary_vector_df.groupby('session_name')
-    n_jobs = -1
+    n_jobs = params.get('available_cpus', 1)
     results = Parallel(n_jobs=n_jobs)(
         delayed(get_fixation_density_in_one_session)(session_name, session_group, fixation_type)
         for session_name, session_group in tqdm(session_groups, desc="Processing Sessions")
@@ -232,7 +235,6 @@ def plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav
     Plots fixation durations for 10 random runs using broken_barh and overlays
     M1, M2, and mutual face fixation density estimates.
     """
-    logger.info("Plotting fixation density comparison")
     # Randomly select 10 unique runs
     selected_runs = fix_binary_vector_df[['session_name', 'run_number']].drop_duplicates().sample(n=10, random_state=42)
     # Retrieve both M1 and M2 data for each sampled run
@@ -305,10 +307,15 @@ def compute_fixation_durations(binary_vector):
 
 
 
-def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
+from joblib import Parallel, delayed
+from tqdm import tqdm
+import os
+from datetime import datetime
+
+def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params):
-    """Runs neural response analysis for mutual face fixation periods in parallel across sessions."""
+    """Runs neural response analysis for mutual face fixation periods, parallelizing across sessions if enabled."""
     logger.info("Starting neural analysis and individual unit plotting for mutual face fixation periods")
     # Set up plot save directory
     today_date = datetime.today().strftime('%Y-%m-%d')
@@ -317,21 +324,28 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
     today_date += f'_{min_consecutive_sig_bins}-{min_total_sig_bins}_minbin'
     root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    # Get unique session names for parallel processing
+    # Get unique session names
     session_names = eye_mvm_behav_df['session_name'].unique()
-    num_processes = params.get('num_cpus', -1)
-    with parallel_backend("loky"):
+    parallelize = params.get('parallelize_over_sessions', False)
+    num_processes = params.get('available_cpus', 1)
+    logger.info(f"Parallelizing over sessions: {parallelize} | Num processes assigned: {num_processes}")
+    if parallelize:
         results = Parallel(n_jobs=num_processes)(
             delayed(process_neural_response_to_face_fixations_for_session)(
                 session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
                 mutual_behav_density_df, root_dir, params
-            ) for session_name in tqdm(session_names, desc="Processing Sessions")
+            ) for session_name in tqdm(session_names, desc="Processing sessions in parallel")
         )
+    else:
+        results = [
+            process_neural_response_to_face_fixations_for_session(
+                session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
+                mutual_behav_density_df, root_dir, params
+            ) for session_name in tqdm(session_names, desc="Processing sessions in serial")
+        ]
     # Merge results
-    merged_sig_units = {}
-    merged_non_sig_units = {}
-    merged_high_density_counts = {}
-    merged_low_density_counts = {}
+    merged_sig_units, merged_non_sig_units = {}, {}
+    merged_high_density_counts, merged_low_density_counts = {}, {}
     for sig_units, non_sig_units, high_density_counts, low_density_counts in results:
         for region, units in sig_units.items():
             merged_sig_units.setdefault(region, []).extend(units)
@@ -353,7 +367,6 @@ def analyze_and_plot_neural_response_to_face_fixations_diring_mutual_bouts(
     # Generate and save summary plot
     generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, root_dir, params)
     return merged_sig_units, merged_non_sig_units
-
 
 
 def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
@@ -392,7 +405,7 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         gaze_data = sparse_nan_removed_sync_gaze_df[
             (sparse_nan_removed_sync_gaze_df['session_name'] == session_name) & 
             (sparse_nan_removed_sync_gaze_df['run_number'] == run_number) &
-            (sparse_nan_removed_sync_gaze_df['agent'] == 'm1')
+            (sparse_nan_removed_sync_gaze_df['agent'] == 'm1')  
         ]
         if gaze_data.empty:
             continue
