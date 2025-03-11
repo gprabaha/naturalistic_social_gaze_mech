@@ -114,7 +114,6 @@ def main():
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params)
 
-    pdb.set_trace()
 
     logger.info("Script finished running!")
 
@@ -358,7 +357,8 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
     # Display results
     logger.info("Significant neuron counts by brain region:")
     for region, (sig_count, total_count) in summary_counts.items():
-        logger.info(f"{region}: {sig_count} / {total_count} significant units")
+        percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
+        logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     # Generate and save summary plot
     generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, root_dir, params)
     return merged_sig_units, merged_non_sig_units
