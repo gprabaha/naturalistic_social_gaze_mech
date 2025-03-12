@@ -2,10 +2,15 @@ import numpy as np
 import pandas as pd
 import os
 import logging
-from datetime import datetime
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d
 import gc
+
+
+from mpl_toolkits.mplot3d import Axes3D
+from datetime import datetime
+
+from sklearn.decomposition import PCA
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -78,17 +83,20 @@ def main():
     del sparse_nan_removed_sync_gaze_df, eye_mvm_behav_df
     gc.collect()
 
+
     # Define the file path for storing the computed firing rate DataFrame
     firing_rate_file = os.path.join(params['processed_data_dir'], 'firing_rate_df.pkl')
+
     # Check if we need to recompute or load from file
     if params.get('recompute_firing_rate', False) or not os.path.exists(firing_rate_file):
         fixation_firing_rate_df = compute_firing_rate_matrix(eye_mvm_behav_df_with_neural_timeline, spike_times_df, params)
         fixation_firing_rate_df.to_pickle(firing_rate_file)  # Save to file
+        logger.info(f"Firing rate df saved to: {firing_rate_file}")
     else:
+        logger.info(f"Loading existing firing rate df from: {firing_rate_file}")
         fixation_firing_rate_df = load_data.get_data_df(firing_rate_file)  # Load from file
 
-    pdb.set_trace()
-
+    project_and_plot_pcs(fixation_firing_rate_df, params)
 
     logger.info("Script finished running!")
 
@@ -108,6 +116,7 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
     Returns:
     - firing_rate_df: DataFrame with columns ['session_name', 'region', 'unit_uuid', 'firing_rate_matrix']
     """
+    logger.info("Computing trial-wise firing rate matrix for all units in all sessions")
     bin_size = params.get('neural_data_bin_size', 0.01)
     smooth_sigma = params.get('gaussian_smoothing_sigma', 2)
     time_window_before = params.get('time_window_before_event_for_psth', 0.5)  # 0.5 seconds before
@@ -155,8 +164,8 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
 
             # Step 4: Iterate over runs in this session
             for run, run_fixations in session_m1_fixations.groupby('run_number'):
+                
                 # Step 5: Iterate through each fixation row in this run
-
                 for _, fixation_row in run_fixations.iterrows():
                     fixation_types = fixation_row['fixation_type']  # List of fixation types in this row
                     fixation_start_stop = fixation_row['fixation_start_stop']  # List of start/stop indices
@@ -194,9 +203,82 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
 
     # Step 7: Convert to DataFrame (Removing run_number)
     firing_rate_df = pd.DataFrame(results)
+    logger.info("Trial-wise FR calculation finished successfully")
     return firing_rate_df
 
 
+
+def project_and_plot_pcs(fixation_firing_rate_df, params):
+    """Projects face and object fixation-related firing rates to PCA space and plots trajectories.
+
+    Args:
+        fixation_firing_rate_df (pd.DataFrame): DataFrame containing firing rate matrices per unit.
+        params (dict): Dictionary of parameters including `root_data_dir`.
+    """
+    # Set up export directory
+    today_date = datetime.today().strftime('%Y-%m-%d')
+    export_dir = os.path.join(params['root_data_dir'], "plots", "neural_fr_pc_traces", today_date)
+    os.makedirs(export_dir, exist_ok=True)
+    unique_regions = fixation_firing_rate_df['region'].unique()
+    num_regions = len(unique_regions)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12), subplot_kw={'projection': '3d'})
+    fig.suptitle("PC Trajectories of Face & Object Fixations", fontsize=14)
+
+    for idx, region in enumerate(unique_regions):
+        if idx >= 4:  # Limit to 2x2 grid (4 regions)
+            break
+        
+        row, col = divmod(idx, 2)
+        ax = axes[row, col]
+        logger.info(f"Processing region: {region}")
+        # Extract firing rate matrices for face and object fixations
+        regional_df = fixation_firing_rate_df[fixation_firing_rate_df['region'] == region]
+        firing_rates = {}
+
+        for fix_type in ['face', 'object']:
+            fix_type_df = regional_df[regional_df['fixation_type'] == fix_type]
+            if fix_type_df.empty:
+                firing_rates[fix_type] = None  # Mark as missing
+            else:
+                # Extract firing rate matrices (mean over axis 0 for each unit)
+                unit_firing_rates = np.array([np.mean(mat, axis=0) for mat in fix_type_df['firing_rate_matrix']])
+                firing_rates[fix_type] = unit_firing_rates  # Shape: (num_units, num_timepoints)
+
+        # Ensure both conditions have the same number of units by padding with zeros
+        num_timepoints = next(iter(firing_rates.values())).shape[1]  # Get timepoints from any existing condition
+        face_data = firing_rates['face']
+        object_data = firing_rates['object']
+        
+        # Stack units across conditions along the **neural axis** (not time!)
+        combined_firing_rates = np.vstack([face_data, object_data])  # Shape: (2*num_units, num_timepoints)
+
+        # **Fit PCA on the neural dimension**, keeping time intact
+        pca = PCA(n_components=3)
+        pca.fit(combined_firing_rates.T)  # Transpose to shape (num_timepoints, 2*num_units) before fitting
+
+        # **Zero-Pad Face & Object Before Transforming**
+        face_padded = np.vstack([face_data, np.zeros_like(face_data)])  # Shape: (2*num_units, num_timepoints)
+        object_padded = np.vstack([np.zeros_like(object_data), object_data])  # Shape: (2*num_units, num_timepoints)
+
+        # **Transform padded versions**
+        projected_face = pca.transform(face_padded.T)  # Shape: (num_timepoints, 3)
+        projected_object = pca.transform(object_padded.T)  # Shape: (num_timepoints, 3)
+
+        # Plot PC trajectories for face and object fixations in 3D
+        ax.plot(projected_face[:, 0], projected_face[:, 1], projected_face[:, 2], label="Face", color="blue", alpha=0.7)
+        ax.plot(projected_object[:, 0], projected_object[:, 1], projected_object[:, 2], label="Object", color="red", alpha=0.7)
+        ax.set_title(f"Region: {region}", fontsize=12)
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_zlabel("PC3")
+        ax.legend()
+
+    # Adjust layout and save
+    plt.tight_layout()
+    plot_path = os.path.join(export_dir, "pc_trajectories.png")
+    plt.savefig(plot_path)
+    plt.close()
+    logger.info(f"Saved PCA trajectories plot to: {plot_path}")
 
 
 
