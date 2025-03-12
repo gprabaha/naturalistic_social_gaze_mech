@@ -20,6 +20,25 @@ import pdb
 logger = logging.getLogger(__name__)
 
 
+def get_slurm_cpus_and_threads(params):
+    """Returns the number of allocated CPUs and dynamically adjusts threads per CPU based on SLURM settings or local multiprocessing."""
+    if params.get("is_cluster", False):
+        # Get number of CPUs allocated by SLURM
+        available_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+        available_cpus = int(available_cpus) if available_cpus else 1  # Default to 1 if not in SLURM
+    else:
+        # Get number of available CPUs using multiprocessing
+        available_cpus = cpu_count()
+    # Default to 4 threads per CPU unless num_cpus is less than 4
+    threads_per_cpu = 4 if available_cpus >= 4 else 1
+    # Compute num_cpus by dividing total CPUs by threads per CPU
+    num_cpus = max(1, available_cpus // threads_per_cpu)  # Ensure at least 1 CPU
+    params['available_cpus'] = available_cpus
+    params['num_cpus'] = num_cpus
+    params['threads_per_cpu'] = threads_per_cpu
+    return params
+
+
 def compute_or_load_variables(compute_func, load_func, file_paths, remake_flag_key, params, *args, **kwargs):
     """
     Generic method to manage compute vs. load actions for various data like gaze, fixations, saccades, etc.

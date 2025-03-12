@@ -10,6 +10,8 @@ from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
 from joblib import Parallel, delayed, parallel_backend
 from functools import partial
+import pickle
+
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,6 +25,7 @@ import pdb
 
 import load_data
 import curate_data
+import util
 
 
 # Configure logging
@@ -38,6 +41,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'prabaha_local': True,
+        'reload_processed_data': True,
         'parallelize_over_sessions': False,
         'recalculate_mutual_density_df': False,
         'fixation_type_to_process': 'face',
@@ -51,7 +55,7 @@ def _initialize_params():
     params = curate_data.add_num_cpus_to_params(params)
     params = curate_data.add_root_data_to_params(params)
     params = curate_data.add_processed_data_to_params(params)
-    params = get_slurm_cpus_and_threads(params)
+    params = util.get_slurm_cpus_and_threads(params)
     logger.info("Parameters initialized successfully")
     return params
 
@@ -311,45 +315,58 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         mutual_behav_density_df, params):
     """Runs neural response analysis for mutual face fixation periods, parallelizing across sessions if enabled."""
     logger.info("Starting neural analysis and individual unit plotting for mutual face fixation periods")
-    # Set up plot save directory
+    
+    # Set up directories
     today_date = datetime.today().strftime('%Y-%m-%d')
     min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
     min_total_sig_bins = params.get('min_total_sig_bins', 25)
     today_date += f'_{min_consecutive_sig_bins}-{min_total_sig_bins}_minbin'
     root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
-    # Get unique session names
-    session_names = eye_mvm_behav_df['session_name'].unique()
-    parallelize = params.get('parallelize_over_sessions', False)
-    num_processes = params.get('available_cpus', 1)
-    logger.info(f"Parallelizing over sessions: {parallelize} | Num processes assigned: {num_processes}")
-    if parallelize:
-        results = Parallel(n_jobs=num_processes)(
-            delayed(process_neural_response_to_face_fixations_for_session)(
-                session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
-                mutual_behav_density_df, root_dir, params
-            ) for session_name in tqdm(session_names, desc="Processing sessions in parallel")
-        )
+    processed_data_dir = params['processed_data_dir']
+    processed_data_path = os.path.join(processed_data_dir, "neural_response_data.pkl")
+    # Check if we should reload existing processed data
+    if params.get('reload_processed_data', False) and os.path.exists(processed_data_path):
+        logger.info("Loading precomputed neural response data from disk.")
+        with open(processed_data_path, 'rb') as f:
+            merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, timeline = pickle.load(f)
     else:
-        results = [
-            process_neural_response_to_face_fixations_for_session(
-                session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
-                mutual_behav_density_df, root_dir, params
-            ) for session_name in tqdm(session_names, desc="Processing sessions in serial")
-        ]
-    # Merge results
-    merged_sig_units, merged_non_sig_units = {}, {}
-    merged_high_density_counts, merged_low_density_counts = {}, {}
-    for ind, (sig_units, non_sig_units, high_density_counts, low_density_counts, timeline) in enumerate(results):
-        timeline = timeline
-        for region, units in sig_units.items():
-            merged_sig_units.setdefault(region, []).extend(units)
-        for region, units in non_sig_units.items():
-            merged_non_sig_units.setdefault(region, []).extend(units)
-        for region, unit_counts in high_density_counts.items():
-            merged_high_density_counts.setdefault(region, []).extend(unit_counts)
-        for region, unit_counts in low_density_counts.items():
-            merged_low_density_counts.setdefault(region, []).extend(unit_counts)
+        # Get unique session names
+        session_names = eye_mvm_behav_df['session_name'].unique()
+        parallelize = params.get('parallelize_over_sessions', False)
+        num_processes = params.get('available_cpus', 1)
+        logger.info(f"Parallelizing over sessions: {parallelize} | Num processes assigned: {num_processes}")
+        if parallelize:
+            results = Parallel(n_jobs=num_processes)(
+                delayed(process_neural_response_to_face_fixations_for_session)(
+                    session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
+                    mutual_behav_density_df, root_dir, params
+                ) for session_name in tqdm(session_names, desc="Processing sessions in parallel")
+            )
+        else:
+            results = [
+                process_neural_response_to_face_fixations_for_session(
+                    session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
+                    mutual_behav_density_df, root_dir, params
+                ) for session_name in tqdm(session_names, desc="Processing sessions in serial")
+            ]
+        # Merge results
+        merged_sig_units, merged_non_sig_units = {}, {}
+        merged_high_density_counts, merged_low_density_counts = {}, {}
+        for sig_units, non_sig_units, high_density_counts, low_density_counts, timeline in results:
+            timeline = timeline
+            for region, units in sig_units.items():
+                merged_sig_units.setdefault(region, []).extend(units)
+            for region, units in non_sig_units.items():
+                merged_non_sig_units.setdefault(region, []).extend(units)
+            for region, unit_counts in high_density_counts.items():
+                merged_high_density_counts.setdefault(region, []).extend(unit_counts)
+            for region, unit_counts in low_density_counts.items():
+                merged_low_density_counts.setdefault(region, []).extend(unit_counts)
+        # Save processed data
+        logger.info("Saving processed neural response data to disk.")
+        with open(processed_data_path, 'wb') as f:
+            pickle.dump((merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, timeline), f)
     # Compute summary counts
     summary_counts = {
         region: (len(merged_sig_units.get(region, [])), len(merged_sig_units.get(region, [])) + len(merged_non_sig_units.get(region, [])))
@@ -361,8 +378,9 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     # Generate and save summary plot
-    generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir, params)
+    generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
     return merged_sig_units, merged_non_sig_units
+
 
 
 def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
@@ -570,7 +588,7 @@ def plot_neural_response_to_high_and_low_density_face_fixations(
 
 
 
-def generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir, params):
+def generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir):
     """Generates a summary plot of the timecourse index for all significant units in each region."""
     logger.info("Generating summary plot for significant neurons")
     num_regions = len(merged_sig_units)
@@ -584,26 +602,29 @@ def generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_l
         unit_indices = []
         timecourses = []
         for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
-            try:
-                _, low_density_spike_counts = next(
-                    (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
-                )
-            except StopIteration:
-                continue  # Skip units without corresponding low-density data
-            # Compute normalized index
-            index = (np.mean(high_density_spike_counts, axis=0) - np.mean(low_density_spike_counts, axis=0)) / \
-                    (np.mean(high_density_spike_counts, axis=0) + np.mean(low_density_spike_counts, axis=0) + 1e-6)
-            # Extract key properties for sorting
-            max_val, max_idx = np.max(index), np.argmax(index)
-            min_val, min_idx = np.min(index), np.argmin(index)
-            max_loc, min_loc = timeline[max_idx], timeline[min_idx]
-            variation = abs(max_val - min_val)  # Measure total fluctuation
-            unit_indices.append((unit_uuid, variation, max_loc, index))
-            timecourses.append(index)
-        if not timecourses:
-            continue
+            if unit_uuid in units:
+                try:
+                    _, low_density_spike_counts = next(
+                        (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
+                    )
+                except StopIteration:
+                    continue  # Skip units without corresponding low-density data
+                # Compute normalized index
+                index = (np.mean(high_density_spike_counts, axis=0) - np.mean(low_density_spike_counts, axis=0)) / \
+                        (np.mean(high_density_spike_counts, axis=0) + np.mean(low_density_spike_counts, axis=0) + 1e-6)
+                # Extract key properties for sorting
+                max_val, max_idx = np.max(index), np.argmax(index)
+                min_val, min_idx = np.min(index), np.argmin(index)
+                max_loc, min_loc = timeline[max_idx], timeline[min_idx]
+                bias = max_val - min_val  # Measure of bias towards positive
+                unit_indices.append((unit_uuid, max_val, bias, max_loc, min_val, min_loc, index))
+                timecourses.append(index)
+                if not timecourses:
+                    continue
+            else:
+                continue
         # Sort by total variation (high to low), then by max peak location (earlier peaks first)
-        unit_indices.sort(key=lambda x: (-x[1], x[2]))
+        unit_indices.sort(key=lambda x: (-x[1], -x[2], x[3], x[4], x[5]))
         sorted_indices = [idx[-1] for idx in unit_indices]
         # Create color-coded heatmap
         im = ax.imshow(sorted_indices, aspect='auto', cmap='RdBu_r', vmin=-1, vmax=1, interpolation='none')
