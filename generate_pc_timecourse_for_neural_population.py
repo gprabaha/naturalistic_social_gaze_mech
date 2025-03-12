@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d
+import gc
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -35,7 +36,8 @@ def _initialize_params():
         'prabaha_local': True,
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'time_window_before_and_after_event_for_psth': 0.5,
+        'time_window_before_event_for_psth': 0.5,
+        'time_window_after_event_for_psth': 1.0,
         'gaussian_smoothing_sigma': 2,
         'min_consecutive_sig_bins': 5,
         'min_total_sig_bins': 25
@@ -61,14 +63,19 @@ def main():
     spike_times_file_path = os.path.join(
         processed_data_dir, 'spike_times_df.pkl'
     )
-    fix_binary_vector_file = os.path.join(
-        processed_data_dir, 'fix_binary_vector_df.pkl'
-    )
     logger.info("Loading data files")
     sparse_nan_removed_sync_gaze_df = load_data.get_data_df(sparse_nan_removed_sync_gaze_data_df_filepath)
     eye_mvm_behav_df = load_data.get_data_df(eye_mvm_behav_df_file_path)
     spike_times_df = load_data.get_data_df(spike_times_file_path)
-    fix_binary_vector_df = load_data.get_data_df(fix_binary_vector_file)
+
+    # Perform the merge
+    eye_mvm_behav_df_with_neural_timeline = eye_mvm_behav_df.merge(
+        sparse_nan_removed_sync_gaze_df[['session_name', 'interaction_type', 'run_number', 'agent', 'positions', 'neural_timeline']],
+        on=['session_name', 'interaction_type', 'run_number', 'agent'],
+        how='left'  # Use 'left' join to preserve all rows in eye_mvm_behav_df
+    )
+    del sparse_nan_removed_sync_gaze_df, eye_mvm_behav_df
+    gc.collect()
 
     pdb.set_trace()
 
