@@ -34,6 +34,7 @@ def _initialize_params():
     params = {
         'is_cluster': True,
         'prabaha_local': True,
+        'recompute_firing_rate': False,
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
         'time_window_before_event_for_psth': 0.5,
@@ -77,7 +78,14 @@ def main():
     del sparse_nan_removed_sync_gaze_df, eye_mvm_behav_df
     gc.collect()
 
-    fixation_firing_rate_df = compute_firing_rate_matrix(eye_mvm_behav_df_with_neural_timeline, spike_times_df, params)
+    # Define the file path for storing the computed firing rate DataFrame
+    firing_rate_file = os.path.join(params['processed_data_dir'], 'firing_rate_df.pkl')
+    # Check if we need to recompute or load from file
+    if params.get('recompute_firing_rate', False) or not os.path.exists(firing_rate_file):
+        fixation_firing_rate_df = compute_firing_rate_matrix(eye_mvm_behav_df_with_neural_timeline, spike_times_df, params)
+        fixation_firing_rate_df.to_pickle(firing_rate_file)  # Save to file
+    else:
+        fixation_firing_rate_df = load_data.get_data_df(firing_rate_file)  # Load from file
 
     pdb.set_trace()
 
@@ -131,7 +139,7 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
     eye_mvm_behav_df['fixation_type'] = eye_mvm_behav_df['fixation_location'].apply(get_fixation_type)
 
     # Step 2: Iterate over sessions
-    for session, session_spike_df in spike_times_df.groupby('session_name'):
+    for session, session_spike_df in tqdm(spike_times_df.groupby('session_name'), desc='FR calc for sessions'):
         # Filter fixation data for this session and agent 'm1'
         session_m1_fixations = eye_mvm_behav_df[
             (eye_mvm_behav_df['session_name'] == session) & 
@@ -175,13 +183,14 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
             # Convert lists to numpy arrays outside the loop after processing all runs
             for fixation_type in ['face', 'object']:
                 per_trial_frs[fixation_type] = np.array(per_trial_frs[fixation_type]) if per_trial_frs[fixation_type] else np.empty((0,))
-            # Store results
-            results.append({
-                'session_name': session,
-                'region': region,
-                'unit_uuid': unit_uuid,
-                'firing_rate_matrix': per_trial_frs  # Now contains numpy arrays
-            })
+                # Store results
+                results.append({
+                    'session_name': session,
+                    'region': region,
+                    'unit_uuid': unit_uuid,
+                    'fixation_type': fixation_type,
+                    'firing_rate_matrix': per_trial_frs[fixation_type]  # Now contains numpy arrays
+                })
 
     # Step 7: Convert to DataFrame (Removing run_number)
     firing_rate_df = pd.DataFrame(results)
