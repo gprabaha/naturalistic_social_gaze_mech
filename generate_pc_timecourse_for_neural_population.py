@@ -86,31 +86,51 @@ def main():
 
 
 
-
 def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
     """
     Computes the trial-by-trial, binned firing rate timecourse matrix for each unit in each session and region.
-    
     Parameters:
     - eye_mvm_behav_df: DataFrame containing fixation events with neural timeline and positions.
     - spike_times_df: DataFrame containing spike timestamps for each unit.
     - params: Dictionary containing:
         - 'neural_data_bin_size': Bin size for firing rate calculation (seconds).
         - 'gaussian_smoothing_sigma': Standard deviation for Gaussian smoothing.
-        - 'time_window_before_event': Time before fixation start to include in PSTH (seconds).
-        - 'time_window_after_event': Time after fixation start to include in PSTH (seconds).
-
+        - 'time_window_before_event_for_psth': Time before fixation start (seconds).
+        - 'time_window_after_event_for_psth': Time after fixation start (seconds).
     Returns:
-    - firing_rate_df: DataFrame with columns ['session_name', 'region', 'unit_uuid', 'fixation_type', 'firing_rate_matrix']
+    - firing_rate_df: DataFrame with columns ['session_name', 'region', 'unit_uuid', 'firing_rate_matrix']
     """
     bin_size = params.get('neural_data_bin_size', 0.01)
     smooth_sigma = params.get('gaussian_smoothing_sigma', 2)
-    time_window_before = params.get('time_window_before_event_for_psth', 0.5)  # Fixed at 0.5 seconds before
-    time_window_after = params.get('time_window_after_event_for_psth', 1.0)   # Fixed at 1.0 second after
-
+    time_window_before = params.get('time_window_before_event_for_psth', 0.5)  # 0.5 seconds before
+    time_window_after = params.get('time_window_after_event_for_psth', 1.0)   # 1.0 second after
     results = []
 
-    # Iterate over sessions
+    # Step 1: Apply fixation type classification to all rows in `eye_mvm_behav_df`
+    def get_fixation_type(fix_locs):
+        """
+        Returns a LIST of all matching fixation types instead of a single label.
+        """
+        fix_type = []
+        for sublist in fix_locs:
+            appended = 0
+            for loc in sublist:
+                if 'face' in loc or 'mouth' in loc:
+                    fix_type.append('face')
+                    appended = 1
+                    break  # Prioritize the first match per sublist
+                if 'object' in loc:
+                    fix_type.append('object')
+                    appended = 1
+                    break
+            if appended == 0:
+                fix_type.append('out_of_roi')
+        return fix_type  # Return list
+
+    # Apply fixation type function to the entire DataFrame
+    eye_mvm_behav_df['fixation_type'] = eye_mvm_behav_df['fixation_location'].apply(get_fixation_type)
+
+    # Step 2: Iterate over sessions
     for session, session_spike_df in spike_times_df.groupby('session_name'):
         # Filter fixation data for this session and agent 'm1'
         session_m1_fixations = eye_mvm_behav_df[
@@ -118,71 +138,57 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
             (eye_mvm_behav_df['agent'] == 'm1')
         ]
 
-        # Iterate over runs
-        for run, run_fixations in session_m1_fixations.groupby('run_number'):
-            # Identify fixation types (each fixation gets a single type)
+        # Step 3: Iterate over units in this session
+        for _, unit_row in session_spike_df.iterrows():
+            unit_uuid = unit_row['unit_uuid']
+            region = unit_row['region']
+            spike_times = np.array(unit_row['spike_ts'])  # Convert spike times to NumPy array
+            per_trial_frs = {'face': [], 'object': []}  # Separate lists for fixation types
 
-            def get_fixation_type(fix_locs):
-                """
-                Returns a LIST of all matching fixation types instead of a single label.
-                """
-                fix_type = []
-                for sublist in fix_locs:
-                    appended = 0
-                    for loc in sublist:
-                        if 'face' in loc or 'mouth' in loc:
-                            fix_type.append('face')
-                            appended = 1
-                            break
-                        if 'object' in loc:
-                            fix_type.append('object')
-                            appended = 1
-                            break
-                    if appended == 0:
-                        fix_type.append('out_of_roi')
-                return fix_type  # Return list
-            
-            run_fixations['fixation_type'] = run_fixations['fixation_location'].apply(get_fixation_type)
-            # Drop fixations with no valid type
-            run_fixations = run_fixations.dropna(subset=['fixation_type'])
-            # Iterate over spike data for the current session
-            for _, unit_row in session_spike_df.iterrows():
-                unit_uuid = unit_row['unit_uuid']
-                region = unit_row['region']
-                spike_times = np.array(unit_row['spike_ts'])  # Convert spike times to NumPy array
-                pdb.set_trace()
-                for fixation_type, fix_group in run_fixations.groupby('fixation_type'):
-                    firing_rate_list = []
+            # Step 4: Iterate over runs in this session
+            for run, run_fixations in session_m1_fixations.groupby('run_number'):
+                # Step 5: Iterate through each fixation row in this run
 
-                    for _, fixation_row in fix_group.iterrows():
-                        neural_times = np.array(fixation_row['neural_timeline']).flatten()
-                        fixation_start = neural_times[0]  # Start of fixation
-                        start_time = fixation_start - time_window_before
-                        end_time = fixation_start + time_window_after
+                for _, fixation_row in run_fixations.iterrows():
+                    fixation_types = fixation_row['fixation_type']  # List of fixation types in this row
+                    fixation_start_stop = fixation_row['fixation_start_stop']  # List of start/stop indices
+                    neural_times = np.array(fixation_row['neural_timeline']).flatten()
 
-                        # Define bins for spike counts
-                        bins = np.arange(start_time, end_time, bin_size).ravel()
-                        binned_spike_counts, _ = np.histogram(spike_times, bins=bins)
+                    # Step 6: Iterate through each fixation type in this row
+                    for fix_idx, fixation_type in enumerate(fixation_types):
+                        if fixation_type in ['face', 'object']:  # Process only relevant fixation types
+                            fixation_start_index = fixation_start_stop[fix_idx][0]  # Get start index
+                            fixation_start_time = neural_times[fixation_start_index]  # Get corresponding neural time
+                            # Define time window
+                            start_time = fixation_start_time - time_window_before
+                            end_time = fixation_start_time + time_window_after
+                            # Ensure consistent number of bins
+                            n_bins = int(round((end_time - start_time) / bin_size))
+                            bins = np.linspace(start_time, end_time, n_bins + 1)  # +1 to include last bin edge
+                            # Bin spike counts
+                            binned_spike_counts, _ = np.histogram(spike_times, bins=bins)
+                            # Gaussian smoothing
+                            smoothed_firing_rate = gaussian_filter1d(binned_spike_counts / bin_size, sigma=smooth_sigma)
+                            # Store the firing rate in the appropriate fixation type list
+                            per_trial_frs[fixation_type].append(smoothed_firing_rate)
 
-                        # Gaussian smoothing
-                        smoothed_firing_rate = gaussian_filter1d(binned_spike_counts / bin_size, sigma=smooth_sigma)
-                        firing_rate_list.append(smoothed_firing_rate)
+            # Convert lists to numpy arrays outside the loop after processing all runs
+            for fixation_type in ['face', 'object']:
+                per_trial_frs[fixation_type] = np.array(per_trial_frs[fixation_type]) if per_trial_frs[fixation_type] else np.empty((0,))
+            # Store results
+            results.append({
+                'session_name': session,
+                'region': region,
+                'unit_uuid': unit_uuid,
+                'firing_rate_matrix': per_trial_frs  # Now contains numpy arrays
+            })
 
-                    # Store results
-                    if firing_rate_list:
-                        firing_rate_matrix = np.vstack(firing_rate_list)
-                        results.append({
-                            'session_name': session,
-                            'run_number': run,
-                            'region': region,
-                            'unit_uuid': unit_uuid,
-                            'fixation_type': fixation_type,
-                            'firing_rate_matrix': firing_rate_matrix
-                        })
-
-    # Convert to DataFrame
+    # Step 7: Convert to DataFrame (Removing run_number)
     firing_rate_df = pd.DataFrame(results)
     return firing_rate_df
+
+
+
 
 
 
