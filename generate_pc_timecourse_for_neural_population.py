@@ -83,7 +83,6 @@ def main():
     del sparse_nan_removed_sync_gaze_df, eye_mvm_behav_df
     gc.collect()
 
-
     # Define the file path for storing the computed firing rate DataFrame
     firing_rate_file = os.path.join(params['processed_data_dir'], 'firing_rate_df.pkl')
 
@@ -100,6 +99,11 @@ def main():
 
     logger.info("Script finished running!")
 
+
+
+##############################
+# ** FUNCTION DEFINITIONS ** #
+##############################
 
 
 def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
@@ -244,8 +248,6 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
                 unit_firing_rates = np.array([np.mean(mat, axis=0) for mat in fix_type_df['firing_rate_matrix']])
                 firing_rates[fix_type] = unit_firing_rates  # Shape: (num_units, num_timepoints)
 
-        # Ensure both conditions have the same number of units by padding with zeros
-        num_timepoints = next(iter(firing_rates.values())).shape[1]  # Get timepoints from any existing condition
         face_data = firing_rates['face']
         object_data = firing_rates['object']
         
@@ -259,14 +261,14 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
         # **Zero-Pad Face & Object Before Transforming**
         face_padded = np.vstack([face_data, np.zeros_like(face_data)])  # Shape: (2*num_units, num_timepoints)
         object_padded = np.vstack([np.zeros_like(object_data), object_data])  # Shape: (2*num_units, num_timepoints)
-
+        
         # **Transform padded versions**
         projected_face = pca.transform(face_padded.T)  # Shape: (num_timepoints, 3)
         projected_object = pca.transform(object_padded.T)  # Shape: (num_timepoints, 3)
 
         # Plot PC trajectories for face and object fixations in 3D
-        ax.plot(projected_face[:, 0], projected_face[:, 1], projected_face[:, 2], label="Face", color="blue", alpha=0.7)
-        ax.plot(projected_object[:, 0], projected_object[:, 1], projected_object[:, 2], label="Object", color="red", alpha=0.7)
+        ax.plot(projected_face[:, 0], projected_face[:, 1], projected_face[:, 2], label="Face", color="blue")
+        ax.plot(projected_object[:, 0], projected_object[:, 1], projected_object[:, 2], label="Object", color="red")
         ax.set_title(f"Region: {region}", fontsize=12)
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
