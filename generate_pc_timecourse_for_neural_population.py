@@ -213,20 +213,18 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
 
 
 def project_and_plot_pcs(fixation_firing_rate_df, params):
-    """Projects face and object fixation-related firing rates to PCA space and plots trajectories.
-
-    Args:
-        fixation_firing_rate_df (pd.DataFrame): DataFrame containing firing rate matrices per unit.
-        params (dict): Dictionary of parameters including `root_data_dir`.
-    """
-    # Set up export directory
+    """Projects face and object fixation-related firing rates to PCA space and plots trajectories."""
     today_date = datetime.today().strftime('%Y-%m-%d')
     export_dir = os.path.join(params['root_data_dir'], "plots", "neural_fr_pc_traces", today_date)
     os.makedirs(export_dir, exist_ok=True)
+    
     unique_regions = fixation_firing_rate_df['region'].unique()
     num_regions = len(unique_regions)
     fig, axes = plt.subplots(2, 2, figsize=(12, 12), subplot_kw={'projection': '3d'})
     fig.suptitle("PC Trajectories of Face & Object Fixations", fontsize=14)
+
+    timepoints = np.linspace(-0.5, 1.0, fixation_firing_rate_df.iloc[0]['firing_rate_matrix'].shape[1])
+    cmap = plt.get_cmap("viridis")
 
     for idx, region in enumerate(unique_regions):
         if idx >= 4:  # Limit to 2x2 grid (4 regions)
@@ -235,7 +233,7 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
         row, col = divmod(idx, 2)
         ax = axes[row, col]
         logger.info(f"Processing region: {region}")
-        # Extract firing rate matrices for face and object fixations
+        
         regional_df = fixation_firing_rate_df[fixation_firing_rate_df['region'] == region]
         firing_rates = {}
 
@@ -244,37 +242,48 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
             if fix_type_df.empty:
                 firing_rates[fix_type] = None  # Mark as missing
             else:
-                # Extract firing rate matrices (mean over axis 0 for each unit)
                 unit_firing_rates = np.array([np.mean(mat, axis=0) for mat in fix_type_df['firing_rate_matrix']])
                 firing_rates[fix_type] = unit_firing_rates  # Shape: (num_units, num_timepoints)
 
         face_data = firing_rates['face']
         object_data = firing_rates['object']
         
-        # Stack units across conditions along the **neural axis** (not time!)
-        combined_firing_rates = np.vstack([face_data, object_data])  # Shape: (2*num_units, num_timepoints)
+        # Stack units across conditions along the **time axis** (not the neural axis!)
+        combined_firing_rates = np.hstack([face_data, object_data])  # Shape: (num_units, 2*num_timepoints)
 
-        # **Fit PCA on the neural dimension**, keeping time intact
+        # Fit PCA on the combined time-expanded neural data
         pca = PCA(n_components=3)
-        pca.fit(combined_firing_rates.T)  # Transpose to shape (num_timepoints, 2*num_units) before fitting
-
-        # **Zero-Pad Face & Object Before Transforming**
-        face_padded = np.vstack([face_data, np.zeros_like(face_data)])  # Shape: (2*num_units, num_timepoints)
-        object_padded = np.vstack([np.zeros_like(object_data), object_data])  # Shape: (2*num_units, num_timepoints)
+        projected_combined = pca.fit_transform(combined_firing_rates.T)  # Shape: (2*num_timepoints, 3)
         
-        # **Transform padded versions**
-        projected_face = pca.transform(face_padded.T)  # Shape: (num_timepoints, 3)
-        projected_object = pca.transform(object_padded.T)  # Shape: (num_timepoints, 3)
+        # Split the transformed data back into face and object trajectories
+        num_timepoints = face_data.shape[1]
+        projected_face = projected_combined[:num_timepoints]
+        projected_object = projected_combined[num_timepoints:]
 
-        # Plot PC trajectories for face and object fixations in 3D
-        ax.plot(projected_face[:, 0], projected_face[:, 1], projected_face[:, 2], label="Face", color="blue")
-        ax.plot(projected_object[:, 0], projected_object[:, 1], projected_object[:, 2], label="Object", color="red")
+        # Find the index closest to time 0
+        zero_idx = np.argmin(np.abs(timepoints))
+
+        # Plot PC trajectories for face and object fixations in 3D with color progression
+        for i in range(len(timepoints) - 1):
+            ax.plot(projected_face[i:i+2, 0], projected_face[i:i+2, 1], projected_face[i:i+2, 2], 
+                    color=cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
+            ax.plot(projected_object[i:i+2, 0], projected_object[i:i+2, 1], projected_object[i:i+2, 2], 
+                    color=cmap(i / len(timepoints)), alpha=0.8, linewidth=2, linestyle="dashed")
+        
+        # Mark start, time 0, and end points
+        ax.scatter(*projected_face[0], color="green", s=50, label="Start (Face)")
+        ax.scatter(*projected_face[zero_idx], color="yellow", s=50, label="Time 0 (Face)")
+        ax.scatter(*projected_face[-1], color="black", s=50, label="End (Face)")
+        ax.scatter(*projected_object[0], color="lime", s=50, label="Start (Object)")
+        ax.scatter(*projected_object[zero_idx], color="orange", s=50, label="Time 0 (Object)")
+        ax.scatter(*projected_object[-1], color="gray", s=50, label="End (Object)")
+        
         ax.set_title(f"Region: {region}", fontsize=12)
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
         ax.set_zlabel("PC3")
-        ax.legend()
-
+        ax.legend(loc='best')
+    
     # Adjust layout and save
     plt.tight_layout()
     plot_path = os.path.join(export_dir, "pc_trajectories.png")
