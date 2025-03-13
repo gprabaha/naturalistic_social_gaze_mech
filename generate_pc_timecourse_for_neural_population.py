@@ -224,7 +224,8 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
     fig.suptitle("PC Trajectories of Face & Object Fixations", fontsize=14)
 
     timepoints = np.linspace(-0.5, 1.0, fixation_firing_rate_df.iloc[0]['firing_rate_matrix'].shape[1])
-    cmap = plt.get_cmap("viridis")
+    face_cmap = plt.get_cmap("Blues")
+    object_cmap = plt.get_cmap("Reds")
 
     for idx, region in enumerate(unique_regions):
         if idx >= 4:  # Limit to 2x2 grid (4 regions)
@@ -263,20 +264,20 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
         # Find the index closest to time 0
         zero_idx = np.argmin(np.abs(timepoints))
 
-        # Plot PC trajectories for face and object fixations in 3D with color progression
+        # Plot PC trajectories for face and object fixations in 3D with separate color maps
         for i in range(len(timepoints) - 1):
             ax.plot(projected_face[i:i+2, 0], projected_face[i:i+2, 1], projected_face[i:i+2, 2], 
-                    color=cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
+                    color=face_cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
             ax.plot(projected_object[i:i+2, 0], projected_object[i:i+2, 1], projected_object[i:i+2, 2], 
-                    color=cmap(i / len(timepoints)), alpha=0.8, linewidth=2, linestyle="dashed")
+                    color=object_cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
         
-        # Mark start, time 0, and end points
-        ax.scatter(*projected_face[0], color="green", s=50, label="Start (Face)")
-        ax.scatter(*projected_face[zero_idx], color="yellow", s=50, label="Time 0 (Face)")
-        ax.scatter(*projected_face[-1], color="black", s=50, label="End (Face)")
-        ax.scatter(*projected_object[0], color="lime", s=50, label="Start (Object)")
-        ax.scatter(*projected_object[zero_idx], color="orange", s=50, label="Time 0 (Object)")
-        ax.scatter(*projected_object[-1], color="gray", s=50, label="End (Object)")
+        # Mark start, time 0, and end points with uniform black-filled markers
+        ax.scatter(*projected_face[0], color="black", s=50, marker="o", label="Start")
+        ax.scatter(*projected_face[zero_idx], color="black", s=50, marker="*", label="Time 0")
+        ax.scatter(*projected_face[-1], color="black", s=50, marker="s", label="End")
+        ax.scatter(*projected_object[0], color="black", s=50, marker="o")
+        ax.scatter(*projected_object[zero_idx], color="black", s=50, marker="*")
+        ax.scatter(*projected_object[-1], color="black", s=50, marker="s")
         
         ax.set_title(f"Region: {region}", fontsize=12)
         ax.set_xlabel("PC1")
