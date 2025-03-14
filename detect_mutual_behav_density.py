@@ -14,6 +14,7 @@ import pickle
 
 
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import seaborn as sns
 import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
@@ -378,7 +379,7 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     # Generate and save summary plot
-    generate_summary_plot(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
+    generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
     return merged_sig_units, merged_non_sig_units
 
 
@@ -588,70 +589,76 @@ def plot_neural_response_to_high_and_low_density_face_fixations(
 
 
 
-import numpy as np
-import os
-import matplotlib.pyplot as plt
-import logging
-
-logger = logging.getLogger(__name__)
-
 def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir):
     """Generates multiple summary plots of the timecourse index for all significant units in each region using different sorting methods."""
     logger.info("Generating summary plots for significant neurons with different sorting methods")
-    
+
+    # Define sorting methods
     sort_methods = {
         "bias": lambda x: (-x[2],),
         "max_loc": lambda x: (x[3],),
         "min_loc": lambda x: (x[5],),
         "abs_max_loc": lambda x: (min(x[3], x[5], key=abs),)
     }
-    
+
+    # Precompute indices for each region
+    precomputed_indices = {}
+
+    for region, units in merged_sig_units.items():
+        unit_indices = []
+        for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
+            if unit_uuid in units:
+                try:
+                    _, low_density_spike_counts = next(
+                        (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
+                    )
+                except StopIteration:
+                    continue  # Skip units without corresponding low-density data
+
+                # Compute normalized index
+                index = (np.mean(high_density_spike_counts, axis=0) - np.mean(low_density_spike_counts, axis=0)) / \
+                        (np.mean(high_density_spike_counts, axis=0) + np.mean(low_density_spike_counts, axis=0) + 1e-6)
+
+                # Extract key properties for sorting
+                max_val, max_idx = np.max(index), np.argmax(index)
+                min_val, min_idx = np.min(index), np.argmin(index)
+                max_loc, min_loc = timeline[max_idx], timeline[min_idx]
+                bias = max_val - min_val  # Measure of bias towards positive
+                
+                unit_indices.append((unit_uuid, max_val, bias, max_loc, min_val, min_loc, index))
+
+        if unit_indices:
+            precomputed_indices[region] = unit_indices
+
+    # Now iterate over different sorting methods
     for sort_name, sort_key in sort_methods.items():
-        num_regions = len(merged_sig_units)
+        num_regions = len(precomputed_indices)
         num_rows, num_cols = 2, 2  # Fixed 2x2 grid
         total_plots = min(num_rows * num_cols, num_regions)
 
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(18, 14), constrained_layout=True)
-        axes = axes.flatten()  # Flatten to simplify indexing
+        fig = plt.figure(figsize=(20, 16))  # Larger figure for spacing
+        gs = gridspec.GridSpec(num_rows * 2, num_cols * 2, figure=fig, width_ratios=[1, 0.2] * num_cols, height_ratios=[0.2, 1] * num_rows)
+        
+        axes = []  # To store main axes
+        for i in range(num_rows):
+            for j in range(num_cols):
+                axes.append(fig.add_subplot(gs[i * 2 + 1, j * 2]))  # Main heatmaps
 
         for ax in axes:  
             ax.axis('off')  # Hide unused subplots
 
-        for ax, (region, units) in zip(axes[:total_plots], merged_sig_units.items()):
-            unit_indices = []
-            timecourses = []
-            for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
-                if unit_uuid in units:
-                    try:
-                        _, low_density_spike_counts = next(
-                            (u, c) for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid
-                        )
-                    except StopIteration:
-                        continue  # Skip units without corresponding low-density data
-                    
-                    # Compute normalized index
-                    index = (np.mean(high_density_spike_counts, axis=0) - np.mean(low_density_spike_counts, axis=0)) / \
-                            (np.mean(high_density_spike_counts, axis=0) + np.mean(low_density_spike_counts, axis=0) + 1e-6)
-                    
-                    # Extract key properties for sorting
-                    max_val, max_idx = np.max(index), np.argmax(index)
-                    min_val, min_idx = np.min(index), np.argmin(index)
-                    max_loc, min_loc = timeline[max_idx], timeline[min_idx]
-                    bias = max_val - min_val  # Measure of bias towards positive
-                    
-                    unit_indices.append((unit_uuid, max_val, bias, max_loc, min_val, min_loc, index))
-                    timecourses.append(index)
-
-            if not unit_indices:
-                continue  # Skip if no units to plot
-            
+        for idx, (ax, (region, unit_indices)) in enumerate(zip(axes[:total_plots], precomputed_indices.items())):
             # Sort based on the selected method
-            unit_indices.sort(key=sort_key)
-            sorted_indices = [idx[-1] for idx in unit_indices]
+            unit_indices_sorted = sorted(unit_indices, key=sort_key)
+            sorted_indices = np.array([idx[-1] for idx in unit_indices_sorted])  # Extract sorted data
+            
+            # Compute marginals
+            top_marginal = np.mean(sorted_indices, axis=0)  # Mean across rows (time-wise average)
+            right_marginal = np.mean(sorted_indices, axis=1)  # Mean across columns (unit-wise average)
             
             # If sorting by abs max location, use absolute values and single-color colormap
             if sort_name == "abs_max_loc":
-                sorted_indices = [np.abs(idx) for idx in sorted_indices]
+                sorted_indices = np.abs(sorted_indices)
                 cmap = 'Reds'  # Use only red instead of red-blue
                 vmin, vmax = 0, 1
             else:
@@ -659,35 +666,43 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
                 vmin, vmax = -1, 1
 
             # Create color-coded heatmap
-            im = ax.imshow(sorted_indices, aspect='auto', cmap=cmap, vmin=vmin, vmax=vmax, interpolation='none')
+            im = ax.imshow(sorted_indices, aspect='auto', cmap=cmap, vmin=vmin, vmax=vmax, interpolation='none',
+                           extent=[timeline[0], timeline[-1], 0, len(sorted_indices)])  # Aligns x-axis to timeline
 
-            # Marginal histograms
-            divider = fig.add_axes([ax.get_position().x0, ax.get_position().y1, ax.get_position().width, 0.1])
-            divider.hist([x[3] for x in unit_indices], bins=20, color='gray', alpha=0.7)  # Histogram of max locations
-            divider.axis("off")
+            # Draw vertical line at t=0
+            ax.axvline(x=0, color='k', linestyle='--', linewidth=2, alpha=0.7)
 
-            right_divider = fig.add_axes([ax.get_position().x1, ax.get_position().y0, 0.1, ax.get_position().height])
-            right_divider.hist([x[2] for x in unit_indices], bins=20, orientation='horizontal', color='gray', alpha=0.7)  # Histogram of bias
-            right_divider.axis("off")
+            # X-axis time labels
+            ax.set_xticks(np.linspace(timeline[0], timeline[-1], num=6))  # 6 evenly spaced ticks
+            ax.set_xticklabels(np.round(np.linspace(timeline[0], timeline[-1], num=6)).astype(int))
+            ax.set_xlabel("Time from Fixation (ms)")
+
+            # Marginal plot: Top (Vertical bars)
+            top_ax = fig.add_subplot(gs[idx // num_cols * 2, idx % num_cols * 2])  # Top marginal subplot
+            top_ax.bar(timeline, top_marginal, width=(timeline[1] - timeline[0]), color='black', alpha=0.8)  # Thin black bars
+            top_ax.set_xlim([timeline[0], timeline[-1]])
+            top_ax.set_xticks([])
+            top_ax.set_yticks([])
+            top_ax.axis("off")
+
+            # Marginal plot: Right (Horizontal bars)
+            right_ax = fig.add_subplot(gs[idx // num_cols * 2 + 1, idx % num_cols * 2 + 1])  # Right marginal subplot
+            right_ax.barh(np.arange(len(sorted_indices)), right_marginal, height=1, color='black', alpha=0.8)  # Thin black bars
+            right_ax.set_ylim([0, len(sorted_indices)])
+            right_ax.set_xticks([])
+            right_ax.set_yticks([])
+            right_ax.axis("off")
 
             # Titles and labels
-            ax.set_title(f"{region}: {len(unit_indices)} Sig. Units (Sorted by {sort_name})")
-            ax.set_xlabel("Time from Fixation (ms)")
+            ax.set_title(f"{region}: {len(unit_indices_sorted)} Sig. Units (Sorted by {sort_name})")
             ax.set_ylabel("Unit (sorted by " + sort_name.replace("_", " ") + ")")
             fig.colorbar(im, ax=ax, label="Normalized Index")
 
         # Save plot with the sorting method in the filename
         summary_plot_path = os.path.join(root_dir, f"0_summary_neural_response_{sort_name}.png")
-        plt.savefig(summary_plot_path, dpi=300)
+        plt.savefig(summary_plot_path, dpi=300, bbox_inches='tight')
         plt.close(fig)
         logger.info(f"Summary plot saved at {summary_plot_path}")
-
-
-
-
-
-
-
 
 
 
