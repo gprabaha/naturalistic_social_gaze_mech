@@ -638,7 +638,16 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
 
         fig = plt.figure(figsize=(20, 16))  # Larger figure for spacing
         gs = gridspec.GridSpec(num_rows * 2, num_cols * 2, figure=fig, width_ratios=[1, 0.2] * num_cols, height_ratios=[0.2, 1] * num_rows)
-        
+
+        # Set global title for sorting method
+        fig.suptitle(
+            f"Neural Response Index Summary\n"
+            f"(Sorted by {sort_name.replace('_', ' ').title()})\n"
+            r"Index = (High-Density - Low-Density) / (High-Density + Low-Density)",
+            fontsize=16, fontweight='bold', ha='center'
+        )
+
+
         axes = []  # To store main axes
         for i in range(num_rows):
             for j in range(num_cols):
@@ -652,13 +661,21 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
             unit_indices_sorted = sorted(unit_indices, key=sort_key)
             sorted_indices = np.array([idx[-1] for idx in unit_indices_sorted])  # Extract sorted data
             
+            # If sorting by abs max location, take absolute values
+            if sort_name == "abs_max_loc":
+                sorted_indices = np.abs(sorted_indices)
+
             # Compute marginals
             top_marginal = np.mean(sorted_indices, axis=0)  # Mean across rows (time-wise average)
             right_marginal = np.mean(sorted_indices, axis=1)  # Mean across columns (unit-wise average)
-            
-            # If sorting by abs max location, use absolute values and single-color colormap
+
+            # If sorting by abs max location, ensure marginals also use absolute values
             if sort_name == "abs_max_loc":
-                sorted_indices = np.abs(sorted_indices)
+                top_marginal = np.abs(top_marginal)
+                right_marginal = np.abs(right_marginal)
+
+            # Choose colormap
+            if sort_name == "abs_max_loc":
                 cmap = 'Reds'  # Use only red instead of red-blue
                 vmin, vmax = 0, 1
             else:
@@ -677,30 +694,32 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
             ax.set_xticklabels(np.round(np.linspace(timeline[0], timeline[-1], num=6)).astype(int))
             ax.set_xlabel("Time from Fixation (ms)")
 
-            # Marginal plot: Top (Vertical bars)
+            # Marginal plot: Top (Vertical bars, now correctly aligned)
             top_ax = fig.add_subplot(gs[idx // num_cols * 2, idx % num_cols * 2])  # Top marginal subplot
-            top_ax.bar(timeline, top_marginal, width=(timeline[1] - timeline[0]), color='black', alpha=0.8)  # Thin black bars
+            top_ax.bar(timeline[:-1], top_marginal, width=(timeline[1] - timeline[0]), color='black', alpha=0.8, align='edge')  # Thin black bars
             top_ax.set_xlim([timeline[0], timeline[-1]])
+            top_ax.set_ylim([0, np.max(top_marginal) * 1.1])  # Adjusted limit to prevent overlap
             top_ax.set_xticks([])
             top_ax.set_yticks([])
             top_ax.axis("off")
 
-            # Marginal plot: Right (Horizontal bars)
+            # Marginal plot: Right (Horizontal bars, now correctly aligned)
             right_ax = fig.add_subplot(gs[idx // num_cols * 2 + 1, idx % num_cols * 2 + 1])  # Right marginal subplot
-            right_ax.barh(np.arange(len(sorted_indices)), right_marginal, height=1, color='black', alpha=0.8)  # Thin black bars
+            right_ax.barh(np.arange(len(sorted_indices)), right_marginal, height=1, color='black', alpha=0.8, align='edge')  # Thin black bars
+            right_ax.set_xlim([0, np.max(right_marginal) * 1.1])  # Adjusted limit to prevent overlap
             right_ax.set_ylim([0, len(sorted_indices)])
             right_ax.set_xticks([])
             right_ax.set_yticks([])
             right_ax.axis("off")
 
             # Titles and labels
-            ax.set_title(f"{region}: {len(unit_indices_sorted)} Sig. Units (Sorted by {sort_name})")
-            ax.set_ylabel("Unit (sorted by " + sort_name.replace("_", " ") + ")")
+            ax.set_title(f"{region}: {len(unit_indices_sorted)} Sig. Units")
+            ax.set_ylabel("Unit Index")
             fig.colorbar(im, ax=ax, label="Normalized Index")
 
-        # Save plot with the sorting method in the filename
+        # Save plot with the sorting method in the filename (High Resolution 600 dpi)
         summary_plot_path = os.path.join(root_dir, f"0_summary_neural_response_{sort_name}.png")
-        plt.savefig(summary_plot_path, dpi=300, bbox_inches='tight')
+        plt.savefig(summary_plot_path, dpi=600, bbox_inches='tight')  # Higher DPI for clarity
         plt.close(fig)
         logger.info(f"Summary plot saved at {summary_plot_path}")
 
