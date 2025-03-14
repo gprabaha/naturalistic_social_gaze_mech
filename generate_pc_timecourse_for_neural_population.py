@@ -211,7 +211,6 @@ def compute_firing_rate_matrix(eye_mvm_behav_df, spike_times_df, params):
     return firing_rate_df
 
 
-
 def project_and_plot_pcs(fixation_firing_rate_df, params):
     """Projects face and object fixation-related firing rates to PCA space and plots trajectories."""
     today_date = datetime.today().strftime('%Y-%m-%d')
@@ -224,8 +223,8 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
     fig.suptitle("PC Trajectories of Face & Object Fixations", fontsize=14)
 
     timepoints = np.linspace(-0.5, 1.0, fixation_firing_rate_df.iloc[0]['firing_rate_matrix'].shape[1])
-    face_cmap = plt.get_cmap("Blues")
-    object_cmap = plt.get_cmap("Reds")
+    face_cmap = plt.get_cmap("Reds")
+    object_cmap = plt.get_cmap("Blues")
 
     for idx, region in enumerate(unique_regions):
         if idx >= 4:  # Limit to 2x2 grid (4 regions)
@@ -249,35 +248,30 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
         face_data = firing_rates['face']
         object_data = firing_rates['object']
         
-        # Stack units across conditions along the **time axis** (not the neural axis!)
-        combined_firing_rates = np.hstack([face_data, object_data])  # Shape: (num_units, 2*num_timepoints)
-
-        # Fit PCA on the combined time-expanded neural data
+        combined_firing_rates = np.hstack([face_data, object_data])
         pca = PCA(n_components=3)
-        projected_combined = pca.fit_transform(combined_firing_rates.T)  # Shape: (2*num_timepoints, 3)
+        projected_combined = pca.fit_transform(combined_firing_rates.T)
         
-        # Split the transformed data back into face and object trajectories
         num_timepoints = face_data.shape[1]
         projected_face = projected_combined[:num_timepoints]
         projected_object = projected_combined[num_timepoints:]
 
-        # Find the index closest to time 0
         zero_idx = np.argmin(np.abs(timepoints))
 
-        # Plot PC trajectories for face and object fixations in 3D with separate color maps
         for i in range(len(timepoints) - 1):
             ax.plot(projected_face[i:i+2, 0], projected_face[i:i+2, 1], projected_face[i:i+2, 2], 
-                    color=face_cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
+                    color=face_cmap(0.3 + 0.7 * (i / len(timepoints))), alpha=0.8, linewidth=2, 
+                    label="Face" if i == len(timepoints) - 2 else "")
             ax.plot(projected_object[i:i+2, 0], projected_object[i:i+2, 1], projected_object[i:i+2, 2], 
-                    color=object_cmap(i / len(timepoints)), alpha=0.8, linewidth=2)
+                    color=object_cmap(0.3 + 0.7 * (i / len(timepoints))), alpha=0.8, linewidth=2, 
+                    label="Object" if i == len(timepoints) - 2 else "")
         
-        # Mark start, time 0, and end points with uniform black-filled markers
-        ax.scatter(*projected_face[0], color="black", s=50, marker="o", label="Start")
-        ax.scatter(*projected_face[zero_idx], color="black", s=50, marker="*", label="Time 0")
-        ax.scatter(*projected_face[-1], color="black", s=50, marker="s", label="End")
-        ax.scatter(*projected_object[0], color="black", s=50, marker="o")
-        ax.scatter(*projected_object[zero_idx], color="black", s=50, marker="*")
-        ax.scatter(*projected_object[-1], color="black", s=50, marker="s")
+        ax.scatter(*projected_face[0], color="black", s=50, marker="o", label="Start (Face)")
+        ax.scatter(*projected_face[zero_idx], color="black", s=50, marker="*", label="Time 0 (Face)")
+        ax.scatter(*projected_face[-1], color="black", s=50, marker="s", label="End (Face)")
+        ax.scatter(*projected_object[0], color="black", s=50, marker="o", label="Start (Object)")
+        ax.scatter(*projected_object[zero_idx], color="black", s=50, marker="*", label="Time 0 (Object)")
+        ax.scatter(*projected_object[-1], color="black", s=50, marker="s", label="End (Object)")
         
         ax.set_title(f"Region: {region}", fontsize=12)
         ax.set_xlabel("PC1")
@@ -285,7 +279,6 @@ def project_and_plot_pcs(fixation_firing_rate_df, params):
         ax.set_zlabel("PC3")
         ax.legend(loc='best')
     
-    # Adjust layout and save
     plt.tight_layout()
     plot_path = os.path.join(export_dir, "pc_trajectories.png")
     plt.savefig(plot_path)
