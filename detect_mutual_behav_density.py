@@ -729,6 +729,7 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
         logger.info(f"Summary plot saved at {summary_plot_path}")
 
 
+
 def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, timeline, root_dir):
     """
     Computes PCA on the concatenated high- and low-density mean spike counts across all units
@@ -746,8 +747,10 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
     # Define colormaps
     high_density_cmap = cm.viridis
     low_density_cmap = cm.magma
+    index_cmap = cm.plasma
     
     regions = list(merged_high_density_counts.keys())
+    
     for idx, (region, ax, index_ax) in enumerate(zip(regions, axes.flatten(), index_axes.flatten())):
         all_high_density = []
         all_low_density = []
@@ -770,7 +773,6 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
             logger.warning(f"No valid units found for region {region}.")
             continue
         
-        # Convert to numpy arrays
         all_high_density = np.array(all_high_density)
         all_low_density = np.array(all_low_density)
         all_index = np.array(all_index)
@@ -786,10 +788,10 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
         for i in range(num_timepoints - 1):
             ax.plot(projected_high[i:i+2, 0], projected_high[i:i+2, 1], projected_high[i:i+2, 2],
                     color=high_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
-                    label="High-density" if i == num_timepoints - 2 else "")
+                    label="High-density" if i == 0 else "")
             ax.plot(projected_low[i:i+2, 0], projected_low[i:i+2, 1], projected_low[i:i+2, 2],
                     color=low_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
-                    label="Low-density" if i == num_timepoints - 2 else "")
+                    label="Low-density" if i == 0 else "")
         
         ax.scatter(*projected_high[0], color='black', marker='o', s=80, label='Start')
         ax.scatter(*projected_high[num_timepoints // 2], color='black', marker='*', s=120, label='Fixation Onset')
@@ -802,7 +804,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
         ax.set_zlabel("PC3")
-        ax.set_title(f"{region}")
+        ax.set_title(f"{region} - High vs Low Density")
         ax.legend()
         
         # PCA for Normalized Index
@@ -811,7 +813,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
         
         for i in range(num_timepoints - 1):
             index_ax.plot(projected_index[i:i+2, 0], projected_index[i:i+2, 1], projected_index[i:i+2, 2],
-                          color=cm.plasma(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2)
+                          color=index_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2)
         
         index_ax.scatter(*projected_index[0], color='black', marker='o', s=80, label='Start')
         index_ax.scatter(*projected_index[num_timepoints // 2], color='black', marker='*', s=120, label='Fixation Onset')
@@ -820,15 +822,16 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, t
         index_ax.set_xlabel("PC1")
         index_ax.set_ylabel("PC2")
         index_ax.set_zlabel("PC3")
-        index_ax.set_title(f"{region}")
+        index_ax.set_title(f"{region} - Normalized Index")
+        index_ax.legend()
     
-    pca_plot_path = os.path.join(root_dir, "0_pca_trajectory_high_low_density_per_region.png")
-    plt.savefig(pca_plot_path, dpi=300, bbox_inches='tight')
+    pca_plot_path = os.path.join(root_dir, "0_pca_trajectory_high_low_density.png")
+    fig.savefig(pca_plot_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     logger.info(f"PCA trajectory plot saved at {pca_plot_path}")
     
-    pca_index_plot_path = os.path.join(root_dir, "0_pca_index_trajectory_per_region.png")
-    plt.savefig(pca_index_plot_path, dpi=300, bbox_inches='tight')
+    pca_index_plot_path = os.path.join(root_dir, "0_pca_index_trajectory.png")
+    fig_index.savefig(pca_index_plot_path, dpi=300, bbox_inches='tight')
     plt.close(fig_index)
     logger.info(f"PCA index trajectory plot saved at {pca_index_plot_path}")
 
