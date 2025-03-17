@@ -52,7 +52,8 @@ def _initialize_params():
         'fixation_type_to_process': 'face',
         'neural_data_bin_size': 0.01,  # 10 ms in seconds
         'smooth_spike_counts': True,
-        'time_window_before_and_after_event_for_psth': 0.5,
+        'time_window_before_event_for_psth': 0.5,
+        'time_window_after_event_for_psth': 1.0,
         'gaussian_smoothing_sigma': 2,
         'min_consecutive_sig_bins': 5,
         'min_total_sig_bins': 25
@@ -315,51 +316,55 @@ def compute_fixation_durations(binary_vector):
 
 
 
-def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
+def analyze_and_plot_neural_response_to_face_and_object_fixations(
         eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
         mutual_behav_density_df, params):
-    """Runs neural response analysis for mutual face fixation periods, parallelizing across sessions if enabled."""
-    logger.info("Starting neural analysis and individual unit plotting for mutual face fixation periods")
+    """Runs neural response analysis for mutual face and object fixation periods, parallelizing across sessions if enabled."""
+    logger.info("Starting neural analysis and individual unit plotting for mutual face and object fixation periods")
     
     # Set up directories
     today_date = datetime.today().strftime('%Y-%m-%d')
     min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
     min_total_sig_bins = params.get('min_total_sig_bins', 25)
     today_date += f'_{min_consecutive_sig_bins}-{min_total_sig_bins}_minbin'
-    root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_mutual_face_fix", today_date)
+    root_dir = os.path.join(params['root_data_dir'], "plots", "neural_response_face_object_fix", today_date)
     os.makedirs(root_dir, exist_ok=True)
     processed_data_dir = params['processed_data_dir']
     processed_data_path = os.path.join(processed_data_dir, "neural_response_data.pkl")
+    
     # Check if we should reload existing processed data
     if params.get('reload_processed_data', False) and os.path.exists(processed_data_path):
         logger.info("Loading precomputed neural response data from disk.")
         with open(processed_data_path, 'rb') as f:
-            merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, timeline = pickle.load(f)
+            merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, merged_object_counts, merged_face_vs_object_sig_units, timeline = pickle.load(f)
     else:
         # Get unique session names
         session_names = eye_mvm_behav_df['session_name'].unique()
         parallelize = params.get('parallelize_over_sessions', False)
         num_processes = params.get('available_cpus', 1)
         logger.info(f"Parallelizing over sessions: {parallelize} | Num processes assigned: {num_processes}")
+        
         if parallelize:
             results = Parallel(n_jobs=num_processes)(
-                delayed(process_neural_response_to_face_fixations_for_session)(
+                delayed(process_neural_response_to_face_and_object_fixations_for_session)(
                     session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
                     mutual_behav_density_df, root_dir, params
                 ) for session_name in tqdm(session_names, desc="Processing sessions in parallel")
             )
         else:
             results = [
-                process_neural_response_to_face_fixations_for_session(
+                process_neural_response_to_face_and_object_fixations_for_session(
                     session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
                     mutual_behav_density_df, root_dir, params
                 ) for session_name in tqdm(session_names, desc="Processing sessions in serial")
             ]
+        
         # Merge results
         merged_sig_units, merged_non_sig_units = {}, {}
         merged_high_density_counts, merged_low_density_counts = {}, {}
-        for sig_units, non_sig_units, high_density_counts, low_density_counts, timeline in results:
-            timeline = timeline
+        merged_object_counts, merged_face_vs_object_sig_units = {}, {}
+        
+        for sig_units, non_sig_units, high_density_counts, low_density_counts, object_counts, face_vs_object_sig_units, timeline in results:
             for region, units in sig_units.items():
                 merged_sig_units.setdefault(region, []).extend(units)
             for region, units in non_sig_units.items():
@@ -368,40 +373,73 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
                 merged_high_density_counts.setdefault(region, []).extend(unit_counts)
             for region, unit_counts in low_density_counts.items():
                 merged_low_density_counts.setdefault(region, []).extend(unit_counts)
+            for region, unit_counts in object_counts.items():
+                merged_object_counts.setdefault(region, []).extend(unit_counts)
+            for region, units in face_vs_object_sig_units.items():
+                merged_face_vs_object_sig_units.setdefault(region, []).extend(units)
+        
         # Save processed data
         logger.info("Saving processed neural response data to disk.")
         with open(processed_data_path, 'wb') as f:
-            pickle.dump((merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, timeline), f)
-    # Compute summary counts
+            pickle.dump((merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, merged_object_counts, merged_face_vs_object_sig_units, timeline), f)
+    
+    # Compute summary counts for high vs low face fixations
     summary_counts = {
         region: (len(merged_sig_units.get(region, [])), len(merged_sig_units.get(region, [])) + len(merged_non_sig_units.get(region, [])))
         for region in set(merged_sig_units.keys()).union(set(merged_non_sig_units.keys()))
     }
+    
+    # Compute summary counts for face vs object fixations
+    summary_counts_face_vs_object = {
+        region: len(merged_face_vs_object_sig_units.get(region, []))
+        for region in merged_face_vs_object_sig_units.keys()
+    }
+    
     # Display results
-    logger.info("Significant neuron counts by brain region:")
+    logger.info("Significant neuron counts by brain region (high vs low density face fixations):")
     for region, (sig_count, total_count) in summary_counts.items():
         percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
-    # Generate and save summary plot
-    generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
-    plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
-    return merged_sig_units, merged_non_sig_units
+    
+    logger.info("Significant neuron counts by brain region (face vs object fixations):")
+    for region, sig_count in summary_counts_face_vs_object.items():
+        logger.info(f"{region}: {sig_count} significant units")
+    
+    # Compute and display percentage overlap
+    logger.info("Overlap between face vs object and high vs low density classifiers:")
+    for region in merged_sig_units.keys():
+        face_vs_object_set = set(merged_face_vs_object_sig_units.get(region, []))
+        high_vs_low_set = set(merged_sig_units.get(region, []))
+        overlap_count = len(face_vs_object_set & high_vs_low_set)
+        total_count = len(face_vs_object_set | high_vs_low_set)
+        overlap_percentage = (overlap_count / total_count) * 100 if total_count > 0 else 0
+        logger.info(f"{region}: {overlap_count} overlapping units ({overlap_percentage:.2f}% overlap)")
+    
+    # Generate and save summary plots
+    generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir)
+    plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir)
+    
+    return merged_sig_units, merged_non_sig_units, merged_face_vs_object_sig_units
 
 
 
-def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
-                                              spike_times_df, mutual_behav_density_df, root_dir, params):
-    """Processes a single session, computing and plotting neural response for mutual face fixation periods."""
+
+def process_neural_response_to_face_and_object_fixations_for_session(session_name, eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, 
+                                                                    spike_times_df, mutual_behav_density_df,
+                                                                    root_dir, params):
+    """Processes a single session, computing and plotting neural response for mutual face and object fixation periods."""
     logger.debug(f'Processing session {session_name}')
     min_consecutive_sig_bins = params.get('min_consecutive_sig_bins', 5)
     min_total_sig_bins = params.get('min_total_sig_bins', 25)
     sig_units, non_sig_units = {}, {}
     high_density_counts, low_density_counts = {}, {}
+    object_counts = {}
+    face_vs_object_sig_units = {}
     session_spike_data = spike_times_df[spike_times_df['session_name'] == session_name]
     if session_spike_data.empty:
-        return sig_units, non_sig_units, high_density_counts, low_density_counts
-    high_density_fixations = []
-    low_density_fixations = []
+        return sig_units, non_sig_units, high_density_counts, low_density_counts, object_counts, face_vs_object_sig_units
+    high_density_fixations, low_density_fixations, object_fixations = [], [], []
+    
     # Extract session behavioral data
     session_df = eye_mvm_behav_df[eye_mvm_behav_df['session_name'] == session_name]
     for run_number in session_df['run_number'].unique():
@@ -409,9 +447,11 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         m1_data = run_df[run_df['agent'] == 'm1']
         if m1_data.empty:
             continue  # Skip if m1 data is missing
+        
         # Extract fixation intervals and locations
         m1_fix_intervals = m1_data['fixation_start_stop'].iloc[0]
         m1_fix_locations = m1_data['fixation_location'].iloc[0]
+        
         # Extract mutual density from mutual_behav_density_df
         mutual_density_data = mutual_behav_density_df[
             (mutual_behav_density_df['session_name'] == session_name) & 
@@ -421,6 +461,7 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         if mutual_density_data.empty:
             continue
         mutual_density = np.array(mutual_density_data['mutual_density'].iloc[0]).flatten()
+        
         # Extract neural timeline from synchronized gaze data
         gaze_data = sparse_nan_removed_sync_gaze_df[
             (sparse_nan_removed_sync_gaze_df['session_name'] == session_name) & 
@@ -430,23 +471,28 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         if gaze_data.empty:
             continue
         neural_timeline = np.array(gaze_data['neural_timeline'].iloc[0]).flatten()
+        
         # Determine threshold for high/low density fixations
         mutual_density_threshold = np.mean(mutual_density) * 0.63
-        # Identify face fixations of M1 in high vs. low mutual density periods
+        
+        # Identify face and object fixations
         for (start, stop), location in zip(m1_fix_intervals, m1_fix_locations):
+            fixation_time_in_neurons = neural_timeline[start]  # Convert to neural time
             if 'face' in location:
-                fixation_time_in_neurons = neural_timeline[start]  # Convert to neural time
                 if mutual_density[start] > mutual_density_threshold:
                     high_density_fixations.append(fixation_time_in_neurons)
                 else:
                     low_density_fixations.append(fixation_time_in_neurons)
+            elif 'object' in location:
+                object_fixations.append(fixation_time_in_neurons)
+    
     # Process each unit's neural response
     for _, unit in session_spike_data.iterrows():
         unit_uuid = unit["unit_uuid"]
         brain_region = unit["region"]
         logger.debug(f'Processing {unit_uuid} in {brain_region}')
         spike_times = np.array(unit["spike_ts"])
-        is_sig = 0
+        
         # Compute spike counts per trial
         high_density_spike_counts, timeline = compute_spike_counts_per_fixation(
             high_density_fixations, spike_times, params
@@ -454,27 +500,52 @@ def process_neural_response_to_face_fixations_for_session(session_name, eye_mvm_
         low_density_spike_counts, _ = compute_spike_counts_per_fixation(
             low_density_fixations, spike_times, params
         )
+        object_spike_counts, _ = compute_spike_counts_per_fixation(
+            object_fixations, spike_times, params
+        )
+        
         # Store spike counts for later processing
         high_density_counts.setdefault(brain_region, []).append((unit_uuid, high_density_spike_counts))
         low_density_counts.setdefault(brain_region, []).append((unit_uuid, low_density_spike_counts))
-        # Perform statistical test
-        significant_bins = perform_ttest_with_fdr(
+        object_counts.setdefault(brain_region, []).append((unit_uuid, object_spike_counts))
+        
+        # Perform statistical tests
+        significant_bins_face_density = perform_ttest_with_fdr(
             high_density_spike_counts, low_density_spike_counts, timeline, params
         )
-        # Identify significant units
-        groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
-        longest_consec_sig_bin_count = max(len(g) for g in groups) if groups else 0
-        if (longest_consec_sig_bin_count >= min_consecutive_sig_bins) or (len(significant_bins) >= min_total_sig_bins):
-            is_sig = 1
-            sig_units.setdefault(brain_region, []).append(unit_uuid)
-        else:
-            non_sig_units.setdefault(brain_region, []).append(unit_uuid)
-        # Plot results
-        plot_neural_response_to_high_and_low_density_face_fixations(
-            timeline, high_density_spike_counts, low_density_spike_counts, significant_bins, 
-            session_name, unit_uuid, brain_region, root_dir, is_sig
+        significant_bins_face_vs_object = perform_ttest_with_fdr(
+            high_density_spike_counts + low_density_spike_counts, object_spike_counts, timeline, params
         )
-    return sig_units, non_sig_units, high_density_counts, low_density_counts, timeline
+        
+        # Identify significant units
+        def classify_units_by_significance(significant_bins, unit_uuid, brain_region, min_consecutive, min_total, sig_units, non_sig_units):
+            groups = np.split(significant_bins, np.where(np.diff(significant_bins) > 1)[0] + 1)
+            longest_consec_sig_bin_count = max(len(g) for g in groups) if groups else 0
+            if (longest_consec_sig_bin_count >= min_consecutive) or (len(significant_bins) >= min_total):
+                sig_units.setdefault(brain_region, []).append(unit_uuid)
+            else:
+                non_sig_units.setdefault(brain_region, []).append(unit_uuid)
+            return sig_units, non_sig_units
+        
+        sig_units, non_sig_units = classify_units_by_significance(
+            significant_bins_face_density, unit_uuid, brain_region, min_consecutive_sig_bins, min_total_sig_bins, sig_units, non_sig_units
+        )
+        face_vs_object_sig_units = classify_units_by_significance(
+            significant_bins_face_vs_object, unit_uuid, brain_region, min_consecutive_sig_bins, min_total_sig_bins, face_vs_object_sig_units, {}
+        )
+        
+        # # Plot results
+        # plot_neural_response_to_high_and_low_density_face_fixations(
+        #     timeline, high_density_spike_counts, low_density_spike_counts, significant_bins_face_density, 
+        #     session_name, unit_uuid, brain_region, root_dir, int(unit_uuid in sig_units.get(brain_region, []))
+        # )
+        # plot_neural_response_to_face_vs_object_fixations(
+        #     timeline, high_density_spike_counts + low_density_spike_counts, object_spike_counts, significant_bins_face_vs_object, 
+        #     session_name, unit_uuid, brain_region, root_dir, int(unit_uuid in face_vs_object_sig_units.get(brain_region, []))
+        # )
+    
+    return sig_units, non_sig_units, high_density_counts, low_density_counts, object_counts, face_vs_object_sig_units, timeline
+
 
 
 
@@ -539,38 +610,6 @@ def perform_ttest_with_fdr(high_density_spike_counts, low_density_spike_counts, 
     corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
     significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
     return significant_bins
-
-
-
-def perform_wilcoxon_with_fdr(high_density_spike_counts, low_density_spike_counts, timeline, params, fdr_correct=False, do_parallel=False):
-    """Performs Wilcoxon signed-rank test per bin, optionally in parallel, and applies FDR correction."""
-    num_bins = len(timeline) - 1
-    p_values = [1.0] * num_bins  # Default non-significant p-values
-    time_window_start, time_window_end = -0.45, 0.45
-    valid_bins = (timeline[:-1] >= time_window_start) & (timeline[:-1] <= time_window_end)
-    
-    def do_wicoxon_for_time_bin(bin_idx):
-        try:
-            return wilcoxon(
-                high_density_spike_counts[:, bin_idx],
-                low_density_spike_counts[:, bin_idx]
-            )[1]
-        except ValueError:
-            return 1.0  # If no valid pairs exist, return non-significant p-value
-
-    if do_parallel:
-        threads_per_cpu = params.get('threads_per_cpu', 1)
-        with parallel_backend("threading"):
-            p_values = Parallel(n_jobs=threads_per_cpu)(
-                delayed(do_wicoxon_for_time_bin)(bin_idx) for bin_idx in range(num_bins)
-            )
-    else:
-        p_values = [do_wicoxon_for_time_bin(bin_idx) for bin_idx in range(num_bins)]
-    # Apply FDR correction
-    corrected_p_values = multipletests(p_values, alpha=0.05, method="fdr_bh")[1] if fdr_correct else np.array(p_values)
-    significant_bins = np.where((corrected_p_values < 0.05) & valid_bins)[0]
-    return significant_bins
-
 
 
 def plot_neural_response_to_high_and_low_density_face_fixations(
