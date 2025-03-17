@@ -120,9 +120,10 @@ def main():
     # logger.info("Plotting fixation and density timeline of 10 random runs")
     # plot_fixation_densities_in_10_random_runs(fix_binary_vector_df, mutual_behav_density_df, params)
 
-    merged_sig_units, merged_non_sig_units = analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
-        eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
-        mutual_behav_density_df, params)
+    merged_sig_units, merged_non_sig_units, merged_face_vs_object_sig_units = \
+        analyze_and_plot_neural_response_to_face_and_object_fixations(
+            eye_mvm_behav_df, sparse_nan_removed_sync_gaze_df, spike_times_df, 
+            mutual_behav_density_df, params)
 
 
     logger.info("Script finished running!")
@@ -333,7 +334,7 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
     processed_data_path = os.path.join(processed_data_dir, "neural_response_data.pkl")
     
     # Check if we should reload existing processed data
-    if params.get('reload_processed_data', False) and os.path.exists(processed_data_path):
+    if (params.get('reload_processed_data', False) and os.path.exists(processed_data_path)):
         logger.info("Loading precomputed neural response data from disk.")
         with open(processed_data_path, 'rb') as f:
             merged_sig_units, merged_non_sig_units, merged_high_density_counts, merged_low_density_counts, merged_object_counts, merged_face_vs_object_sig_units, timeline = pickle.load(f)
@@ -391,7 +392,7 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
     
     # Compute summary counts for face vs object fixations
     summary_counts_face_vs_object = {
-        region: len(merged_face_vs_object_sig_units.get(region, []))
+        region: (len(merged_face_vs_object_sig_units.get(region, [])), len(merged_object_counts.get(region, [])))
         for region in merged_face_vs_object_sig_units.keys()
     }
     
@@ -402,8 +403,9 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     
     logger.info("Significant neuron counts by brain region (face vs object fixations):")
-    for region, sig_count in summary_counts_face_vs_object.items():
-        logger.info(f"{region}: {sig_count} significant units")
+    for region, (sig_count, total_count) in summary_counts_face_vs_object.items():
+        percentage = (sig_count / total_count) * 100 if total_count > 0 else 0
+        logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     
     # Compute and display percentage overlap
     logger.info("Overlap between face vs object and high vs low density classifiers:")
@@ -416,7 +418,7 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
         logger.info(f"{region}: {overlap_count} overlapping units ({overlap_percentage:.2f}% overlap)")
     
     # Generate and save summary plots
-    generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir)
+    # generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
     plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir)
     
     return merged_sig_units, merged_non_sig_units, merged_face_vs_object_sig_units
@@ -434,7 +436,7 @@ def process_neural_response_to_face_and_object_fixations_for_session(session_nam
     sig_units, non_sig_units = {}, {}
     high_density_counts, low_density_counts = {}, {}
     object_counts = {}
-    face_vs_object_sig_units = {}
+    face_vs_object_sig_units, face_vs_object_non_sig_units = {}, {}
     session_spike_data = spike_times_df[spike_times_df['session_name'] == session_name]
     if session_spike_data.empty:
         return sig_units, non_sig_units, high_density_counts, low_density_counts, object_counts, face_vs_object_sig_units
@@ -483,7 +485,7 @@ def process_neural_response_to_face_and_object_fixations_for_session(session_nam
                     high_density_fixations.append(fixation_time_in_neurons)
                 else:
                     low_density_fixations.append(fixation_time_in_neurons)
-            elif 'object' in location:
+            elif np.any('object' in loc for loc in location):
                 object_fixations.append(fixation_time_in_neurons)
     
     # Process each unit's neural response
@@ -503,7 +505,7 @@ def process_neural_response_to_face_and_object_fixations_for_session(session_nam
         object_spike_counts, _ = compute_spike_counts_per_fixation(
             object_fixations, spike_times, params
         )
-        
+        face_spike_counts = np.vstack((high_density_spike_counts, low_density_spike_counts))
         # Store spike counts for later processing
         high_density_counts.setdefault(brain_region, []).append((unit_uuid, high_density_spike_counts))
         low_density_counts.setdefault(brain_region, []).append((unit_uuid, low_density_spike_counts))
@@ -514,7 +516,7 @@ def process_neural_response_to_face_and_object_fixations_for_session(session_nam
             high_density_spike_counts, low_density_spike_counts, timeline, params
         )
         significant_bins_face_vs_object = perform_ttest_with_fdr(
-            high_density_spike_counts + low_density_spike_counts, object_spike_counts, timeline, params
+            face_spike_counts, object_spike_counts, timeline, params
         )
         
         # Identify significant units
@@ -530,8 +532,8 @@ def process_neural_response_to_face_and_object_fixations_for_session(session_nam
         sig_units, non_sig_units = classify_units_by_significance(
             significant_bins_face_density, unit_uuid, brain_region, min_consecutive_sig_bins, min_total_sig_bins, sig_units, non_sig_units
         )
-        face_vs_object_sig_units = classify_units_by_significance(
-            significant_bins_face_vs_object, unit_uuid, brain_region, min_consecutive_sig_bins, min_total_sig_bins, face_vs_object_sig_units, {}
+        face_vs_object_sig_units, face_vs_object_non_sig_units = classify_units_by_significance(
+            significant_bins_face_vs_object, unit_uuid, brain_region, min_consecutive_sig_bins, min_total_sig_bins, face_vs_object_sig_units, face_vs_object_non_sig_units
         )
         
         # # Plot results
@@ -554,15 +556,12 @@ def compute_spike_counts_per_fixation(fixation_times, spike_times, params, do_pa
     spike_counts_per_trial = []
     bin_size = params["neural_data_bin_size"]
     sigma = params["gaussian_smoothing_sigma"]
-    time_window = params['time_window_before_and_after_event_for_psth']
-    timeline = np.arange(-time_window, time_window + bin_size, bin_size)
+    time_before = params['time_window_before_event_for_psth']
+    time_after = params['time_window_after_event_for_psth']
+    timeline = np.arange(-time_before, time_after + bin_size, bin_size)
     
     def get_spike_counts_for_fixation(fixation_time):
-        bins = np.linspace(
-            fixation_time - time_window,
-            fixation_time + time_window,
-            int(2 * time_window / bin_size) + 1
-        ).ravel()
+        bins = fixation_time + timeline  # Shift timeline relative to fixation time
         spike_counts, _ = np.histogram(spike_times, bins=bins)
         spike_counts = spike_counts / bin_size  # Convert to firing rate
         if params["smooth_spike_counts"]:
@@ -769,110 +768,128 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
 
 
 
-def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, timeline, root_dir):
+def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir):
     """
     Computes PCA on the concatenated high- and low-density mean spike counts across all units
-    for each region separately and plots the trajectory in the top three PCs.
-    Also computes PCA on the (high-low)/(high+low) timeseries and plots separately.
+    for each region separately and plots the trajectory in multiple ways:
+    
+    1. PCA on (high, low) activity and projection of (face, object) activity.
+    2. PCA on (face, object) activity and projection of (high, low) activity.
+    3. PCA on all (high, low, face, object) activities.
+    4. PCA on indices: (high-low) and (face-object).
     """
-    logger.info("Performing PCA on high- and low-density neural activity trajectories")
-
-    fig, axes = plt.subplots(2, 2, figsize=(14, 12), subplot_kw={'projection': '3d'})
-    fig.suptitle("Neural Response to Face Fixations by M1 During High vs Low Interactiveness", fontsize=16, fontweight='bold')
+    logger.info("Performing PCA on neural activity trajectories")
     
-    fig_index, index_axes = plt.subplots(2, 2, figsize=(14, 12), subplot_kw={'projection': '3d'})
-    fig_index.suptitle("PCA of Normalized Neural Response Index: (High - Low) / (High + Low)", fontsize=16, fontweight='bold')
-    
-    # Define colormaps
+    # Define unique colormaps
     high_density_cmap = cm.viridis
     low_density_cmap = cm.magma
-    index_cmap = cm.plasma
+    face_cmap = cm.coolwarm
+    object_cmap = cm.cividis
+    high_low_index_cmap = cm.plasma
+    face_object_index_cmap = cm.terrain
     
     regions = list(merged_high_density_counts.keys())
     
-    for idx, (region, ax, index_ax) in enumerate(zip(regions, axes.flatten(), index_axes.flatten())):
-        all_high_density = []
-        all_low_density = []
-        all_index = []
+    for region in regions:
+        all_high_density, all_low_density, all_object, all_face = [], [], [], []
         
         for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
             low_density_spike_counts = next((c for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid), None)
-            if low_density_spike_counts is None:
-                continue  # Skip units without corresponding low-density data
-
+            object_spike_counts = next((c for u, c in merged_object_counts.get(region, []) if u == unit_uuid), None)
+            
+            if low_density_spike_counts is None or object_spike_counts is None:
+                continue
+            
             mean_high = np.mean(high_density_spike_counts, axis=0)
             mean_low = np.mean(low_density_spike_counts, axis=0)
-            index_series = (mean_high - mean_low) / (mean_high + mean_low + 1e-6)
+            mean_object = np.mean(object_spike_counts, axis=0)
+            mean_face = np.mean(np.vstack([high_density_spike_counts, low_density_spike_counts]), axis=0)
             
             all_high_density.append(mean_high)
             all_low_density.append(mean_low)
-            all_index.append(index_series)
+            all_object.append(mean_object)
+            all_face.append(mean_face)
         
-        if not all_high_density or not all_low_density:
+        if not all_high_density or not all_low_density or not all_object or not all_face:
             logger.warning(f"No valid units found for region {region}.")
             continue
         
         all_high_density = np.array(all_high_density)
         all_low_density = np.array(all_low_density)
-        all_index = np.array(all_index)
+        all_object = np.array(all_object)
+        all_face = np.array(all_face)
         
-        # PCA for High vs Low Density
-        data_matrix = np.hstack([all_high_density, all_low_density])
-        pca = PCA(n_components=3)
-        projected_data = pca.fit_transform(data_matrix.T)
+        face_obj_index = (all_face - all_object) / (all_face + all_object + 1e-6)
+        high_low_index = (all_high_density - all_low_density) / (all_high_density + all_low_density + 1e-6)
+        
         num_timepoints = len(timeline)
-        projected_high = projected_data[:num_timepoints]
-        projected_low = projected_data[num_timepoints:]
+        markers = [0, num_timepoints // 3, -1]  # -0.5s (Start), 0s (Fixation Initiation), 1s (End) 
         
-        for i in range(num_timepoints - 1):
-            ax.plot(projected_high[i:i+2, 0], projected_high[i:i+2, 1], projected_high[i:i+2, 2],
-                    color=high_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
-                    label="High-density" if i == 0 else "")
-            ax.plot(projected_low[i:i+2, 0], projected_low[i:i+2, 1], projected_low[i:i+2, 2],
-                    color=low_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
-                    label="Low-density" if i == 0 else "")
+        # Define PCA function
+        def fit_pca(data_matrix):
+            pca = PCA(n_components=3)
+            pca.fit(data_matrix.T)
+            return pca
         
-        ax.scatter(*projected_high[0], color='black', marker='o', s=80, label='Start')
-        ax.scatter(*projected_high[num_timepoints // 2], color='black', marker='*', s=120, label='Fixation Onset')
-        ax.scatter(*projected_high[-1], color='black', marker='s', s=80, label='End')
+        # Define PCA plotting function
+        def plot_pca(pca, data_matrix, title, colors, filename):
+            projected_data = pca.transform(data_matrix.T)
+            fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': '3d'})
+            ax.set_title(title, fontsize=14, fontweight='bold')
+            
+            for i, (label, color) in enumerate(colors.items()):
+                projected = projected_data[i * num_timepoints:(i + 1) * num_timepoints]
+                for j in range(num_timepoints - 1):
+                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
+                            color=color(0.3 + 0.7 * (j / num_timepoints)), 
+                            alpha=1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7, linewidth=2, label=label if j == 0 else "")
+                for idx, marker in enumerate(markers):
+                    marker_style = ['o', '*', 's'][idx]  # Circle (Start), Star (Fix Initiation), Square (End)
+                    label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][idx] if i == 0 else None
+                    ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
+            
+            ax.set_xlabel("PC1")
+            ax.set_ylabel("PC2")
+            ax.set_zlabel("PC3")
+            ax.legend()
+            fig.savefig(os.path.join(root_dir, filename), dpi=300, bbox_inches='tight')
+            plt.close(fig)
+            logger.info(f"{title} plot saved at {filename}")
         
-        ax.scatter(*projected_low[0], color='black', marker='o', s=80)
-        ax.scatter(*projected_low[num_timepoints // 2], color='black', marker='*', s=120)
-        ax.scatter(*projected_low[-1], color='black', marker='s', s=80)
+        # PCA Plot 1: High-Low PCA with Face-Object projection
+        data_matrix = np.hstack([all_high_density, all_low_density])
+        pca = fit_pca(data_matrix)
+        colors = {"High-density": high_density_cmap, "Low-density": low_density_cmap,
+                  "Face": face_cmap, "Object": object_cmap}
+        plot_pca(pca, np.hstack([data_matrix, all_face, all_object]),
+                 f"{region} - High vs Low PCA with Face & Object projection",
+                 colors, f"pca_high_low_face_obj_{region}.png")
         
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
-        ax.set_zlabel("PC3")
-        ax.set_title(f"{region} - High vs Low Density")
-        ax.legend()
+        # PCA Plot 2: Face-Object PCA with High-Low projection
+        data_matrix = np.hstack([all_face, all_object])
+        pca = fit_pca(data_matrix)
+        colors = {"Face": face_cmap, "Object": object_cmap, "High-density": high_density_cmap,
+                  "Low-density": low_density_cmap}
+        plot_pca(pca, np.hstack([data_matrix, all_high_density, all_low_density]),
+                 f"{region} - Face vs Object PCA with High & Low projection",
+                 colors, f"pca_face_obj_high_low_{region}.png")
         
-        # PCA for Normalized Index
-        pca_index = PCA(n_components=3)
-        projected_index = pca_index.fit_transform(all_index.T)
+        # PCA Plot 3: All combined PCA
+        data_matrix = np.hstack([all_high_density, all_low_density, all_face, all_object])
+        pca = fit_pca(data_matrix)
+        colors = {"High-density": high_density_cmap, "Low-density": low_density_cmap,
+                  "Face": face_cmap, "Object": object_cmap}
+        plot_pca(pca, data_matrix, f"{region} - Combined PCA of High, Low, Face, and Object",
+                 colors, f"pca_combined_{region}.png")
         
-        for i in range(num_timepoints - 1):
-            index_ax.plot(projected_index[i:i+2, 0], projected_index[i:i+2, 1], projected_index[i:i+2, 2],
-                          color=index_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2)
-        
-        index_ax.scatter(*projected_index[0], color='black', marker='o', s=80, label='Start')
-        index_ax.scatter(*projected_index[num_timepoints // 2], color='black', marker='*', s=120, label='Fixation Onset')
-        index_ax.scatter(*projected_index[-1], color='black', marker='s', s=80, label='End')
-        
-        index_ax.set_xlabel("PC1")
-        index_ax.set_ylabel("PC2")
-        index_ax.set_zlabel("PC3")
-        index_ax.set_title(f"{region} - Normalized Index")
-        index_ax.legend()
-    
-    pca_plot_path = os.path.join(root_dir, "0_pca_trajectory_high_low_density.png")
-    fig.savefig(pca_plot_path, dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    logger.info(f"PCA trajectory plot saved at {pca_plot_path}")
-    
-    pca_index_plot_path = os.path.join(root_dir, "0_pca_index_trajectory.png")
-    fig_index.savefig(pca_index_plot_path, dpi=300, bbox_inches='tight')
-    plt.close(fig_index)
-    logger.info(f"PCA index trajectory plot saved at {pca_index_plot_path}")
+        # PCA Plot 4: Indices (High-Low and Face-Object)
+        data_matrix = np.hstack([high_low_index, face_obj_index])
+        pca = fit_pca(data_matrix)
+        colors = {"High-Low Index": high_low_index_cmap, "Face-Object Index": face_object_index_cmap}
+        plot_pca(pca, data_matrix, f"{region} - PCA of Normalized Indices (High-Low & Face-Object)",
+                 colors, f"pca_indices_{region}.png")
+
+
 
 
 
