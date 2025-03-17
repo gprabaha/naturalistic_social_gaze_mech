@@ -12,6 +12,10 @@ from joblib import Parallel, delayed, parallel_backend
 from functools import partial
 import pickle
 
+import seaborn as sns
+import matplotlib.cm as cm
+from sklearn.decomposition import PCA
+from mpl_toolkits.mplot3d import Axes3D
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -380,6 +384,7 @@ def analyze_and_plot_neural_response_to_face_fixations_during_mutual_bouts(
         logger.info(f"{region}: {sig_count} / {total_count} significant units ({percentage:.2f}%)")
     # Generate and save summary plot
     generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
+
     return merged_sig_units, merged_non_sig_units
 
 
@@ -723,6 +728,86 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
         plt.close(fig)
         logger.info(f"Summary plot saved at {summary_plot_path}")
 
+
+
+def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, timeline, root_dir):
+    """
+    Computes PCA on the concatenated high- and low-density mean spike counts across all units
+    for each region separately and plots the trajectory in the top three PCs.
+    """
+    logger.info("Performing PCA on high- and low-density neural activity trajectories")
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12), subplot_kw={'projection': '3d'})
+    fig.suptitle("Neural Response to Face Fixations by M1 During High vs Low Interactiveness", fontsize=16, fontweight='bold')
+    
+    # Define colormaps
+    high_density_cmap = cm.viridis
+    low_density_cmap = cm.magma
+    
+    regions = list(merged_high_density_counts.keys())
+    for idx, (region, ax) in enumerate(zip(regions, axes.flatten())):
+        all_high_density = []
+        all_low_density = []
+        
+        for unit_uuid, high_density_spike_counts in merged_high_density_counts.get(region, []):
+            low_density_spike_counts = next((c for u, c in merged_low_density_counts.get(region, []) if u == unit_uuid), None)
+            if low_density_spike_counts is None:
+                continue  # Skip units without corresponding low-density data
+
+            mean_high = np.mean(high_density_spike_counts, axis=0)
+            mean_low = np.mean(low_density_spike_counts, axis=0)
+            all_high_density.append(mean_high)
+            all_low_density.append(mean_low)
+        
+        if not all_high_density or not all_low_density:
+            logger.warning(f"No valid units found for region {region}.")
+            continue
+        
+        # Convert to numpy arrays
+        all_high_density = np.array(all_high_density)
+        all_low_density = np.array(all_low_density)
+        
+        # Concatenate high- and low-density spike count matrices for PCA
+        data_matrix = np.hstack([all_high_density, all_low_density])  # Shape: (n_units, 2 * timepoints)
+        
+        # Perform PCA
+        pca = PCA(n_components=3)
+        projected_data = pca.fit_transform(data_matrix.T)  # Transpose to (timepoints, units)
+        
+        # Split back into high- and low-density projections
+        num_timepoints = len(timeline)
+        projected_high = projected_data[:num_timepoints]
+        projected_low = projected_data[num_timepoints:]
+        
+        for i in range(num_timepoints - 1):
+            ax.plot(projected_high[i:i+2, 0], projected_high[i:i+2, 1], projected_high[i:i+2, 2],
+                    color=high_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
+                    label="High-density" if i == num_timepoints - 2 else "")
+            ax.plot(projected_low[i:i+2, 0], projected_low[i:i+2, 1], projected_low[i:i+2, 2],
+                    color=low_density_cmap(0.3 + 0.7 * (i / num_timepoints)), alpha=0.8, linewidth=2,
+                    label="Low-density" if i == num_timepoints - 2 else "")
+        
+        # Mark key time points
+        ax.scatter(*projected_high[0], color='black', marker='o', s=80, label='Start')
+        ax.scatter(*projected_high[num_timepoints // 2], color='black', marker='*', s=120, label='Fixation Onset')
+        ax.scatter(*projected_high[-1], color='black', marker='s', s=80, label='End')
+        
+        ax.scatter(*projected_low[0], color='black', marker='o', s=80)
+        ax.scatter(*projected_low[num_timepoints // 2], color='black', marker='*', s=120)
+        ax.scatter(*projected_low[-1], color='black', marker='s', s=80)
+        
+        # Labels and legend
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_zlabel("PC3")
+        ax.set_title(f"{region}")
+        ax.legend()
+    
+    # Save figure
+    pca_plot_path = os.path.join(root_dir, "0_pca_trajectory_high_low_density_per_region.png")
+    plt.savefig(pca_plot_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    logger.info(f"PCA trajectory plot saved at {pca_plot_path}")
 
 
 
