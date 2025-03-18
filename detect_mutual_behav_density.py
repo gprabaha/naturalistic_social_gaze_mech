@@ -777,19 +777,71 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
     2. PCA on (face, object) activity and projection of (high, low) activity.
     3. PCA on all (high, low, face, object) activities.
     4. PCA on indices: (high-low) and (face-object).
+    
+    Each figure contains a 2x2 subplot grid, one for each region.
     """
     logger.info("Performing PCA on neural activity trajectories")
     
-    # Define unique colormaps
-    high_density_cmap = cm.viridis
-    low_density_cmap = cm.magma
-    face_cmap = cm.coolwarm
-    object_cmap = cm.cividis
-    high_low_index_cmap = cm.plasma
-    face_object_index_cmap = cm.terrain
-    
+    # Define colormaps
+    high_density_cmap = cm.RdPu
+    low_density_cmap = cm.GnBu
+    face_cmap = cm.Oranges
+    object_cmap = cm.Greys
+    high_low_index_cmap = cm.cool
+    face_object_index_cmap = cm.autumn
+
     regions = list(merged_high_density_counts.keys())
+    num_regions = len(regions)
     
+    if num_regions < 4:
+        logger.warning("Fewer than 4 regions found, adjusting subplot layout.")
+
+    markers = [0, len(timeline) // 3, -1]  # Start (-0.5s), Fixation Initiation (0s), End (1s)
+    
+    # Define PCA function
+    def fit_pca(data_matrix):
+        pca = PCA(n_components=3)
+        pca.fit(data_matrix.T)
+        return pca
+
+    # Define function to plot PCA for all regions in a 2x2 grid
+    def plot_pca_grid(pca_dict, data_dict, title, colors, filename):
+        fig, axes = plt.subplots(2, 2, figsize=(12, 10), subplot_kw={'projection': '3d'})
+        fig.suptitle(title, fontsize=16, fontweight='bold')
+        
+        for idx, (region, ax) in enumerate(zip(regions, axes.flat)):
+            pca = pca_dict[region]
+            data_matrix = data_dict[region]
+            projected_data = pca.transform(data_matrix.T)
+
+            ax.set_title(region, fontsize=12, fontweight='bold')
+            for i, (label, color) in enumerate(colors.items()):
+                projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
+                for j in range(len(timeline) - 1):
+                    alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
+                                    ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
+                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
+                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
+                
+                for marker_idx, marker in enumerate(markers):
+                    marker_style = ['o', '*', 's'][marker_idx]  # Circle (Start), Star (Fix Initiation), Square (End)
+                    label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
+                    ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
+
+            ax.set_xlabel("PC1")
+            ax.set_ylabel("PC2")
+            ax.set_zlabel("PC3")
+
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center', ncol=4, fontsize=10)
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
+        fig.savefig(os.path.join(root_dir, filename), dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        logger.info(f"{title} plot saved at {filename}")
+
+    # Store PCA and data for each region
+    pca_results, data_matrices = {}, {}
+
     for region in regions:
         all_high_density, all_low_density, all_object, all_face = [], [], [], []
         
@@ -818,76 +870,42 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         all_low_density = np.array(all_low_density)
         all_object = np.array(all_object)
         all_face = np.array(all_face)
-        
+
         face_obj_index = (all_face - all_object) / (all_face + all_object + 1e-6)
         high_low_index = (all_high_density - all_low_density) / (all_high_density + all_low_density + 1e-6)
         
-        num_timepoints = len(timeline)
-        markers = [0, num_timepoints // 3, -1]  # -0.5s (Start), 0s (Fixation Initiation), 1s (End) 
-        
-        # Define PCA function
-        def fit_pca(data_matrix):
-            pca = PCA(n_components=3)
-            pca.fit(data_matrix.T)
-            return pca
-        
-        # Define PCA plotting function
-        def plot_pca(pca, data_matrix, title, colors, filename):
-            projected_data = pca.transform(data_matrix.T)
-            fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': '3d'})
-            ax.set_title(title, fontsize=14, fontweight='bold')
-            
-            for i, (label, color) in enumerate(colors.items()):
-                projected = projected_data[i * num_timepoints:(i + 1) * num_timepoints]
-                for j in range(num_timepoints - 1):
-                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                            color=color(0.3 + 0.7 * (j / num_timepoints)), 
-                            alpha=1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7, linewidth=2, label=label if j == 0 else "")
-                for idx, marker in enumerate(markers):
-                    marker_style = ['o', '*', 's'][idx]  # Circle (Start), Star (Fix Initiation), Square (End)
-                    label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][idx] if i == 0 else None
-                    ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
-            
-            ax.set_xlabel("PC1")
-            ax.set_ylabel("PC2")
-            ax.set_zlabel("PC3")
-            ax.legend()
-            fig.savefig(os.path.join(root_dir, filename), dpi=300, bbox_inches='tight')
-            plt.close(fig)
-            logger.info(f"{title} plot saved at {filename}")
-        
         # PCA Plot 1: High-Low PCA with Face-Object projection
         data_matrix = np.hstack([all_high_density, all_low_density])
-        pca = fit_pca(data_matrix)
-        colors = {"High-density": high_density_cmap, "Low-density": low_density_cmap,
-                  "Face": face_cmap, "Object": object_cmap}
-        plot_pca(pca, np.hstack([data_matrix, all_face, all_object]),
-                 f"{region} - High vs Low PCA with Face & Object projection",
-                 colors, f"pca_high_low_face_obj_{region}.png")
+        pca_results.setdefault("high_low", {})[region] = fit_pca(data_matrix)
+        data_matrices.setdefault("high_low", {})[region] = np.hstack([data_matrix, all_face, all_object])
         
         # PCA Plot 2: Face-Object PCA with High-Low projection
         data_matrix = np.hstack([all_face, all_object])
-        pca = fit_pca(data_matrix)
-        colors = {"Face": face_cmap, "Object": object_cmap, "High-density": high_density_cmap,
-                  "Low-density": low_density_cmap}
-        plot_pca(pca, np.hstack([data_matrix, all_high_density, all_low_density]),
-                 f"{region} - Face vs Object PCA with High & Low projection",
-                 colors, f"pca_face_obj_high_low_{region}.png")
+        pca_results.setdefault("face_object", {})[region] = fit_pca(data_matrix)
+        data_matrices.setdefault("face_object", {})[region] = np.hstack([data_matrix, all_high_density, all_low_density])
         
         # PCA Plot 3: All combined PCA
         data_matrix = np.hstack([all_high_density, all_low_density, all_face, all_object])
-        pca = fit_pca(data_matrix)
-        colors = {"High-density": high_density_cmap, "Low-density": low_density_cmap,
-                  "Face": face_cmap, "Object": object_cmap}
-        plot_pca(pca, data_matrix, f"{region} - Combined PCA of High, Low, Face, and Object",
-                 colors, f"pca_combined_{region}.png")
+        pca_results.setdefault("combined", {})[region] = fit_pca(data_matrix)
+        data_matrices.setdefault("combined", {})[region] = data_matrix
         
         # PCA Plot 4: Indices (High-Low and Face-Object)
         data_matrix = np.hstack([high_low_index, face_obj_index])
-        pca = fit_pca(data_matrix)
-        colors = {"High-Low Index": high_low_index_cmap, "Face-Object Index": face_object_index_cmap}
-        plot_pca(pca, data_matrix, f"{region} - PCA of Normalized Indices (High-Low & Face-Object)",
-                 colors, f"pca_indices_{region}.png")
+        pca_results.setdefault("indices", {})[region] = fit_pca(data_matrix)
+        data_matrices.setdefault("indices", {})[region] = data_matrix
+
+    # Generate plots
+    colors_dict = {
+        "high_low": {"High-density": high_density_cmap, "Low-density": low_density_cmap, "Face": face_cmap, "Object": object_cmap},
+        "face_object": {"Face": face_cmap, "Object": object_cmap, "High-density": high_density_cmap, "Low-density": low_density_cmap},
+        "combined": {"High-density": high_density_cmap, "Low-density": low_density_cmap, "Face": face_cmap, "Object": object_cmap},
+        "indices": {"High-Low Index": high_low_index_cmap, "Face-Object Index": face_object_index_cmap},
+    }
+
+    for condition, pca_dict in pca_results.items():
+        plot_pca_grid(pca_dict, data_matrices[condition], f"PCA of {condition.replace('_', ' ').title()} Across Regions",
+                      colors_dict[condition], f"pca_{condition}_grid.png")
+
 
 
 
