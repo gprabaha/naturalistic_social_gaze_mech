@@ -813,7 +813,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
                     alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
                                     ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
                     ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
+                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == len(timeline) // 2 else "")
 
                 for marker_idx, marker in enumerate(markers):
                     marker_style = ['o', '*', 's'][marker_idx]
@@ -927,13 +927,13 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
     }
 
     for condition in ["high_low", "face_object", "combined", "indices"]:
-        logger.info(f"Plotting PCA results figures for {condition}")
+        
         plot_pca_grid({r: pca_results[r][condition] for r in regions},
                       {r: data_matrices[r][condition] for r in regions},
                       f"PCA fit to: {condition.replace('_', ' ').title()} Across Regions",
                       colors_dict[condition], 
                       f"pca_{condition}_grid.png")
-        logger.info(f"Generating PCA results rotating animation for {condition}")
+
         generate_pca_video_parallel({r: pca_results[r][condition] for r in regions},
                            {r: data_matrices[r][condition] for r in regions},
                            f"Rotating PCA fit to: {condition}", 
@@ -963,7 +963,7 @@ def generate_pca_frame(frame, timeline, markers, projected_data_dict, colors, ti
                 alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
                                 ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
                 ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                        color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
+                        color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == len(timeline) // 2 else "")
 
             for marker_idx, marker in enumerate(markers):
                 marker_style = ['o', '*', 's'][marker_idx]
@@ -974,7 +974,9 @@ def generate_pca_frame(frame, timeline, markers, projected_data_dict, colors, ti
         ax.set_ylabel("PC2")
         ax.set_zlabel("PC3")
         ax.view_init(elev=angle_x % 360, azim=angle_z % 360)  # Rotate
-
+    
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', ncol=4, fontsize=20)
     frame_path = os.path.join(temp_dir, f"frame_{frame:04d}.png")
     fig.savefig(frame_path, dpi=100)
     plt.close(fig)
