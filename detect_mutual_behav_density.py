@@ -8,6 +8,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.stats import ttest_ind, wilcoxon
 from statsmodels.stats.multitest import multipletests
 from multiprocessing import Pool, cpu_count, Manager
+import multiprocessing as mp
 from joblib import Parallel, delayed, parallel_backend
 from functools import partial
 import pickle
@@ -17,6 +18,7 @@ import matplotlib.cm as cm
 from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
+import imageio
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -838,7 +840,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
             projected_data_dict[region] = pca.transform(data_dict[region].T)
         return projected_data_dict
 
-    def generate_pca_frame(frame, projected_data_dict, colors, title, root_dir, temp_dir):
+    def generate_pca_frame(frame, projected_data_dict, colors, title, temp_dir):
         """
         Generates and saves a single frame using precomputed PCA projections.
         """
@@ -875,7 +877,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
 
         return frame_path
 
-    def generate_pca_video_parallel(pca_dict, data_dict, title, colors, video_filename, root_dir, num_workers=-1):
+    def generate_pca_video_parallel(pca_dict, data_dict, title, colors, video_filename, num_workers=-1):
         """
         Generates a PCA video by parallelizing frame generation with precomputed PCA projections.
         """
@@ -891,7 +893,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         # Step 3: Generate frames in parallel
         frames = list(range(400))  # Number of frames
         with mp.Pool(num_workers) as pool:
-            frame_paths = pool.starmap(generate_pca_frame, [(frame, projected_data_dict, colors, title, root_dir, temp_dir) for frame in frames])
+            frame_paths = pool.starmap(generate_pca_frame, [(frame, projected_data_dict, colors, title, temp_dir) for frame in frames])
 
         # Step 4: Create video using imageio
         video_path = os.path.join(root_dir, video_filename)
@@ -964,13 +966,13 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         logger.info(f"Plotting PCA results figures for {condition}")
         plot_pca_grid({r: pca_results[r][condition] for r in regions},
                       {r: data_matrices[r][condition] for r in regions},
-                      f"PCA of {condition.replace('_', ' ').title()} Across Regions",
+                      f"PCA fit to: {condition.replace('_', ' ').title()} Across Regions",
                       colors_dict[condition], 
                       f"pca_{condition}_grid.png")
         logger.info(f"Generating PCA results rotating animation for {condition}")
         generate_pca_video_parallel({r: pca_results[r][condition] for r in regions},
                            {r: data_matrices[r][condition] for r in regions},
-                           f"Rotating PCA of {condition}", 
+                           f"Rotating PCA fit to: {condition}", 
                            colors_dict[condition], 
                            f"pca_{condition}_grid.mp4")
 
