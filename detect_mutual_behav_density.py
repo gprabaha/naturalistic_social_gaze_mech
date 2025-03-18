@@ -18,7 +18,8 @@ import matplotlib.cm as cm
 from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
-import imageio
+import imageio.v2 as imageio
+import shutil
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -335,6 +336,7 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
     os.makedirs(root_dir, exist_ok=True)
     processed_data_dir = params['processed_data_dir']
     processed_data_path = os.path.join(processed_data_dir, "neural_response_data.pkl")
+    available_cpus = params.get('available_cpus', 1)
     
     # Check if we should reload existing processed data
     if (params.get('reload_processed_data', False) and os.path.exists(processed_data_path)):
@@ -422,7 +424,7 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
     
     # Generate and save summary plots
     # generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
-    plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir)
+    plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir, available_cpus)
     
     return merged_sig_units, merged_non_sig_units, merged_face_vs_object_sig_units
 
@@ -770,7 +772,7 @@ def generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_
         logger.info(f"Summary plot saved at {summary_plot_path}")
 
 
-def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir):
+def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir, available_cpus):
     """
     Computes PCA on the concatenated high- and low-density mean spike counts across all units
     for each region separately and plots the trajectory in multiple ways.
@@ -790,10 +792,8 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
     markers = [0, len(timeline) // 3, -1]  # Start (-0.5s), Fixation Initiation (0s), End (1s)
 
     def fit_pca(data_matrix):
-        logger.info("Fitting PCA...")
         pca = PCA(n_components=3)
         pca.fit(data_matrix.T)
-        logger.info("PCA fitting completed.")
         return pca
 
     def plot_pca_grid(pca_dict, data_dict, title, colors, filename):
@@ -840,44 +840,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
             projected_data_dict[region] = pca.transform(data_dict[region].T)
         return projected_data_dict
 
-    def generate_pca_frame(frame, projected_data_dict, colors, title, temp_dir):
-        """
-        Generates and saves a single frame using precomputed PCA projections.
-        """
-        angle_z = 720 * (frame / 400)  # Two full rotations around z-axis
-        angle_x = 360 * (frame / 400)  # One full rotation around x-axis
-
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10), subplot_kw={'projection': '3d'})
-
-        for ax, (region, projected_data) in zip(axes.flat, projected_data_dict.items()):
-            ax.clear()
-            ax.set_title(region, fontsize=12, fontweight='bold')
-
-            for i, (label, color) in enumerate(colors.items()):
-                projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
-                for j in range(len(timeline) - 1):
-                    alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
-                                    ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
-                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
-
-                for marker_idx, marker in enumerate(markers):
-                    marker_style = ['o', '*', 's'][marker_idx]
-                    label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
-                    ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
-
-            ax.set_xlabel("PC1")
-            ax.set_ylabel("PC2")
-            ax.set_zlabel("PC3")
-            ax.view_init(elev=angle_x % 360, azim=angle_z % 360)  # Rotate
-
-        frame_path = os.path.join(temp_dir, f"frame_{frame:04d}.png")
-        fig.savefig(frame_path, dpi=100)
-        plt.close(fig)
-
-        return frame_path
-
-    def generate_pca_video_parallel(pca_dict, data_dict, title, colors, video_filename, num_workers=-1):
+    def generate_pca_video_parallel(pca_dict, data_dict, title, colors, video_filename):
         """
         Generates a PCA video by parallelizing frame generation with precomputed PCA projections.
         """
@@ -892,8 +855,8 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
 
         # Step 3: Generate frames in parallel
         frames = list(range(400))  # Number of frames
-        with mp.Pool(num_workers) as pool:
-            frame_paths = pool.starmap(generate_pca_frame, [(frame, projected_data_dict, colors, title, temp_dir) for frame in frames])
+        with mp.Pool(available_cpus) as pool:
+            frame_paths = pool.starmap(generate_pca_frame, [(frame, timeline, markers, projected_data_dict, colors, title, temp_dir) for frame in frames])
 
         # Step 4: Create video using imageio
         video_path = os.path.join(root_dir, video_filename)
@@ -904,9 +867,10 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         # Step 5: Cleanup temp files
         for frame_path in frame_paths:
             os.remove(frame_path)
-        os.rmdir(temp_dir)
+        shutil.rmtree(temp_dir)
 
         logger.info(f"Video saved at {video_path}")
+
 
     pca_results, data_matrices = {}, {}
 
@@ -979,7 +943,43 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
     logger.info("PCA analysis and visualization completed.")
 
 
+def generate_pca_frame(frame, timeline, markers, projected_data_dict, colors, title, temp_dir):
+    """
+    Generates and saves a single frame using precomputed PCA projections.
+    """
+    angle_z = 720 * (frame / 400)  # Two full rotations around z-axis
+    angle_x = 360 * (frame / 400)  # One full rotation around x-axis
 
+    fig, axes = plt.subplots(2, 2, figsize=(16, 16), subplot_kw={'projection': '3d'})
+    fig.suptitle(title, fontsize=16, fontweight='bold')
+
+    for ax, (region, projected_data) in zip(axes.flat, projected_data_dict.items()):
+        ax.clear()
+        ax.set_title(region, fontsize=12, fontweight='bold')
+
+        for i, (label, color) in enumerate(colors.items()):
+            projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
+            for j in range(len(timeline) - 1):
+                alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
+                                ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
+                ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
+                        color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
+
+            for marker_idx, marker in enumerate(markers):
+                marker_style = ['o', '*', 's'][marker_idx]
+                label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
+                ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
+
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_zlabel("PC3")
+        ax.view_init(elev=angle_x % 360, azim=angle_z % 360)  # Rotate
+
+    frame_path = os.path.join(temp_dir, f"frame_{frame:04d}.png")
+    fig.savefig(frame_path, dpi=100)
+    plt.close(fig)
+
+    return frame_path
 
 
 
