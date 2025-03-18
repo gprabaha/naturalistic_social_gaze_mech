@@ -829,44 +829,82 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         plt.close(fig)
         logger.info(f"PCA plot saved at {os.path.join(root_dir, filename)}")
 
-    def generate_pca_video(pca_dict, data_dict, title, colors, video_filename):
+    def precompute_pca_projections(pca_dict, data_dict):
         """
-        Creates an animated video rotating the PCA trajectories.
+        Precomputes PCA projections for each region.
         """
-        logger.info(f"Generating PCA video: {title}")
+        projected_data_dict = {}
+        for region, pca in pca_dict.items():
+            projected_data_dict[region] = pca.transform(data_dict[region].T)
+        return projected_data_dict
+
+    def generate_pca_frame(frame, projected_data_dict, colors, title, root_dir, temp_dir):
+        """
+        Generates and saves a single frame using precomputed PCA projections.
+        """
+        angle_z = 720 * (frame / 400)  # Two full rotations around z-axis
+        angle_x = 360 * (frame / 400)  # One full rotation around x-axis
+
         fig, axes = plt.subplots(2, 2, figsize=(12, 10), subplot_kw={'projection': '3d'})
 
-        def update(frame):
-            angle_z = 720 * (frame / 400)  # Two full rotations around z-axis
-            angle_x = 360 * (frame / 400)  # One full rotation around x-axis
-            for ax, (region, pca) in zip(axes.flat, pca_dict.items()):
-                data_matrix = data_dict[region]
-                projected_data = pca.transform(data_matrix.T)
+        for ax, (region, projected_data) in zip(axes.flat, projected_data_dict.items()):
+            ax.clear()
+            ax.set_title(region, fontsize=12, fontweight='bold')
 
-                ax.clear()
-                ax.set_title(region, fontsize=12, fontweight='bold')
-                for i, (label, color) in enumerate(colors.items()):
-                    projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
-                    for j in range(len(timeline) - 1):
-                        alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
-                                        ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
-                        ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                                color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
+            for i, (label, color) in enumerate(colors.items()):
+                projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
+                for j in range(len(timeline) - 1):
+                    alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
+                                    ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
+                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
+                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == 0 else "")
 
-                    for marker_idx, marker in enumerate(markers):
-                        marker_style = ['o', '*', 's'][marker_idx]
-                        label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
-                        ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
+                for marker_idx, marker in enumerate(markers):
+                    marker_style = ['o', '*', 's'][marker_idx]
+                    label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
+                    ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
 
-                ax.set_xlabel("PC1")
-                ax.set_ylabel("PC2")
-                ax.set_zlabel("PC3")
-                ax.view_init(elev=angle_x % 360, azim=angle_z % 360)  # Rotate
+            ax.set_xlabel("PC1")
+            ax.set_ylabel("PC2")
+            ax.set_zlabel("PC3")
+            ax.view_init(elev=angle_x % 360, azim=angle_z % 360)  # Rotate
 
-        ani = animation.FuncAnimation(fig, update, frames=400, interval=50)
-        ani.save(os.path.join(root_dir, video_filename), writer='ffmpeg', fps=20)
+        frame_path = os.path.join(temp_dir, f"frame_{frame:04d}.png")
+        fig.savefig(frame_path, dpi=100)
         plt.close(fig)
-        logger.info(f"Video saved at {os.path.join(root_dir, video_filename)}")
+
+        return frame_path
+
+    def generate_pca_video_parallel(pca_dict, data_dict, title, colors, video_filename, root_dir, num_workers=-1):
+        """
+        Generates a PCA video by parallelizing frame generation with precomputed PCA projections.
+        """
+        logger.info(f"Generating PCA video: {title}")
+
+        # Step 1: Precompute PCA projections
+        projected_data_dict = precompute_pca_projections(pca_dict, data_dict)
+
+        # Step 2: Create temp directory for frames
+        temp_dir = os.path.join(root_dir, "temp_frames")
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Step 3: Generate frames in parallel
+        frames = list(range(400))  # Number of frames
+        with mp.Pool(num_workers) as pool:
+            frame_paths = pool.starmap(generate_pca_frame, [(frame, projected_data_dict, colors, title, root_dir, temp_dir) for frame in frames])
+
+        # Step 4: Create video using imageio
+        video_path = os.path.join(root_dir, video_filename)
+        with imageio.get_writer(video_path, fps=20) as writer:
+            for frame_path in sorted(frame_paths):
+                writer.append_data(imageio.imread(frame_path))
+
+        # Step 5: Cleanup temp files
+        for frame_path in frame_paths:
+            os.remove(frame_path)
+        os.rmdir(temp_dir)
+
+        logger.info(f"Video saved at {video_path}")
 
     pca_results, data_matrices = {}, {}
 
@@ -930,7 +968,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
                       colors_dict[condition], 
                       f"pca_{condition}_grid.png")
         logger.info(f"Generating PCA results rotating animation for {condition}")
-        generate_pca_video({r: pca_results[r][condition] for r in regions},
+        generate_pca_video_parallel({r: pca_results[r][condition] for r in regions},
                            {r: data_matrices[r][condition] for r in regions},
                            f"Rotating PCA of {condition}", 
                            colors_dict[condition], 
