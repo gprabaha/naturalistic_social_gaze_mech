@@ -73,13 +73,18 @@ class FiringRateDataset():
 
         ex_fr = group_df['firing_rate_timeline'].sample(n=1).iloc[0]
         firing_rates = np.zeros(shape=(len(ex_fr), self.total_num_units))
+        loss_mask = np.zeros_like(firing_rates)
         for _, group_id_data in group_df_by_id:
             # They should all have the same unit ids
             unit_uuid = group_id_data['unit_uuid'].sample(n=1).iloc[0]
             unit_idx = self.unit_ids.index(unit_uuid)
-            firing_rates[:, unit_idx] = np.array(group_id_data["firing_rate_timeline"].sample(n=len(group_id_data["firing_rate_timeline"])).tolist())
+            cur_fr = np.array(group_id_data["firing_rate_timeline"].sample(n=len(group_id_data["firing_rate_timeline"])).tolist())
+            firing_rates[:, unit_idx] = cur_fr
+            cur_mask = np.ones_like(cur_fr)
+            loss_mask[:, unit_idx] = cur_mask
         
         firing_rates = normalization(firing_rates)
         firing_rates = torch.tensor(firing_rates, dtype=torch.float32)
+        loss_mask = torch.tensor(loss_mask, dtype=torch.float32)
 
-        return firing_rates, group_key  # Return the key for debugging & analysis
+        return firing_rates, group_key, loss_mask  # Return the key for debugging & analysis

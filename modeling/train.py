@@ -68,7 +68,7 @@ def main():
 
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'averaged_neural_firing_rate_df.pkl'
@@ -91,7 +91,8 @@ def main():
         args.inp_noise, 
         args.act_noise,
         args.constrained,
-        args.batch_first
+        args.batch_first,
+        args.spectral_radius
     ).cuda()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -101,17 +102,20 @@ def main():
     # Start training
     for epoch in range(args.epochs):
 
-        batch, key = dataset.sample_batch(args.batch_size)
+        batch, key, loss_mask = dataset.sample_batch(args.batch_size)
         batch = batch.unsqueeze(0)
+        loss_mask = loss_mask.unsqueeze(0)
         inp = const_input(key, batch.shape[1], dataset)
 
         # Put to device
         batch = batch.cuda()
         inp = inp.cuda()
+        loss_mask = loss_mask.cuda()
 
         xn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
-
         out, hn = model(xn, inp)
+
+        out = out * loss_mask
 
         # Compute all losses
         mse_loss = criterion(out, batch)

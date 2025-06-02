@@ -66,6 +66,11 @@ def config_parser():
                         default=1e-3, 
                         help='weight decay value (default: 1e-3)')
 
+    parser.add_argument('--spectral_radius', 
+                        type=float, 
+                        default=1, 
+                        help='initial spectral radius of network')
+
     parser.add_argument('--seed', 
                         type=int, 
                         default=123456, 
