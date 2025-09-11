@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from mRNNTorch.mRNN import mRNN
-from mRNNTorch.utils import get_region_activity
 
 class Model(nn.Module):
     def __init__(self, 
@@ -41,28 +40,16 @@ class Model(nn.Module):
         )
 
         self.connection_props = [
-            {"name": "pfc_exc",
-             "sign": "exc"},
-            {"name": "pfc_inhib",
-             "sign": "inhib"},
-            {"name": "acc_exc",
-             "sign": "exc"},
-            {"name": "acc_inhib",
-             "sign": "inhib"},
-            {"name": "ofc_exc",
-             "sign": "exc"},
-            {"name": "ofc_inhib",
-             "sign": "inhib"},
-            {"name": "bla_exc",
-             "sign": "exc"},
-            {"name": "bla_inhib",
-             "sign": "inhib"}
+            "pfc",
+            "acc",
+            "ofc",
+            "bla"
         ]
 
         # Build fully connected network with proper cell types
         for src_region in self.connection_props:
             for dst_region in self.connection_props:
-                self.mrnn.add_recurrent_connection(src_region["name"], dst_region["name"], sign=src_region["sign"])
+                self.mrnn.add_recurrent_connection(src_region, dst_region)
         self.mrnn.finalize_connectivity()
 
         self.pfc_out = nn.Linear(hid_dim, pfc_units)
@@ -71,12 +58,13 @@ class Model(nn.Module):
         self.bla_out = nn.Linear(hid_dim, bla_units)
 
     def forward(self, xn, inp, *args, noise=True):
+
         xn, hn = self.mrnn(xn, inp, *args, noise=noise)
 
-        pfc_act = get_region_activity(self.mrnn, hn, "pfc_exc", "pfc_inhib")
-        acc_act = get_region_activity(self.mrnn, hn, "acc_exc", "acc_inhib")
-        ofc_act = get_region_activity(self.mrnn, hn, "ofc_exc", "ofc_inhib")
-        bla_act = get_region_activity(self.mrnn, hn, "bla_exc", "ofc_inhib")
+        pfc_act = self.mrnn.get_region_activity(hn, "pfc")
+        acc_act = self.mrnn.get_region_activity(hn, "acc")
+        ofc_act = self.mrnn.get_region_activity(hn, "ofc")
+        bla_act = self.mrnn.get_region_activity(hn, "bla")
 
         pfc_out = self.pfc_out(pfc_act)
         acc_out = self.acc_out(acc_act)

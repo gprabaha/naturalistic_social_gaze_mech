@@ -68,7 +68,7 @@ def config_parser():
 
     parser.add_argument('--spectral_radius', 
                         type=float, 
-                        default=1, 
+                        default=1.5, 
                         help='initial spectral radius of network')
 
     parser.add_argument('--seed', 

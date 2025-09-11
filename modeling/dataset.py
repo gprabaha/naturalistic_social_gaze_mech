@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader, Sampler
+from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
 import numpy as np
 import os
@@ -64,27 +65,107 @@ class FiringRateDataset():
             probs = np.ones(self.num_conds) / self.num_conds
         cond = np.arange(self.num_conds)
         # Pick a random number based on the probabilities
-        random_cond = np.random.choice(cond, p=probs)
-        """Fetches a batch corresponding to a group."""
-        group_key, group_df = self.groups[random_cond]
+        random_cond = list(np.random.choice(cond, size=(batch_size,), p=probs, replace=False))
 
-        group_df_by_id = group_df.groupby(["unit_uuid"], sort=False)
-        # Extract firing rate timelines (all units in this group)
+        # Lists for gathering batch
+        key_list = []
+        firing_rate_list = []
+        loss_mask_list = []
 
-        ex_fr = group_df['firing_rate_timeline'].sample(n=1).iloc[0]
-        firing_rates = np.zeros(shape=(len(ex_fr), self.total_num_units))
-        loss_mask = np.zeros_like(firing_rates)
-        for _, group_id_data in group_df_by_id:
-            # They should all have the same unit ids
-            unit_uuid = group_id_data['unit_uuid'].sample(n=1).iloc[0]
-            unit_idx = self.unit_ids.index(unit_uuid)
-            cur_fr = np.array(group_id_data["firing_rate_timeline"].sample(n=len(group_id_data["firing_rate_timeline"])).tolist())
-            firing_rates[:, unit_idx] = cur_fr
-            cur_mask = np.ones_like(cur_fr)
-            loss_mask[:, unit_idx] = cur_mask
+        for cond in random_cond:
+
+            """Fetches a batch corresponding to a group."""
+            group_key, group_df = self.groups[cond]
+
+            group_df_by_id = group_df.groupby(["unit_uuid"], sort=False)
+            # Extract firing rate timelines (all units in this group)
+
+            ex_fr = group_df['firing_rate_timeline'].sample(n=1).iloc[0]
+            firing_rates = np.zeros(shape=(len(ex_fr), self.total_num_units))
+            loss_mask = np.zeros_like(firing_rates)
+            for _, group_id_data in group_df_by_id:
+                # They should all have the same unit ids
+                unit_uuid = group_id_data['unit_uuid'].sample(n=1).iloc[0]
+                unit_idx = self.unit_ids.index(unit_uuid)
+                cur_fr = np.array(group_id_data["firing_rate_timeline"].sample(n=len(group_id_data["firing_rate_timeline"])).tolist())
+                firing_rates[:, unit_idx] = cur_fr
+                cur_mask = np.ones_like(cur_fr)
+                loss_mask[:, unit_idx] = cur_mask
+            
+            firing_rates = normalization(firing_rates)
+            firing_rates = torch.tensor(firing_rates, dtype=torch.float32)
+            loss_mask = torch.tensor(loss_mask, dtype=torch.float32)
+
+            key_list.append(group_key)
+            firing_rate_list.append(firing_rates)
+            loss_mask_list.append(loss_mask)
         
-        firing_rates = normalization(firing_rates)
-        firing_rates = torch.tensor(firing_rates, dtype=torch.float32)
-        loss_mask = torch.tensor(loss_mask, dtype=torch.float32)
+        firing_rate_batch = pad_sequence(firing_rate_list, batch_first=True)
+        loss_mask_batch = pad_sequence(loss_mask_list, batch_first=True)
 
-        return firing_rates, group_key, loss_mask  # Return the key for debugging & analysis
+        return firing_rate_batch, key_list, loss_mask_batch  # Return the key for debugging & analysis
+
+
+
+
+class MeanFixationDataset():
+    def __init__(self, dataframe, group_by_columns=None):
+        """
+        Args:
+            dataframe (pd.DataFrame): The dataframe containing firing rate data.
+            group_by_columns (list): Columns used to group data into batches.
+        """
+        self.dataframe = dataframe.copy()  # Avoid modifying the original dataframe
+        self.group_by_columns = group_by_columns or [
+            'high_interactivity_face', 'low_interactivity_face', 'object'
+        ]
+        
+        self.dataframe[self.group_by_columns] = self.dataframe[self.group_by_columns].fillna("UNKNOWN")
+        df_by_region = self.dataframe.groupby(["region"], sort=False)
+        
+        self.units_per_region = {}
+        self.unit_ids = []
+        for region, data in df_by_region:
+            self.units_per_region[region[0]] = len([unit for unit in data["uuid"]])
+            self.unit_ids.extend([unit for unit in data["uuid"]])
+
+        self.num_conds = 3
+        self.total_num_units = len(self.unit_ids)
+
+    def sample_batch(self):
+
+        # Lists for gathering batch
+        key_list = ["high_interactivity_face", "low_interactivity_face", "object"]
+
+        df_by_region = self.dataframe.groupby(["region"], sort=False)
+
+        # Extract firing rate timelines (all unitsj in this group)
+        high_int_face = normalization(self.get_fr_tensor(df_by_region, "high_interactivity_face"))
+        low_int_face = normalization(self.get_fr_tensor(df_by_region, "low_interactivity_face"))
+        obj = normalization(self.get_fr_tensor(df_by_region, "object"))
+
+        loss_mask_high_int_face = torch.ones_like(high_int_face)
+        loss_mask_low_int_face = torch.ones_like(low_int_face)
+        loss_mask_obj = torch.ones_like(obj)
+
+        firing_rate_batch = pad_sequence([high_int_face, low_int_face, obj], batch_first=True)
+        loss_mask_batch = pad_sequence([loss_mask_high_int_face, loss_mask_low_int_face, loss_mask_obj], batch_first=True)
+
+        return firing_rate_batch, key_list, loss_mask_batch  # Return the key for debugging & analysis
+    
+    def get_fr_tensor(self, df, column):
+        fr_dict = {}
+        for key, group_data in df:
+            fr_dict[key[0]] = torch.stack([torch.tensor(fr) for fr in group_data[column]], dim=-1)
+        fr_tensor = []
+        for item in fr_dict:
+            fr_tensor.append(fr_dict[item])
+        fr_tensor = torch.cat(fr_tensor, dim=-1)
+        return fr_tensor
+    
+    def convert_pad_list(self, x):
+        # Convert each list to a tensor
+        tensor_list = [torch.tensor(lst) for lst in x]
+        tensor_list = pad_sequence(tensor_list, batch_first=True)
+        return tensor_list
+        

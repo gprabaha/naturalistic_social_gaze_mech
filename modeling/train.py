@@ -17,7 +17,7 @@ sys.path.append(str(root_dir))
 import curate_data
 import load_data
 import itertools
-from dataset import FiringRateDataset
+from dataset import FiringRateDataset, MeanFixationDataset
 import pdb
 from models import Model
 
@@ -59,6 +59,20 @@ def const_input(key, timesteps, dataset):
     input_series[..., dataset.input_key[key]] = 1
     return input_series 
 
+def interactivity_input(key, timesteps, dataset):
+    input_series = []
+    for cond in key:
+        inp = torch.zeros(size=(1, timesteps, 2))
+        if cond == "high_interactivity_face":
+            inp[..., 0] = 0.75
+        if cond == "low_interactivity_face":
+            inp[..., 0] = 0.25
+        if cond == "object":
+            inp[..., 1] = 0.25
+        input_series.append(inp)
+    input_series = torch.cat(input_series, dim=0)
+    return input_series
+
 # Currently 36 different conditions
 def main():
 
@@ -71,12 +85,12 @@ def main():
         path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
-        params['processed_data_dir'], 'averaged_neural_firing_rate_df.pkl'
+        params['processed_data_dir'], 'mean_fixation_response_df.pkl'
     )
     print('loading data...')
     df = load_data.get_data_df(behav_firing_rate_df_file_path)
     print('creating fr dataset...')
-    dataset = FiringRateDataset(df)
+    dataset = MeanFixationDataset(df)
     
     # Training variables
     model = Model(
@@ -102,10 +116,8 @@ def main():
     # Start training
     for epoch in range(args.epochs):
 
-        batch, key, loss_mask = dataset.sample_batch(args.batch_size)
-        batch = batch.unsqueeze(0)
-        loss_mask = loss_mask.unsqueeze(0)
-        inp = const_input(key, batch.shape[1], dataset)
+        batch, key, loss_mask = dataset.sample_batch()
+        inp = interactivity_input(key, batch.shape[1], dataset)
 
         # Put to device
         batch = batch.cuda()
@@ -113,7 +125,8 @@ def main():
         loss_mask = loss_mask.cuda()
 
         xn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
-        out, hn = model(xn, inp)
+        hn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
+        out, hn = model(inp, xn, hn)
 
         out = out * loss_mask
 

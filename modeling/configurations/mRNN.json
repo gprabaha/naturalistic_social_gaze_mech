@@ -12,36 +12,20 @@
 
     "recurrent_regions": [
       {
-        "name": "pfc_exc",
-        "num_units": 70
+        "name": "pfc",
+        "num_units": 100
       },
       {
-        "name": "pfc_inhib",
-        "num_units": 30
+        "name": "acc",
+        "num_units": 100
       },
       {
-        "name": "acc_exc",
-        "num_units": 70
+        "name": "ofc",
+        "num_units": 100
       },
       {
-        "name": "acc_inhib",
-        "num_units": 30
-      },
-      {
-        "name": "ofc_exc",
-        "num_units": 70
-      },
-      {
-        "name": "ofc_inhib",
-        "num_units": 30
-      },
-      {
-        "name": "bla_exc",
-        "num_units": 70
-      },
-      {
-        "name": "bla_inhib",
-        "num_units": 30
+        "name": "bla",
+        "num_units": 100
       }
     ],
 
@@ -65,8 +49,9 @@
 
     "input_regions": [
       {
-        "num_units": 36,
-        "name": "input"
+        "num_units": 2,
+        "name": "input",
+        "sign": "pos"
       }
     ],
 
@@ -83,35 +68,19 @@
     "input_connections": [
       {
         "src_region": "input",
-        "dst_region": "pfc_exc"
+        "dst_region": "pfc"
       },
       {
         "src_region": "input",
-        "dst_region": "pfc_inhib"
+        "dst_region": "acc"
       },
       {
         "src_region": "input",
-        "dst_region": "acc_exc"
+        "dst_region": "ofc"
       },
       {
         "src_region": "input",
-        "dst_region": "acc_inhib"
-      },
-      {
-        "src_region": "input",
-        "dst_region": "ofc_exc"
-      },
-      {
-        "src_region": "input",
-        "dst_region": "ofc_inhib"
-      },
-      {
-        "src_region": "input",
-        "dst_region": "bla_exc"
-      },
-      {
-        "src_region": "input",
-        "dst_region": "bla_inhib"
+        "dst_region": "bla"
       }
     ]
   }

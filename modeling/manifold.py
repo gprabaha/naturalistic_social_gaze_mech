@@ -4,9 +4,12 @@ import pickle
 import tqdm as tqdm
 from sklearn.decomposition import PCA
 import warnings
+import itertools
 warnings.filterwarnings("ignore")
+from pca import save_fig
 
-def principal_angles(combinations, combination_labels, mode, num_comps=None, control=True):
+
+def principal_angles(combinations, num_comps=None, control=False):
 
     """
         Perform manifold analysis (principle angles and VAF)
@@ -19,12 +22,8 @@ def principal_angles(combinations, combination_labels, mode, num_comps=None, con
     angles_list = []
     control_list = []
 
-    if mode == "h":
-        num_comps = 12 if num_comps is None else num_comps
-        baseline_dim = 256
-    elif mode == "muscle_acts":
-        num_comps = 3 if num_comps is None else num_comps
-        baseline_dim = 6
+    num_comps = 10 if num_comps is None else num_comps
+    baseline_dim = 256
 
     if control == True:
         # Create a random manifold as a control
@@ -41,8 +40,8 @@ def principal_angles(combinations, combination_labels, mode, num_comps=None, con
         pca1 = PCA()
         pca2 = PCA()
 
-        task1_data = combination[0].reshape((-1, combination[0].shape[-1])).numpy()
-        task2_data = combination[1].reshape((-1, combination[1].shape[-1])).numpy()
+        task1_data = combination[0].reshape((-1, combination[0].shape[-1]))
+        task2_data = combination[1].reshape((-1, combination[1].shape[-1]))
 
         pca1.fit(task1_data)
         pca2.fit(task2_data)
@@ -75,21 +74,16 @@ def principal_angles(combinations, combination_labels, mode, num_comps=None, con
 
 
 
-def vaf_ratio(combinations, mode, num_comps=None, control=True):
+def vaf_ratio(combinations, num_comps=None, control=True):
 
     # Only use two muscle PCs for this task, but use three for the one above
 
     vaf_ratio_list = []
     vaf_ratio_list_control = []
 
-    if mode == "h":
-        num_comps = 12 if num_comps is None else num_comps
-        baseline_dim = 256
-        percentile = 90
-    elif mode == "muscle_acts":
-        num_comps = 2 if num_comps is None else num_comps
-        baseline_dim = 6
-        percentile = 90
+    num_comps = 12 if num_comps is None else num_comps
+    baseline_dim = 256
+    percentile = 90
 
     if control == True:
         # Create a random manifold as a control
@@ -165,17 +159,70 @@ if __name__ == "__main__":
         c_data = pickle.load(f)
     
     region_cat_dict_ci = {}
-    ci_data_groups = ci_data.groupby(["region", "category", "is_interactive"], sort=False)
+    ci_data_groups = ci_data.groupby(["region", "category"], sort=False)
     for group, data in ci_data_groups:
         region_fr = data.to_numpy()[:, -1]
         region_fr = np.stack(region_fr, axis=1)
         region_cat_dict_ci[group] = region_fr
 
     region_cat_dict_c = {}
-    c_data_groups = c_data.groupby(["region", "category", "is_interactive"], sort=False)
+    c_data_groups = c_data.groupby(["region", "category"], sort=False)
     for group, data in c_data_groups:
         region_fr = data.to_numpy()[:, -1]
         region_fr = np.stack(region_fr, axis=1)
         region_cat_dict_c[group] = region_fr
+
+
+
+
+    
+    # Start with non-interactive cause easier
+    regions = ["dmpfc", "ofc", "bla", "accg"]
+    region_based_dict = {}
+    region_based_dict_labels = {}
+    for region in regions:
+        region_based_dict[region] = []
+        region_based_dict_labels[region] = []
+    for group in region_cat_dict_c:
+        region_based_dict[group[0]].append(region_cat_dict_c[group])
+        region_based_dict_labels[group[0]].append(group[1])
+    
+    for region in region_based_dict:
+        combinations = list(itertools.combinations(region_based_dict[region], 2))
+        combinations_labels = list(itertools.combinations(region_based_dict_labels[region], 2))
+        angles_list = principal_angles(combinations)
+        angles_list = np.array(angles_list)
+        for (angle, label) in zip(angles_list, combinations_labels):
+            plt.plot(angle, label=label)
+        plt.legend()
+        save_fig(f"results/manifold/pc_angles_c_{region}.png")
+
+
+
+
+
+
+
+    # now do harder one
+    regions = ["dmpfc", "ofc", "bla", "accg"]
+    region_based_dict = {}
+    region_based_dict_labels = {}
+    for region in regions:
+        region_based_dict[region] = []
+        region_based_dict_labels[region] = []
+    for group in region_cat_dict_ci:
+        region_based_dict[group[0]].append(region_cat_dict_ci[group])
+        region_based_dict_labels[group[0]].append(group[1:])
+    
+    for region in region_based_dict:
+        combinations = list(itertools.combinations(region_based_dict[region], 2))
+        combinations_labels = list(itertools.combinations(region_based_dict_labels[region], 2))
+        angles_list = principal_angles(combinations)
+        angles_list = np.array(angles_list)
+        for (angle, label) in zip(angles_list, combinations_labels):
+            plt.plot(angle, label=label)
+        plt.legend()
+        save_fig(f"results/manifold/pc_angles_ci_{region}.png")
+
     
     
