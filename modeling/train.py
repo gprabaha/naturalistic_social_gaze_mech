@@ -64,9 +64,9 @@ def interactivity_input(key, timesteps, dataset):
     for cond in key:
         inp = torch.zeros(size=(1, timesteps, 2))
         if cond == "high_interactivity_face":
-            inp[..., 0] = 0.75
+            inp[..., 0] = 0.7
         if cond == "low_interactivity_face":
-            inp[..., 0] = 0.25
+            inp[..., 0] = 0.8
         if cond == "object":
             inp[..., 1] = 0.25
         input_series.append(inp)
@@ -82,7 +82,7 @@ def main():
 
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'mean_fixation_response_df.pkl'

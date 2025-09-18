@@ -50,8 +50,7 @@
     "input_regions": [
       {
         "num_units": 2,
-        "name": "input",
-        "sign": "pos"
+        "name": "input"
       }
     ],
 

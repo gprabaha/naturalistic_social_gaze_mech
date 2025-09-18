@@ -144,7 +144,7 @@ def main():
 
     # Load processed dataframe
     params = _initialize_params(
-        path_name="/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
+        path_name="/Users/John/naturalistic_social_gaze_mech/social_gaze"
     )
     behav_firing_rate_df_file_path = os.path.join(
         params['processed_data_dir'], 'mean_fixation_response_df.pkl'
