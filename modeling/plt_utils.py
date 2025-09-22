@@ -4,7 +4,6 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
-from utils import load_hp, interpolate_trial
 import matplotlib.pyplot as plt
 
 def standard_2d_ax(w=4, h=4):

@@ -1,11 +1,6 @@
 import torch 
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence
-import numpy as np
-from torch.utils.data import Dataset, DataLoader, Sampler
-import train_config
 
 import sys
 import os
@@ -15,14 +10,9 @@ from pathlib import Path
 root_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(root_dir))
 
-import curate_data
-import load_data
-import itertools
-from dataset import FiringRateDataset, MeanFixationDataset
-import pdb
 from models import Model
 from losses import l1_weight, l1_rate
-from utils import initialize_params, interactivity_input, create_dir, save_hp, get_mean_fixation_data
+from utils import interactivity_input, create_dir, save_hp, get_mean_fixation_data
 
 DEF_HP = {
     "inp_dim": 2,
@@ -86,7 +76,7 @@ def train(hp=None):
     for epoch in range(hp["epochs"]):
 
         batch, key, loss_mask = dataset.sample_batch()
-        inp = interactivity_input(key, batch.shape[1], dataset)
+        inp = interactivity_input(key, batch.shape[1])
 
         # Put to device
         batch = batch.cuda()
