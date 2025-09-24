@@ -135,7 +135,7 @@ def stim_inp(mrnn, batch_size, timesteps, *args):
     stim_inp = []
     for region in mrnn.region_dict:
         if region in args:
-            inp = -torch.ones(size=(batch_size, timesteps, mrnn.get_region_size(region)))
+            inp = -5 * torch.ones(size=(batch_size, timesteps, mrnn.get_region_size(region)))
         else:
             inp = torch.zeros(size=(batch_size, timesteps, mrnn.get_region_size(region)))
         stim_inp.append(inp)

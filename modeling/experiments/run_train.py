@@ -11,6 +11,14 @@ import config
 def train_def():
     train()
 
+def train_mult_nets():
+    for i in range(10):
+        hp = {
+            "save_dir": f"checkpoints/social_mrnn_{i}",
+            "model_save_name": f"social_mrnn_{i}",
+        }
+        train(hp=hp)
+
 if __name__ == "__main__":
     
     ### PARAMETERS ###
@@ -19,5 +27,7 @@ if __name__ == "__main__":
 
     if args.experiment == "train_def":
         train_def()
+    elif args.experiment == "train_mult_nets":
+        train_mult_nets()
     else:
         raise NotImplementedError(f"Experiment {args.experiment} not implemented")
