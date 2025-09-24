@@ -129,3 +129,16 @@ def load_pickle(file):
         print('Unable to load data ', file, ':', e)
         raise
     return data
+
+def stim_inp(mrnn, batch_size, timesteps, *args):
+    # Create stimulus input to match the one used in training
+    stim_inp = []
+    for region in mrnn.region_dict:
+        if region in args:
+            inp = -torch.ones(size=(batch_size, timesteps, mrnn.get_region_size(region)))
+        else:
+            inp = torch.zeros(size=(batch_size, timesteps, mrnn.get_region_size(region)))
+        stim_inp.append(inp)
+    stim_inp = torch.cat(stim_inp, dim=-1)
+
+    return stim_inp

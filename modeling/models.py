@@ -18,7 +18,9 @@ class Model(nn.Module):
                  act_noise, 
                  constrained, 
                  batch_first, 
-                 spectral_radius
+                 spectral_radius,
+                 activation="softplus",
+                 device="cuda"
         ):
         super(Model, self).__init__()
 
@@ -30,13 +32,15 @@ class Model(nn.Module):
 
         self.mrnn = mRNN(
             config,
+            activation=activation,
             constrained=constrained,
             batch_first=batch_first,
             dt=dt,
             tau=tau,
             noise_level_act=act_noise,
             noise_level_inp=inp_noise,
-            spectral_radius=spectral_radius
+            spectral_radius=spectral_radius,
+            device=device
         )
 
         self.connection_props = [

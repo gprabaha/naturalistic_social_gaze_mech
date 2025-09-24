@@ -16,7 +16,7 @@ from utils import interactivity_input, create_dir, save_hp, get_mean_fixation_da
 
 DEF_HP = {
     "inp_dim": 2,
-    "epochs": 100000,
+    "epochs": 25000,
     "lr": 1e-3,
     "dt": 10,
     "tau": 100,
@@ -31,7 +31,7 @@ DEF_HP = {
     "act_noise": 0,
     "spectral_radius": 1.3,
     "save_dir": "checkpoints/social_mrnn",
-    "model_save_name": "social_mrnn.pth",
+    "model_save_name": "social_mrnn",
     "model_specifications_path": "checkpoints/model_specifications",
     "mrnn_config_file": "modeling/configurations/mRNN.json"
 }
@@ -48,7 +48,7 @@ def train(hp=None):
     save_hp(hp, hp["save_dir"])
 
     # Load processed dataframe
-    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze")
+    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze")
     
     # Training variables
     model = Model(
@@ -105,7 +105,7 @@ def train(hp=None):
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            torch.save(model.state_dict(), os.path.join(hp["save_dir"], hp["model_save_name"]))
+            torch.save(model.state_dict(), os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
 
             mean_loss = cur_loss / 100
             losses.append(mean_loss)

@@ -33,7 +33,7 @@ def _plot_energy(coords, speed, save_path):
     ax.set_zticks([0, 1])  # Set the z-ticks to -1, 0, and 1
     # Optionally, you can set labels for those ticks
     ax.set_zticklabels(['0', '1'])
-    save_fig(save_path)
+    save_fig(save_path, eps=True)
     
 
 def _plot_flow(coords, x_vel, y_vel, save_path):
@@ -84,16 +84,16 @@ def plot_flow_fields(
     condition,
     *args, 
     num_points=20,
-    x_offset=5,
-    y_offset=5,
+    x_offset=10,
+    y_offset=10,
     cancel_other_regions=False,
     time_skips=10
     ):
     
     hp = load_hp(model_path)
-    exp_path = "results/pca"
+    exp_path = "results/flow_fields"
     
-    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
 
     # Training variables
     model = Model(
@@ -110,23 +110,23 @@ def plot_flow_fields(
         hp["constrained"],
         hp["batch_first"],
         hp["spectral_radius"],
-    ).cuda()
+        device="cpu"
+    )
 
-    checkpoint = torch.load(os.path.join(model_path, hp["model_save_name"]))
+    checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
     model.load_state_dict(checkpoint)
 
     # Start training
     batch, keys, _ = dataset.sample_batch()
     inp = interactivity_input(keys, batch.shape[1])
-    inp = inp.cuda()
+    inp = inp.cpu()
+    batch = batch.cpu()
 
-    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cuda")
-    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cuda")
+    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
 
     with torch.no_grad():
         out, hn = model(inp, xn, hn, noise=False)
-
-    print(hn.shape, batch.shape)
 
     out = out.detach().cpu()
     hn = hn.detach().cpu()
@@ -134,12 +134,13 @@ def plot_flow_fields(
     data_coords, x_vels, y_vels, speeds = flow_field(
         model.mrnn,
         hn[condition:condition+1],
-        batch[condition:condition+1],
+        inp[condition:condition+1],
         *args,
         num_points=num_points,
         x_offset=x_offset,
         y_offset=y_offset,
-        cancel_other_regions=cancel_other_regions
+        cancel_other_regions=cancel_other_regions,
+        follow_traj=False
     )
 
     # Define the save paths for flow and energy
@@ -167,12 +168,47 @@ def plot_flow_fields(
 
 
 
-def plot_flow_alm_140(model_name):
-    plot_flow_fields(model_name, 140, "alm_exc")
+def plot_flow_pfc_object(model_path):
+    plot_flow_fields(model_path, 2, "pfc")
+def plot_flow_pfc_low_int(model_path):
+    plot_flow_fields(model_path, 1, "pfc")
+def plot_flow_pfc_high_int(model_path):
+    plot_flow_fields(model_path, 0, "pfc")
 
-def plot_flow_direct_140(model_name):
-    plot_flow_fields(model_name, 140, "d1", "snr", "thal")
-    
+def plot_flow_acc_object(model_path):
+    plot_flow_fields(model_path, 2, "acc")
+def plot_flow_acc_low_int(model_path):
+    plot_flow_fields(model_path, 1, "acc")
+def plot_flow_acc_high_int(model_path):
+    plot_flow_fields(model_path, 0, "acc")
+
+def plot_flow_bla_object(model_path):
+    plot_flow_fields(model_path, 2, "bla")
+def plot_flow_bla_low_int(model_path):
+    plot_flow_fields(model_path, 1, "bla")
+def plot_flow_bla_high_int(model_path):
+    plot_flow_fields(model_path, 0, "bla")
+
+def plot_flow_ofc_object(model_path):
+    plot_flow_fields(model_path, 2, "ofc")
+def plot_flow_ofc_low_int(model_path):
+    plot_flow_fields(model_path, 1, "ofc")
+def plot_flow_ofc_high_int(model_path):
+    plot_flow_fields(model_path, 0, "ofc")
+
+def plot_all_flow_fields(model_path):
+    plot_flow_pfc_object(model_path)
+    plot_flow_pfc_high_int(model_path)
+    plot_flow_pfc_low_int(model_path)
+    plot_flow_acc_object(model_path)
+    plot_flow_acc_high_int(model_path)
+    plot_flow_acc_low_int(model_path)
+    plot_flow_bla_object(model_path)
+    plot_flow_bla_high_int(model_path)
+    plot_flow_bla_low_int(model_path)
+    plot_flow_ofc_object(model_path)
+    plot_flow_ofc_high_int(model_path)
+    plot_flow_ofc_low_int(model_path)
 
 
 def main():
@@ -182,10 +218,37 @@ def main():
     args = parser.parse_args()
     
     # Principle Angles
-    if args.experiment == "plot_flow_alm_140":
-        plot_flow_alm_140(args.model_name) 
-    elif args.experiment == "plot_flow_direct_140":
-        plot_flow_direct_140(args.model_name) 
+    if args.experiment == "plot_flow_pfc_object":
+        plot_flow_pfc_object(args.model_path) 
+    elif args.experiment == "plot_flow_pfc_low_int":
+        plot_flow_pfc_low_int(args.model_path) 
+    elif args.experiment == "plot_flow_pfc_high_int":
+        plot_flow_pfc_high_int(args.model_path) 
+
+    elif args.experiment == "plot_flow_acc_object":
+        plot_flow_acc_object(args.model_path) 
+    elif args.experiment == "plot_flow_acc_low_int":
+        plot_flow_acc_low_int(args.model_path) 
+    elif args.experiment == "plot_flow_acc_high_int":
+        plot_flow_acc_high_int(args.model_path) 
+
+    elif args.experiment == "plot_flow_bla_object":
+        plot_flow_bla_object(args.model_path) 
+    elif args.experiment == "plot_flow_bla_low_int":
+        plot_flow_bla_low_int(args.model_path) 
+    elif args.experiment == "plot_flow_bla_high_int":
+        plot_flow_bla_high_int(args.model_path) 
+
+    elif args.experiment == "plot_flow_ofc_object":
+        plot_flow_ofc_object(args.model_path) 
+    elif args.experiment == "plot_flow_ofc_low_int":
+        plot_flow_ofc_low_int(args.model_path) 
+    elif args.experiment == "plot_flow_ofc_high_int":
+        plot_flow_ofc_high_int(args.model_path) 
+    
+    elif args.experiment == "plot_all_flow_fields":
+        plot_all_flow_fields(args.model_path)
+
     else:
         raise ValueError("Experiment not in this file")
     
