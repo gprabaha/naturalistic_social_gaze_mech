@@ -4,75 +4,90 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
+import torch
+import os
 import numpy as np
 from sklearn.decomposition import PCA
+from utils import load_hp, get_mean_fixation_data, interactivity_input, load_pickle, save_fig
+from models import Model
+from DSA.DSA import DSA
+import pickle
+import config
+from plt_utils import standard_2d_ax
+import matplotlib.pyplot as plt
+import seaborn as sns
 
+def dsa_similarity_matrix(model_path):
 
-def dsa_similarity_matrix(model_name):
+    hp = load_hp(model_path)
+    
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
-    model_path = f"checkpoints/{model_name}"
-    model_file = f"{model_name}.pth"
-    exp_path = f"results/{model_name}/compositionality/dsa"
+    # Training variables
+    model = Model(
+        hp["mrnn_config_file"], 
+        100, 
+        dataset.units_per_region["dmpfc"], 
+        dataset.units_per_region["accg"], 
+        dataset.units_per_region["ofc"], 
+        dataset.units_per_region["bla"], 
+        hp["dt"], 
+        hp["tau"], 
+        hp["inp_noise"], 
+        hp["act_noise"],
+        hp["constrained"],
+        hp["batch_first"],
+        hp["spectral_radius"],
+        device="cpu"
+    )
 
-    options = {"batch_size": 32*4, "reach_conds": np.tile(np.arange(0, 32, 1), 4), "speed_cond": 5}
+    checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
+    model.load_state_dict(checkpoint)
+
+    # Start training
+    batch, keys, _ = dataset.sample_batch()
+    inp = interactivity_input(keys, batch.shape[1])
+    inp = inp.cpu()
+    batch = batch.cpu()
+
+    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+
+    with torch.no_grad():
+        out, hn = model(inp, xn, hn, noise=False)
+
+    out = out.detach().cpu()
+    hn = hn.detach().cpu()
 
     trial_data_h = []
-    trial_data_colors = []
+    trial_data_colors = ["red", "blue", "green", "purple"]        
+    for region in model.mrnn.region_dict:
+        region_act = model.mrnn.get_region_activity(hn, region)
+        pca = PCA(n_components=12)
+        reduced_act = pca.fit_transform(region_act.reshape((-1, region_act.shape[-1])))
+        reduced_act = reduced_act.reshape((region_act.shape[0], region_act.shape[1], 12))
+        trial_data_h.append(reduced_act)
 
-    for env in env_dict:
-
-        trial_data = _test(model_path, model_file, options, env=env_dict[env], noise=True)
-
-        if env == "DlyFullReach" or env == "DlyFullCircleClk" or env == "DlyFullCircleCClk" or env == "DlyFigure8" or env == "DlyFigure8Inv":
-
-            halfway = int((trial_data["epoch_bounds"]["movement"][0] + trial_data["epoch_bounds"]["movement"][1]) / 2)
-            extend = trial_data["h"][:, trial_data["epoch_bounds"]["movement"][0]:halfway]
-            retract = trial_data["h"][:, halfway:trial_data["epoch_bounds"]["movement"][1]]
-
-            pca_extend = PCA(n_components=12)
-            extend_reduced = pca_extend.fit_transform(extend.reshape((-1, extend.shape[-1])))
-            extend_reduced = extend_reduced.reshape((extend.shape[0], extend.shape[1], 12))
-
-            pca_retract = PCA(n_components=12)
-            retract_reduced = pca_retract.fit_transform(retract.reshape((-1, retract.shape[-1])))
-            retract_reduced = retract_reduced.reshape((retract.shape[0], retract.shape[1], 12))
-
-            trial_data_h.append(extend_reduced)
-            trial_data_colors.append("pink")
-
-            trial_data_h.append(retract_reduced)
-            trial_data_colors.append("purple")
-        
-        else:
-
-            extend = trial_data["h"][:, trial_data["epoch_bounds"]["movement"][0]:trial_data["epoch_bounds"]["movement"][1]]
-            pca_extend = PCA(n_components=12)
-            extend_reduced = pca_extend.fit_transform(extend.reshape((-1, extend.shape[-1])))
-            extend_reduced = extend_reduced.reshape((extend.shape[0], extend.shape[1], 12))
-
-            trial_data_h.append(extend_reduced)
-            trial_data_colors.append("blue")
-
-    # TODO play around with hyperparameters
-    dsa = DSA(trial_data_h, n_delays=90, rank=150, verbose=True, score_method="euclidean", device="cpu")
+    dsa = DSA(trial_data_h, n_delays=10, rank=120, verbose=True, score_method="euclidean", device="cpu")
     similarities = dsa.fit_score()
+    print(similarities.shape)
 
     dsa_data = {"similarities": similarities, "colors": trial_data_colors}
 
-    with open(os.path.join(model_path, "dsa_similarity.txt"), 'wb') as f:
+    with open(os.path.join(hp["save_dir"], "dsa_similarity.txt"), 'wb') as f:
         pickle.dump(dsa_data, f)
-    
-    dsa_scatter(model_name)
 
 
-def dsa_scatter(model_name):
 
-    model_path = f"checkpoints/{model_name}"
-    exp_path = f"results/{model_name}/compositionality/dsa"
+
+def dsa_scatter(model_path):
+
+    hp = load_hp(model_path)
+    exp_path = f"results/dsa"
 
     fig, ax = standard_2d_ax()
 
-    dsa_data = load_pickle(os.path.join(model_path, "dsa_similarity.txt"))
+    dsa_data = load_pickle(os.path.join(hp["save_dir"], "dsa_similarity.txt"))
     similarities = dsa_data["similarities"]
     colors = dsa_data["colors"]
 
@@ -83,30 +98,42 @@ def dsa_scatter(model_name):
     save_fig(os.path.join(exp_path, f"neural_dsa_scatter"), eps=True)
 
 
-def dsa_heatmap(model_name):
 
-    model_path = f"checkpoints/{model_name}"
-    exp_path = f"results/{model_name}/compositionality/dsa"
+
+def dsa_heatmap(model_path):
+
+    hp = load_hp(model_path)
+    exp_path = f"results/dsa"
 
     # Create figure and 3D axes
     fig = plt.figure(figsize=(4, 4))
     ax = fig.add_subplot(111)  # or projection='3d'
 
-    dsa_data = load_pickle(os.path.join(model_path, "dsa_similarity.txt"))
+    dsa_data = load_pickle(os.path.join(hp["save_dir"], "dsa_similarity.txt"))
     similarities = dsa_data["similarities"]
 
-    # Reorder indices
-    indices_extension = [0, 1, 2, 3, 4]
-    indices_extension_long = [5, 7, 9, 11, 13]
-    indices_retraction = [6, 8, 10, 12, 14]
-
-    # full reordering index
-    new_order = indices_extension + indices_extension_long + indices_retraction
-
-    # reorder rows and columns at once
-    re_similarity = similarities[np.ix_(new_order, new_order)]
-
-    sns.heatmap(re_similarity, cmap="Purples")
+    sns.heatmap(similarities, cmap="Purples")
     ax.set_xticks([])
     ax.set_yticks([])
     save_fig(os.path.join(exp_path, f"neural_dsa_similarity_vis"), eps=True)
+
+
+
+
+def main():
+    
+    ### PARAMETERS ###
+    parser = config.config_parser()
+    args = parser.parse_args()
+
+    if args.experiment == "dsa_similarity_matrix":
+        dsa_similarity_matrix(args.model_path)
+    elif args.experiment == "dsa_scatter":
+        dsa_scatter(args.model_path)
+    elif args.experiment == "dsa_heatmap":
+        dsa_heatmap(args.model_path)
+    else:
+        raise ValueError("Experiment not recognized")
+
+if __name__ == "__main__":
+    main()

@@ -87,7 +87,7 @@ def plot_flow_fields(
     x_offset=10,
     y_offset=10,
     cancel_other_regions=False,
-    time_skips=10
+    time_skips=1
     ):
     
     hp = load_hp(model_path)

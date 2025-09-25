@@ -21,7 +21,7 @@ def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
 
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -134,7 +134,7 @@ def plot_max_eigs_pfc_ablation(model_path):
     exp_path = "results/linear_analysis"
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -163,7 +163,18 @@ def plot_max_eigs_pfc_ablation(model_path):
     regions = ["bla", "acc", "ofc"]
     stim_list = []
     for s in range(3):
-        stim_list.append(stim_inp(model.mrnn, inp.shape[0], inp.shape[1], regions[s]))
+        stim_list.append(stim_inp(
+            model.mrnn, 
+            50, 
+            100,
+            inp.shape[1],
+            0,
+            -5,
+            inp.shape[0], 
+            5,
+            10,
+            regions[s]
+        ))
     
     for s in range(3):
         fig, ax = standard_2d_ax()
@@ -174,6 +185,8 @@ def plot_max_eigs_pfc_ablation(model_path):
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
         ax.plot(max_eigs_object, linewidth=4, color="green")
+        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
+        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
         save_fig(os.path.join(exp_path, f"pfc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
 
 def plot_max_eigs_acc_ablation(model_path):
@@ -181,7 +194,7 @@ def plot_max_eigs_acc_ablation(model_path):
     exp_path = "results/linear_analysis"
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -210,7 +223,18 @@ def plot_max_eigs_acc_ablation(model_path):
     regions = ["bla", "pfc", "ofc"]
     stim_list = []
     for s in range(3):
-        stim_list.append(stim_inp(model.mrnn, inp.shape[0], inp.shape[1], regions[s]))
+        stim_list.append(stim_inp(
+            model.mrnn, 
+            50, 
+            100,
+            inp.shape[1],
+            0,
+            -5,
+            inp.shape[0], 
+            5,
+            10,
+            regions[s]
+        ))
     
     for s in range(3):
         fig, ax = standard_2d_ax()
@@ -221,6 +245,8 @@ def plot_max_eigs_acc_ablation(model_path):
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
         ax.plot(max_eigs_object, linewidth=4, color="green")
+        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
+        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
         save_fig(os.path.join(exp_path, f"acc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
 
 def plot_max_eigs_bla_ablation(model_path):
@@ -228,7 +254,7 @@ def plot_max_eigs_bla_ablation(model_path):
     exp_path = "results/linear_analysis"
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -257,7 +283,18 @@ def plot_max_eigs_bla_ablation(model_path):
     regions = ["pfc", "acc", "ofc"]
     stim_list = []
     for s in range(3):
-        stim_list.append(stim_inp(model.mrnn, inp.shape[0], inp.shape[1], regions[s]))
+        stim_list.append(stim_inp(
+            model.mrnn, 
+            50, 
+            100,
+            inp.shape[1],
+            0,
+            -5,
+            inp.shape[0], 
+            5,
+            10,
+            regions[s]
+        ))
     
     for s in range(3):
         fig, ax = standard_2d_ax()
@@ -268,6 +305,8 @@ def plot_max_eigs_bla_ablation(model_path):
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
         ax.plot(max_eigs_object, linewidth=4, color="green")
+        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
+        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
         save_fig(os.path.join(exp_path, f"bla_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
 
 def plot_max_eigs_ofc_ablation(model_path):
@@ -275,7 +314,7 @@ def plot_max_eigs_ofc_ablation(model_path):
     exp_path = "results/linear_analysis"
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -304,7 +343,18 @@ def plot_max_eigs_ofc_ablation(model_path):
     regions = ["bla", "acc", "pfc"]
     stim_list = []
     for s in range(3):
-        stim_list.append(stim_inp(model.mrnn, inp.shape[0], inp.shape[1], regions[s]))
+        stim_list.append(stim_inp(
+            model.mrnn, 
+            50, 
+            100,
+            inp.shape[1],
+            0,
+            -5,
+            inp.shape[0], 
+            5,
+            10,
+            regions[s]
+        ))
     
     for s in range(3):
         fig, ax = standard_2d_ax()
@@ -315,6 +365,8 @@ def plot_max_eigs_ofc_ablation(model_path):
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
         ax.plot(max_eigs_object, linewidth=4, color="green")
+        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
+        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
         save_fig(os.path.join(exp_path, f"ofc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
 
 def main():

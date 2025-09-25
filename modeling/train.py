@@ -48,7 +48,7 @@ def train(hp=None):
     save_hp(hp, hp["save_dir"])
 
     # Load processed dataframe
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze")
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze")
     
     # Training variables
     model = Model(

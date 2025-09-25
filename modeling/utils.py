@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(project_root))
+
 import os 
 import matplotlib.pyplot as plt
 import curate_data
@@ -130,15 +136,39 @@ def load_pickle(file):
         raise
     return data
 
-def stim_inp(mrnn, batch_size, timesteps, *args):
-    # Create stimulus input to match the one used in training
-    stim_inp = []
-    for region in mrnn.region_dict:
-        if region in args:
-            inp = -5 * torch.ones(size=(batch_size, timesteps, mrnn.get_region_size(region)))
-        else:
-            inp = torch.zeros(size=(batch_size, timesteps, mrnn.get_region_size(region)))
-        stim_inp.append(inp)
-    stim_inp = torch.cat(stim_inp, dim=-1)
+def stim_inp(mrnn, start_silence, end_silence, seq_len, extra_steps, stim_strength, batch_size, n_steps_rampup, n_steps_rampdown, *args):
 
-    return stim_inp
+    """
+    Get inhibitory or excitatory stimulus for optogenetic replication
+    Function will gather the mask for the specified region and cell type then make a stimulus targeting these regions
+
+    Returns:
+        rnn:                        mRNN to silence
+        regions_cell_types:         List of tuples specifying the region and corresponding cell type to get a mask for
+        start_silence:              inteer index of when to start perturbations in the sequence
+        end_silence:                integer index of when to stop perturbations in the sequence
+        max_seq_len:                max sequence length
+        extra_steps:                Number of extra steps to add to the sequence if necessary
+        stim_strength:              Floating point value that specifies how strong the perturbation is (- or +)
+        batch_size:                 Number of conditions to be included in the sequence
+    """
+
+    mask = torch.zeros(size=(mrnn.total_num_units,), device=mrnn.device)
+    for region in args:
+        mask = mask + mrnn.region_mask_dict[region]
+    
+    total_stim_time = (end_silence - start_silence) - n_steps_rampup - n_steps_rampdown
+    # Inhibitory/excitatory stimulus to network, designed as an input current
+    # It applies the inhibitory stimulus to all of the conditions specified in data (or max_seq_len) equally
+    stim_pre = torch.zeros(size=(batch_size, start_silence, mrnn.total_num_units), device=mrnn.device)
+    if n_steps_rampup > 0:
+        stim_ramp_up = torch.linspace(0, stim_strength, n_steps_rampup).unsqueeze(0).unsqueeze(2).to(mrnn.device)
+        stim_ramp_up = stim_ramp_up.repeat(batch_size, 1, mrnn.total_num_units) * mask
+    stim_const = torch.ones(size=(batch_size, total_stim_time, mrnn.total_num_units), device=mrnn.device) * mask * stim_strength
+    if n_steps_rampdown > 0:
+        stim_ramp_down = torch.linspace(stim_strength, 0, n_steps_rampdown).unsqueeze(0).unsqueeze(2).to(mrnn.device)
+        stim_ramp_down = stim_ramp_down.repeat(batch_size, 1, mrnn.total_num_units) * mask
+    stim_post = torch.zeros(size=(batch_size, (seq_len - start_silence) + extra_steps, mrnn.total_num_units), device=mrnn.device)
+    stim = torch.cat([stim_pre, stim_ramp_up, stim_const, stim_ramp_down, stim_post], dim=1)
+
+    return stim
