@@ -129,7 +129,8 @@ def _get_max_eigs_ablation(model_path, *args):
 
 def plot_max_eigs_pfc(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
     fig, ax = standard_2d_ax()
     max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "pfc")
@@ -143,7 +144,8 @@ def plot_max_eigs_pfc(model_path):
 
 def plot_max_eigs_acc(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
     fig, ax = standard_2d_ax()
     max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "acc")
@@ -157,7 +159,8 @@ def plot_max_eigs_acc(model_path):
 
 def plot_max_eigs_bla(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
     fig, ax = standard_2d_ax()
     max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "bla")
@@ -171,7 +174,8 @@ def plot_max_eigs_bla(model_path):
 
 def plot_max_eigs_ofc(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
     fig, ax = standard_2d_ax()
     max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "ofc")
@@ -183,13 +187,20 @@ def plot_max_eigs_ofc(model_path):
     ax.plot(max_eigs_object, linewidth=4, color="green")
     save_fig(os.path.join(exp_path, "ofc_max_eigs_all_conds"), eps=True)
 
+def run_all_max_eigs(model_path):
+    plot_max_eigs_pfc(model_path)
+    plot_max_eigs_acc(model_path)
+    plot_max_eigs_bla(model_path)
+    plot_max_eigs_ofc(model_path)
+
 
 
 
 # ABLATION
 def plot_max_eigs_pfc_ablation(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     stim_list, regions = _get_max_eigs_ablation(model_path, "pfc")
     
     for s in range(3):
@@ -207,7 +218,8 @@ def plot_max_eigs_pfc_ablation(model_path):
 
 def plot_max_eigs_acc_ablation(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     stim_list, regions = _get_max_eigs_ablation(model_path, "acc")
     
     for s in range(3):
@@ -225,7 +237,8 @@ def plot_max_eigs_acc_ablation(model_path):
 
 def plot_max_eigs_bla_ablation(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     stim_list, regions = _get_max_eigs_ablation(model_path, "bla")
     
     for s in range(3):
@@ -243,7 +256,8 @@ def plot_max_eigs_bla_ablation(model_path):
 
 def plot_max_eigs_ofc_ablation(model_path):
 
-    exp_path = "results/linear_analysis"
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     stim_list, regions = _get_max_eigs_ablation(model_path, "ofc")
     
     for s in range(3):
@@ -258,6 +272,12 @@ def plot_max_eigs_ofc_ablation(model_path):
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
         save_fig(os.path.join(exp_path, f"ofc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
+
+def run_all_max_eigs_ablation(model_path):
+    plot_max_eigs_pfc_ablation(model_path)
+    plot_max_eigs_acc_ablation(model_path)
+    plot_max_eigs_bla_ablation(model_path)
+    plot_max_eigs_ofc_ablation(model_path)
 
 
 
@@ -330,6 +350,9 @@ def main():
         plot_max_eigs_bla(args.model_path)
     elif args.experiment == "plot_max_eigs_ofc":
         plot_max_eigs_ofc(args.model_path)
+    elif args.experiment == "run_all_max_eigs":
+        run_all_max_eigs(args.model_path)
+
     elif args.experiment == "plot_max_eigs_pfc_ablation":
         plot_max_eigs_pfc_ablation(args.model_path)
     elif args.experiment == "plot_max_eigs_acc_ablation":

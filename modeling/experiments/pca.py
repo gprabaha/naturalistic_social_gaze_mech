@@ -58,7 +58,7 @@ def plot_all_pcs(model, exp_path, x, data_type):
 def _plot_pca(model_path, data_type):
 
     hp = load_hp(model_path)
-    exp_path = "results/pca"
+    exp_path = f"results/{hp["model_save_name"]}/pca"
     
     dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
@@ -79,7 +79,7 @@ def _plot_pca(model_path, data_type):
         hp["spectral_radius"],
     ).cuda()
 
-    checkpoint = torch.load(os.path.join(model_path, hp["model_save_name"]))
+    checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"]+".pth"))
     model.load_state_dict(checkpoint)
 
     # Start training
