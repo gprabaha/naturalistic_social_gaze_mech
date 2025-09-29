@@ -36,7 +36,7 @@ def plot_pca(act, exp_path, region, data_type):
     ax.legend(loc="best")
 
     save_path = os.path.join(exp_path, f"{region}_{data_type}_pca")
-    save_fig(save_path, eps=True)
+    save_fig(save_path)
 
 def plot_all_pcs(model, exp_path, x, data_type):
 

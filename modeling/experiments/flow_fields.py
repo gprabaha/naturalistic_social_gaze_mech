@@ -33,7 +33,7 @@ def _plot_energy(coords, speed, save_path):
     ax.set_zticks([0, 1])  # Set the z-ticks to -1, 0, and 1
     # Optionally, you can set labels for those ticks
     ax.set_zticklabels(['0', '1'])
-    save_fig(save_path, eps=True)
+    save_fig(save_path)
     
 
 def _plot_flow(coords, x_vel, y_vel, save_path):
@@ -51,7 +51,7 @@ def _plot_flow(coords, x_vel, y_vel, save_path):
                   zorder=0,
     )
 
-    save_fig(save_path, eps=True)
+    save_fig(save_path)
 
     
 def _gen_line_collection(
@@ -91,9 +91,9 @@ def plot_flow_fields(
     ):
     
     hp = load_hp(model_path)
-    exp_path = "results/flow_fields"
+    exp_path = f"results/{hp["model_save_name"]}/flow_fields"
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
     # Training variables
     model = Model(

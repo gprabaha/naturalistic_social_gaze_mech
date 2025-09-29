@@ -140,7 +140,7 @@ def plot_max_eigs_pfc(model_path):
     ax.plot(max_eigs_high_int, linewidth=4, color="red")
     ax.plot(max_eigs_low_int, linewidth=4, color="blue")
     ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "pfc_max_eigs_all_conds"), eps=True)
+    save_fig(os.path.join(exp_path, "pfc_max_eigs_all_conds"))
 
 def plot_max_eigs_acc(model_path):
 
@@ -155,7 +155,7 @@ def plot_max_eigs_acc(model_path):
     ax.plot(max_eigs_high_int, linewidth=4, color="red")
     ax.plot(max_eigs_low_int, linewidth=4, color="blue")
     ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "acc_max_eigs_all_conds"), eps=True)
+    save_fig(os.path.join(exp_path, "acc_max_eigs_all_conds"))
 
 def plot_max_eigs_bla(model_path):
 
@@ -170,7 +170,7 @@ def plot_max_eigs_bla(model_path):
     ax.plot(max_eigs_high_int, linewidth=4, color="red")
     ax.plot(max_eigs_low_int, linewidth=4, color="blue")
     ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "bla_max_eigs_all_conds"), eps=True)
+    save_fig(os.path.join(exp_path, "bla_max_eigs_all_conds"))
 
 def plot_max_eigs_ofc(model_path):
 
@@ -185,7 +185,7 @@ def plot_max_eigs_ofc(model_path):
     ax.plot(max_eigs_high_int, linewidth=4, color="red")
     ax.plot(max_eigs_low_int, linewidth=4, color="blue")
     ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "ofc_max_eigs_all_conds"), eps=True)
+    save_fig(os.path.join(exp_path, "ofc_max_eigs_all_conds"))
 
 def run_all_max_eigs(model_path):
     plot_max_eigs_pfc(model_path)
@@ -214,7 +214,7 @@ def plot_max_eigs_pfc_ablation(model_path):
         ax.plot(max_eigs_object, linewidth=4, color="green")
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"pfc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
+        save_fig(os.path.join(exp_path, f"pfc_max_eigs_all_conds_ablate_{regions[s]}"))
 
 def plot_max_eigs_acc_ablation(model_path):
 
@@ -233,7 +233,7 @@ def plot_max_eigs_acc_ablation(model_path):
         ax.plot(max_eigs_object, linewidth=4, color="green")
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"acc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
+        save_fig(os.path.join(exp_path, f"acc_max_eigs_all_conds_ablate_{regions[s]}"))
 
 def plot_max_eigs_bla_ablation(model_path):
 
@@ -252,7 +252,7 @@ def plot_max_eigs_bla_ablation(model_path):
         ax.plot(max_eigs_object, linewidth=4, color="green")
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"bla_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
+        save_fig(os.path.join(exp_path, f"bla_max_eigs_all_conds_ablate_{regions[s]}"))
 
 def plot_max_eigs_ofc_ablation(model_path):
 
@@ -271,7 +271,7 @@ def plot_max_eigs_ofc_ablation(model_path):
         ax.plot(max_eigs_object, linewidth=4, color="green")
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"ofc_max_eigs_all_conds_ablate_{regions[s]}"), eps=True)
+        save_fig(os.path.join(exp_path, f"ofc_max_eigs_all_conds_ablate_{regions[s]}"))
 
 def run_all_max_eigs_ablation(model_path):
     plot_max_eigs_pfc_ablation(model_path)
@@ -361,6 +361,9 @@ def main():
         plot_max_eigs_bla_ablation(args.model_path)
     elif args.experiment == "plot_max_eigs_ofc_ablation":
         plot_max_eigs_ofc_ablation(args.model_path)
+    elif args.experiment == "run_all_max_eigs_ablation":
+        run_all_max_eigs_ablation(args.model_path)
+
     else:
         raise NotImplementedError(f"Experiment {args.experiment} not implemented")
 

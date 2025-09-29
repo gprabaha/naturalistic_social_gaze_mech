@@ -14,6 +14,8 @@ import json
 import pickle
 from matplotlib import rcParams
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def initialize_params(
     remake_firing_rate_df=False,
@@ -117,7 +119,6 @@ def save_fig(save_path, eps=False):
     # Simple function to save figure while creating dir and closing
     dir = os.path.dirname(save_path)
     create_dir(dir)
-    plt.tight_layout()
     if eps:
         plt.savefig(save_path + ".pdf", format="pdf")
     else:

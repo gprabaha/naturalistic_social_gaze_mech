@@ -23,6 +23,10 @@ def dsa_similarity_matrix(model_path):
     
     dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
+    # temp
+    hp["inp_noise"] = 0.01
+    hp["act_noise"] = 0.1
+
     # Training variables
     model = Model(
         hp["mrnn_config_file"], 
@@ -50,11 +54,14 @@ def dsa_similarity_matrix(model_path):
     inp = inp.cpu()
     batch = batch.cpu()
 
-    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
-    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
-
-    with torch.no_grad():
-        out, hn = model(inp, xn, hn, noise=False)
+    trials = []
+    for t in range(50):
+        xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+        hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+        with torch.no_grad():
+            out, hn = model(inp, xn, hn, noise=True)
+            trials.append(hn)
+    trials = torch.cat(trials, dim=0)
 
     out = out.detach().cpu()
     hn = hn.detach().cpu()
@@ -62,15 +69,14 @@ def dsa_similarity_matrix(model_path):
     trial_data_h = []
     trial_data_colors = ["red", "blue", "green", "purple"]        
     for region in model.mrnn.region_dict:
-        region_act = model.mrnn.get_region_activity(hn, region)
+        region_act = model.mrnn.get_region_activity(trials, region)
         pca = PCA(n_components=12)
         reduced_act = pca.fit_transform(region_act.reshape((-1, region_act.shape[-1])))
         reduced_act = reduced_act.reshape((region_act.shape[0], region_act.shape[1], 12))
         trial_data_h.append(reduced_act)
 
-    dsa = DSA(trial_data_h, n_delays=10, rank=120, verbose=True, score_method="euclidean", device="cpu")
+    dsa = DSA(trial_data_h, n_delays=90, rank=120, verbose=True, score_method="euclidean", device="cpu")
     similarities = dsa.fit_score()
-    print(similarities.shape)
 
     dsa_data = {"similarities": similarities, "colors": trial_data_colors}
 
@@ -83,7 +89,7 @@ def dsa_similarity_matrix(model_path):
 def dsa_scatter(model_path):
 
     hp = load_hp(model_path)
-    exp_path = f"results/dsa"
+    exp_path = f"results/{hp["model_save_name"]}/dsa"
 
     fig, ax = standard_2d_ax()
 
@@ -95,7 +101,7 @@ def dsa_scatter(model_path):
     ax.scatter(reduced[:, 0], reduced[:, 1], c=colors, alpha=0.75, s=250)
     ax.set_xticks([])
     ax.set_yticks([])
-    save_fig(os.path.join(exp_path, f"neural_dsa_scatter"), eps=True)
+    save_fig(os.path.join(exp_path, f"neural_dsa_scatter"))
 
 
 
@@ -103,7 +109,7 @@ def dsa_scatter(model_path):
 def dsa_heatmap(model_path):
 
     hp = load_hp(model_path)
-    exp_path = f"results/dsa"
+    exp_path = f"results/{hp["model_save_name"]}/dsa"
 
     # Create figure and 3D axes
     fig = plt.figure(figsize=(4, 4))
@@ -115,7 +121,7 @@ def dsa_heatmap(model_path):
     sns.heatmap(similarities, cmap="Purples")
     ax.set_xticks([])
     ax.set_yticks([])
-    save_fig(os.path.join(exp_path, f"neural_dsa_similarity_vis"), eps=True)
+    save_fig(os.path.join(exp_path, f"neural_dsa_similarity_vis"))
 
 
 
