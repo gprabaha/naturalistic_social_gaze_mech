@@ -12,6 +12,8 @@ from plt_utils import standard_2d_ax
 from utils import load_hp, get_mean_fixation_data, interactivity_input, save_fig, stim_inp
 from models import Model
 from mRNNTorch.analysis import linearized_eigendecomposition
+from scipy.special import rel_entr
+import numpy as np
 
 # Supress warnings
 import warnings
@@ -62,17 +64,19 @@ def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
     hn_cond = hn[condition]
 
     max_eigs = []
+    eigs = []
     for hn_t in hn_cond:
         reals, _, _ = linearized_eigendecomposition(model.mrnn, hn_t, *args)
         max_real = max(reals)
+        eigs.append(reals)
         max_eigs.append(max_real)
     
-    return max_eigs
+    return max_eigs, eigs
 
 
 
 
-def _get_max_eigs_ablation(model_path, *args):
+def _get_ablation_stims(model_path, *args):
     
     hp = load_hp(model_path)
     
@@ -123,69 +127,38 @@ def _get_max_eigs_ablation(model_path, *args):
         ))
     
     return stim_list, regions
+
+
+
+
+def _plot_max_eigs(model_path, region):
     
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
+    
+    fig, ax = standard_2d_ax()
+    max_eigs_high_int, _ = _get_max_eigenvalues(model_path, 0, region)
+    max_eigs_low_int, _ = _get_max_eigenvalues(model_path, 1, region)
+    max_eigs_object, _ = _get_max_eigenvalues(model_path, 2, region)
+
+    ax.plot(max_eigs_high_int, linewidth=4, color="red")
+    ax.plot(max_eigs_low_int, linewidth=4, color="blue")
+    ax.plot(max_eigs_object, linewidth=4, color="green")
+    save_fig(os.path.join(exp_path, f"{region}_max_eigs_all_conds"))
 
 
 
 def plot_max_eigs_pfc(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    
-    fig, ax = standard_2d_ax()
-    max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "pfc")
-    max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "pfc")
-    max_eigs_object = _get_max_eigenvalues(model_path, 2, "pfc")
-
-    ax.plot(max_eigs_high_int, linewidth=4, color="red")
-    ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-    ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "pfc_max_eigs_all_conds"))
+    _plot_max_eigs(model_path, "pfc")
 
 def plot_max_eigs_acc(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    
-    fig, ax = standard_2d_ax()
-    max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "acc")
-    max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "acc")
-    max_eigs_object = _get_max_eigenvalues(model_path, 2, "acc")
-
-    ax.plot(max_eigs_high_int, linewidth=4, color="red")
-    ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-    ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "acc_max_eigs_all_conds"))
+    _plot_max_eigs(model_path, "acc")
 
 def plot_max_eigs_bla(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    
-    fig, ax = standard_2d_ax()
-    max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "bla")
-    max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "bla")
-    max_eigs_object = _get_max_eigenvalues(model_path, 2, "bla")
-
-    ax.plot(max_eigs_high_int, linewidth=4, color="red")
-    ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-    ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "bla_max_eigs_all_conds"))
+    _plot_max_eigs(model_path, "bla")
 
 def plot_max_eigs_ofc(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    
-    fig, ax = standard_2d_ax()
-    max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "ofc")
-    max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "ofc")
-    max_eigs_object = _get_max_eigenvalues(model_path, 2, "ofc")
-
-    ax.plot(max_eigs_high_int, linewidth=4, color="red")
-    ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-    ax.plot(max_eigs_object, linewidth=4, color="green")
-    save_fig(os.path.join(exp_path, "ofc_max_eigs_all_conds"))
+    _plot_max_eigs(model_path, "ofc")
 
 def run_all_max_eigs(model_path):
     plot_max_eigs_pfc(model_path)
@@ -197,81 +170,36 @@ def run_all_max_eigs(model_path):
 
 
 # ABLATION
-def plot_max_eigs_pfc_ablation(model_path):
-
+def _plot_max_eigs_ablation(model_path, region):
+    
     hp = load_hp(model_path)
     exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    stim_list, regions = _get_max_eigs_ablation(model_path, "pfc")
+    stim_list, regions = _get_ablation_stims(model_path, region)
     
     for s in range(3):
         fig, ax = standard_2d_ax()
-        max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "pfc", stim_inp=stim_list[s])
-        max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "pfc", stim_inp=stim_list[s])
-        max_eigs_object = _get_max_eigenvalues(model_path, 2, "pfc", stim_inp=stim_list[s])
+        max_eigs_high_int, _ = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_list[s])
+        max_eigs_low_int, _ = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_list[s])
+        max_eigs_object, _ = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_list[s])
 
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
         ax.plot(max_eigs_object, linewidth=4, color="green")
         ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
         ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"pfc_max_eigs_all_conds_ablate_{regions[s]}"))
+        save_fig(os.path.join(exp_path, f"{region}_max_eigs_all_conds_ablate_{regions[s]}"))
+
+def plot_max_eigs_pfc_ablation(model_path):
+    _plot_max_eigs_ablation(model_path, "pfc")
 
 def plot_max_eigs_acc_ablation(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    stim_list, regions = _get_max_eigs_ablation(model_path, "acc")
-    
-    for s in range(3):
-        fig, ax = standard_2d_ax()
-        max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "acc", stim_inp=stim_list[s])
-        max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "acc", stim_inp=stim_list[s])
-        max_eigs_object = _get_max_eigenvalues(model_path, 2, "acc", stim_inp=stim_list[s])
-
-        ax.plot(max_eigs_high_int, linewidth=4, color="red")
-        ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-        ax.plot(max_eigs_object, linewidth=4, color="green")
-        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
-        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"acc_max_eigs_all_conds_ablate_{regions[s]}"))
+    _plot_max_eigs_ablation(model_path, "acc")
 
 def plot_max_eigs_bla_ablation(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    stim_list, regions = _get_max_eigs_ablation(model_path, "bla")
-    
-    for s in range(3):
-        fig, ax = standard_2d_ax()
-        max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "bla", stim_inp=stim_list[s])
-        max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "bla", stim_inp=stim_list[s])
-        max_eigs_object = _get_max_eigenvalues(model_path, 2, "bla", stim_inp=stim_list[s])
-
-        ax.plot(max_eigs_high_int, linewidth=4, color="red")
-        ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-        ax.plot(max_eigs_object, linewidth=4, color="green")
-        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
-        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"bla_max_eigs_all_conds_ablate_{regions[s]}"))
+    _plot_max_eigs_ablation(model_path, "bla")
 
 def plot_max_eigs_ofc_ablation(model_path):
-
-    hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
-    stim_list, regions = _get_max_eigs_ablation(model_path, "ofc")
-    
-    for s in range(3):
-        fig, ax = standard_2d_ax()
-        max_eigs_high_int = _get_max_eigenvalues(model_path, 0, "ofc", stim_inp=stim_list[s])
-        max_eigs_low_int = _get_max_eigenvalues(model_path, 1, "ofc", stim_inp=stim_list[s])
-        max_eigs_object = _get_max_eigenvalues(model_path, 2, "ofc", stim_inp=stim_list[s])
-
-        ax.plot(max_eigs_high_int, linewidth=4, color="red")
-        ax.plot(max_eigs_low_int, linewidth=4, color="blue")
-        ax.plot(max_eigs_object, linewidth=4, color="green")
-        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
-        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join(exp_path, f"ofc_max_eigs_all_conds_ablate_{regions[s]}"))
+    _plot_max_eigs_ablation(model_path, "ofc")
 
 def run_all_max_eigs_ablation(model_path):
     plot_max_eigs_pfc_ablation(model_path)
@@ -282,36 +210,69 @@ def run_all_max_eigs_ablation(model_path):
 
 
 
-
-def plot_max_eigs_ablation_all_models_pfc():
+def plot_eigs_ablation_all_models(region):
     
     model_paths = [
-        "checkpoints/social_mrnn",
         "checkpoints/social_mrnn_0",
         "checkpoints/social_mrnn_1",
         "checkpoints/social_mrnn_2",
         "checkpoints/social_mrnn_3",
-        "checkpoints/social_mrnn_4",
-        "checkpoints/social_mrnn_5",
+        "checkpoints/social_mrnn_4"
     ]
 
-    max_eigs_high_int = {}
-    max_eigs_low_int = {}
-    max_eigs_object = {}
+    all_model_dists_high_int_ab = {}
+    all_model_dists_low_int_ab = {}
+    all_model_dists_object_ab = {}
 
-    regions_ablate = ["acc", "ofc", "bla"]
-    for region in regions_ablate:
-        max_eigs_high_int[region] = []
-        max_eigs_low_int[region] = []
-        max_eigs_object[region] = []
+    all_model_dists_high_int_ctrl = {}
+    all_model_dists_low_int_ctrl = {}
+    all_model_dists_object_ctrl = {}
 
     for model_path in model_paths:
-        stim_list, regions = _get_max_eigs_ablation(model_path, "pfc")
+
+        stim_list, regions = _get_ablation_stims(model_path, region)
+
+        # intialize lists for each region
+        for r in regions:
+            if r not in all_model_dists_high_int_ab:
+                all_model_dists_high_int_ab[r] = []
+            if r not in all_model_dists_low_int_ab:
+                all_model_dists_low_int_ab[r] = []
+            if r not in all_model_dists_object_ab:
+                all_model_dists_object_ab[r] = []
+            if r not in all_model_dists_high_int_ctrl:
+                all_model_dists_high_int_ctrl[r] = []
+            if r not in all_model_dists_low_int_ctrl:
+                all_model_dists_low_int_ctrl[r] = []
+            if r not in all_model_dists_object_ctrl:
+                all_model_dists_object_ctrl[r] = []
         
         for s in range(3):
-            max_eigs_high_int[regions[s]].append(_get_max_eigenvalues(model_path, 0, "pfc", stim_inp=stim_list[s]))
-            max_eigs_low_int[regions[s]].append(_get_max_eigenvalues(model_path, 1, "pfc", stim_inp=stim_list[s]))
-            max_eigs_object[regions[s]].append(_get_max_eigenvalues(model_path, 2, "pfc", stim_inp=stim_list[s]))
+            _, eigs_high_int_ab = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_list[s])
+            _, eigs_low_int_ab = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_list[s])
+            _, eigs_object_ab = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_list[s])
+
+            all_model_dists_high_int_ab[regions[s]].append(eigs_high_int_ab)
+            all_model_dists_low_int_ab[regions[s]].append(eigs_low_int_ab)
+            all_model_dists_object_ab[regions[s]].append(eigs_object_ab)
+
+            _, eigs_high_int_ctrl = _get_max_eigenvalues(model_path, 0, region)
+            _, eigs_low_int_ctrl = _get_max_eigenvalues(model_path, 1, region)
+            _, eigs_object_ctrl = _get_max_eigenvalues(model_path, 2, region)
+
+            all_model_dists_high_int_ctrl[regions[s]].append(eigs_high_int_ctrl)
+            all_model_dists_low_int_ctrl[regions[s]].append(eigs_low_int_ctrl)
+            all_model_dists_object_ctrl[regions[s]].append(eigs_object_ctrl)
+
+    for s in range(3):
+
+        high_int_eigs_ab_arr = np.array(all_model_dists_high_int_ab[regions[s]])
+        low_int_eigs_ab_arr = np.array(all_model_dists_low_int_ab[regions[s]])
+        object_eigs_ab_arr = np.array(all_model_dists_object_ab[regions[s]])
+
+        high_int_eigs_ctrl_arr = np.array(all_model_dists_high_int_ctrl[regions[s]])
+        low_int_eigs_ctrl_arr = np.array(all_model_dists_low_int_ctrl[regions[s]])
+        object_eigs_ctrl_arr = np.array(all_model_dists_object_ctrl[regions[s]])
 
     fig, ax = standard_2d_ax()
     for region in regions_ablate:
