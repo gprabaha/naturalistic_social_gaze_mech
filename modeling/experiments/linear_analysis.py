@@ -14,16 +14,27 @@ from models import Model
 from mRNNTorch.analysis import linearized_eigendecomposition
 from scipy.special import rel_entr
 import numpy as np
+from scipy.stats import wasserstein_distance
 
 # Supress warnings
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+
+
+def _get_other_regions(model, region):
+    regions = []
+    for r in model.mrnn.region_dict:
+        if r != region:
+            regions.append(r)
+    return regions
+
+
 def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
 
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -64,23 +75,24 @@ def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
     hn_cond = hn[condition]
 
     max_eigs = []
-    eigs = []
+    eigs_r, eigs_im = [], []
     for hn_t in hn_cond:
-        reals, _, _ = linearized_eigendecomposition(model.mrnn, hn_t, *args)
+        reals, ims, _ = linearized_eigendecomposition(model.mrnn, hn_t, *args)
         max_real = max(reals)
-        eigs.append(reals)
+        eigs_r.append(reals)
+        eigs_im.append(ims)
         max_eigs.append(max_real)
     
-    return max_eigs, eigs
+    return max_eigs, eigs_r, eigs_im
 
 
 
 
-def _get_ablation_stims(model_path, *args):
+def _get_ablation_stims(model_path, region):
     
     hp = load_hp(model_path)
     
-    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -106,10 +118,7 @@ def _get_ablation_stims(model_path, *args):
     batch, keys, _ = dataset.sample_batch()
     inp = interactivity_input(keys, batch.shape[1])
 
-    regions = []
-    for region in model.mrnn.region_dict:
-        if region not in args:
-            regions.append(region)
+    regions = _get_other_regions(model, region)
 
     stim_list = []
     for s in range(len(regions)):
@@ -148,6 +157,30 @@ def _plot_max_eigs(model_path, region):
 
 
 
+
+def _plot_eig_dist(model_path, region):
+
+    def _make_scatters(data_r, data_im, cond):
+        for t, (eigs_r, eigs_im) in enumerate(zip(data_r, data_im)):
+            fig, ax = standard_2d_ax()
+            ax.scatter(eigs_r, eigs_im, color="red", alpha=0.75, edgecolors="black", s=100)
+            save_fig(os.path.join(exp_path, f"{region}", f"cond{cond}", f"eig_dist_t{t}"))
+
+    hp = load_hp(model_path)
+    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
+    
+    _, eigs_hi_r, eigs_hi_im = _get_max_eigenvalues(model_path, 0, region)
+    _, eigs_li_r, eigs_li_im = _get_max_eigenvalues(model_path, 1, region)
+    _, eigs_o_r, eigs_o_im = _get_max_eigenvalues(model_path, 2, region)
+
+    _make_scatters(eigs_hi_r, eigs_hi_im, 0)
+    _make_scatters(eigs_li_r, eigs_li_im, 1)
+    _make_scatters(eigs_o_r, eigs_o_im, 2)
+    
+
+
+
+
 def plot_max_eigs_pfc(model_path):
     _plot_max_eigs(model_path, "pfc")
 
@@ -165,6 +198,28 @@ def run_all_max_eigs(model_path):
     plot_max_eigs_acc(model_path)
     plot_max_eigs_bla(model_path)
     plot_max_eigs_ofc(model_path)
+
+
+
+
+def plot_eigs_dist_pfc(model_path):
+    _plot_eig_dist(model_path, "pfc")
+
+def plot_eigs_dist_acc(model_path):
+    _plot_eig_dist(model_path, "acc")
+
+def plot_eigs_dist_bla(model_path):
+    _plot_eig_dist(model_path, "bla")
+
+def plot_eigs_dist_ofc(model_path):
+    _plot_eig_dist(model_path, "ofc")
+
+def run_all_eigs_dist(model_path):
+    plot_eigs_dist_pfc(model_path)
+    plot_eigs_dist_acc(model_path)
+    plot_eigs_dist_bla(model_path)
+    plot_eigs_dist_ofc(model_path)
+
 
 
 
@@ -210,7 +265,8 @@ def run_all_max_eigs_ablation(model_path):
 
 
 
-def plot_eigs_ablation_all_models(region):
+
+def _eigs_all_models(region, stim=False):
     
     model_paths = [
         "checkpoints/social_mrnn_0",
@@ -220,78 +276,107 @@ def plot_eigs_ablation_all_models(region):
         "checkpoints/social_mrnn_4"
     ]
 
-    all_model_dists_high_int_ab = {}
-    all_model_dists_low_int_ab = {}
-    all_model_dists_object_ab = {}
-
-    all_model_dists_high_int_ctrl = {}
-    all_model_dists_low_int_ctrl = {}
-    all_model_dists_object_ctrl = {}
+    all_model_dists_high_int = {}
+    all_model_dists_low_int = {}
+    all_model_dists_object = {}
 
     for model_path in model_paths:
 
-        stim_list, regions = _get_ablation_stims(model_path, region)
-
+        # This is horrible
+        if stim:
+            stim_list, regions = _get_ablation_stims(model_path, region)
+        else:
+            _, regions = _get_ablation_stims(model_path, region)
+            
         # intialize lists for each region
         for r in regions:
-            if r not in all_model_dists_high_int_ab:
-                all_model_dists_high_int_ab[r] = []
-            if r not in all_model_dists_low_int_ab:
-                all_model_dists_low_int_ab[r] = []
-            if r not in all_model_dists_object_ab:
-                all_model_dists_object_ab[r] = []
-            if r not in all_model_dists_high_int_ctrl:
-                all_model_dists_high_int_ctrl[r] = []
-            if r not in all_model_dists_low_int_ctrl:
-                all_model_dists_low_int_ctrl[r] = []
-            if r not in all_model_dists_object_ctrl:
-                all_model_dists_object_ctrl[r] = []
+            if r not in all_model_dists_high_int:
+                all_model_dists_high_int[r] = []
+            if r not in all_model_dists_low_int:
+                all_model_dists_low_int[r] = []
+            if r not in all_model_dists_object:
+                all_model_dists_object[r] = []
         
-        for s in range(3):
-            _, eigs_high_int_ab = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_list[s])
-            _, eigs_low_int_ab = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_list[s])
-            _, eigs_object_ab = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_list[s])
+        for s in range(len(regions)):
 
-            all_model_dists_high_int_ab[regions[s]].append(eigs_high_int_ab)
-            all_model_dists_low_int_ab[regions[s]].append(eigs_low_int_ab)
-            all_model_dists_object_ab[regions[s]].append(eigs_object_ab)
+            stim_cur = stim_list[s] if stim else None
 
-            _, eigs_high_int_ctrl = _get_max_eigenvalues(model_path, 0, region)
-            _, eigs_low_int_ctrl = _get_max_eigenvalues(model_path, 1, region)
-            _, eigs_object_ctrl = _get_max_eigenvalues(model_path, 2, region)
+            _, eigs_high_int_ab, _ = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_cur)
+            _, eigs_low_int_ab, _ = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_cur)
+            _, eigs_object_ab, _ = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_cur)
 
-            all_model_dists_high_int_ctrl[regions[s]].append(eigs_high_int_ctrl)
-            all_model_dists_low_int_ctrl[regions[s]].append(eigs_low_int_ctrl)
-            all_model_dists_object_ctrl[regions[s]].append(eigs_object_ctrl)
+            all_model_dists_high_int[regions[s]].append(eigs_high_int_ab)
+            all_model_dists_low_int[regions[s]].append(eigs_low_int_ab)
+            all_model_dists_object[regions[s]].append(eigs_object_ab)
+    
+    for r in regions:
 
-    for s in range(3):
+        high_int_eigs_arr = np.array(all_model_dists_high_int[r]) 
+        low_int_eigs_arr = np.array(all_model_dists_low_int[r])
+        object_eigs_arr = np.array(all_model_dists_object[r])
 
-        high_int_eigs_ab_arr = np.array(all_model_dists_high_int_ab[regions[s]])
-        low_int_eigs_ab_arr = np.array(all_model_dists_low_int_ab[regions[s]])
-        object_eigs_ab_arr = np.array(all_model_dists_object_ab[regions[s]])
+        high_int_eigs_arr = np.reshape(high_int_eigs_arr,  (-1, high_int_eigs_arr.shape[-1])) 
+        low_int_eigs_arr = np.reshape(low_int_eigs_arr,  (-1, low_int_eigs_arr.shape[-1]))
+        object_eigs_arr = np.reshape(object_eigs_arr,  (-1, object_eigs_arr.shape[-1]))
+        
+        all_model_dists_high_int[r] = high_int_eigs_arr
+        all_model_dists_low_int[r] = low_int_eigs_arr
+        all_model_dists_object[r] = object_eigs_arr
 
-        high_int_eigs_ctrl_arr = np.array(all_model_dists_high_int_ctrl[regions[s]])
-        low_int_eigs_ctrl_arr = np.array(all_model_dists_low_int_ctrl[regions[s]])
-        object_eigs_ctrl_arr = np.array(all_model_dists_object_ctrl[regions[s]])
+    return all_model_dists_high_int, all_model_dists_low_int, all_model_dists_object, regions
 
-    fig, ax = standard_2d_ax()
-    for region in regions_ablate:
-        for run in range(len(model_paths)):
-            ax.plot(max_eigs_high_int[region][run], linewidth=2, color="red", alpha=0.25)
-            ax.fill_between(
-                x,
-                mean - std,
-                mean + std,
-                color="C0",
-                alpha=0.3,
-                label="±1 std",
-            )
-            ax.plot(max_eigs_low_int[region][run], linewidth=2, color="blue", alpha=0.25)
-            ax.plot(max_eigs_object[region][run], linewidth=2, color="green", alpha=0.25)
-        ax.set_title(f"Ablate {region} to pfc")
-        ax.axvline(x=50, linestyle="--", color="grey", linewidth=2)
-        ax.axvline(x=100, linestyle="--", color="grey", linewidth=2)
-        save_fig(os.path.join("results/linear_analysis", f"pfc_max_eigs_all_conds_ablate_{region}_all_models"), eps=True)
+
+
+
+
+def _plot_eigs_ablation_all_models(region):
+
+    exp_path = f"results/all_social_mrnn/linear_analysis"
+    
+    # regions stuff is trash rn
+    hi_eigs_ctrl, li_eigs_ctrl, o_eigs_ctrl, regions = _eigs_all_models(region, stim=False)
+    hi_eigs_stim, li_eigs_stim, o_eigs_stim, _ = _eigs_all_models(region, stim=True)
+
+    def _kl_div_regions(stim_data, ctrl_data):
+        dists = {}
+        for r in stim_data:
+            dists[r] = []
+            for t in range(stim_data[r].shape[0]):
+                dists[r].append(wasserstein_distance(stim_data[r][t], ctrl_data[r][t]))
+        return dists
+
+    def _make_bar_plot(kl_divs, cond):
+        fig, ax = standard_2d_ax()
+        ys = []
+        errs = []
+        for r in kl_divs:
+            ys.append(np.mean(kl_divs[r]))
+            errs.append(np.std(kl_divs[r]))
+        ax.bar(regions, ys, yerr=errs, capsize=10)
+        save_fig(os.path.join(exp_path, f"{region}_kl_div_ablation_cond{cond}"))
+
+    hi_kl_divs = _kl_div_regions(hi_eigs_stim, hi_eigs_ctrl)
+    li_kl_divs = _kl_div_regions(li_eigs_stim, li_eigs_ctrl)
+    o_kl_divs = _kl_div_regions(o_eigs_stim, o_eigs_ctrl)
+
+    _make_bar_plot(hi_kl_divs, 0)
+    _make_bar_plot(li_kl_divs, 1)
+    _make_bar_plot(o_kl_divs, 2)
+
+
+
+
+def plot_eigs_ablation_all_models_pfc():
+    _plot_eigs_ablation_all_models("pfc")
+
+def plot_eigs_ablation_all_models_acc():
+    _plot_eigs_ablation_all_models("acc")
+
+def plot_eigs_ablation_all_models_bla():
+    _plot_eigs_ablation_all_models("bla")
+
+def plot_eigs_ablation_all_models_ofc():
+    _plot_eigs_ablation_all_models("ofc")
 
 
 
@@ -314,6 +399,17 @@ def main():
     elif args.experiment == "run_all_max_eigs":
         run_all_max_eigs(args.model_path)
 
+    elif args.experiment == "plot_eigs_dist_pfc":
+        plot_eigs_dist_pfc(args.model_path)
+    elif args.experiment == "plot_eigs_dist_acc":
+        plot_eigs_dist_acc(args.model_path)
+    elif args.experiment == "plot_eigs_dist_bla":
+        plot_eigs_dist_bla(args.model_path)
+    elif args.experiment == "plot_eigs_dist_ofc":
+        plot_eigs_dist_ofc(args.model_path)
+    elif args.experiment == "run_all_eigs_dist":
+        run_all_eigs_dist(args.model_path)
+
     elif args.experiment == "plot_max_eigs_pfc_ablation":
         plot_max_eigs_pfc_ablation(args.model_path)
     elif args.experiment == "plot_max_eigs_acc_ablation":
@@ -324,6 +420,15 @@ def main():
         plot_max_eigs_ofc_ablation(args.model_path)
     elif args.experiment == "run_all_max_eigs_ablation":
         run_all_max_eigs_ablation(args.model_path)
+
+    elif args.experiment == "plot_eigs_ablation_all_models_pfc":
+        plot_eigs_ablation_all_models_pfc()
+    elif args.experiment == "plot_eigs_ablation_all_models_acc":
+        plot_eigs_ablation_all_models_acc()
+    elif args.experiment == "plot_eigs_ablation_all_models_bla":
+        plot_eigs_ablation_all_models_bla()
+    elif args.experiment == "plot_eigs_ablation_all_models_ofc":
+        plot_eigs_ablation_all_models_ofc()
 
     else:
         raise NotImplementedError(f"Experiment {args.experiment} not implemented")
