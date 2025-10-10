@@ -13,6 +13,8 @@ import load_data
 import json
 import pickle
 from matplotlib import rcParams
+import numpy as np
+from sklearn.decomposition import PCA
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -173,3 +175,65 @@ def stim_inp(mrnn, start_silence, end_silence, seq_len, extra_steps, stim_streng
     stim = torch.cat([stim_pre, stim_ramp_up, stim_const, stim_ramp_down, stim_post], dim=1)
 
     return stim
+
+
+
+
+def get_other_regions(model, region):
+    regions = []
+    for r in model.mrnn.region_dict:
+        if r != region:
+            regions.append(r)
+    return regions
+
+
+
+
+
+def vaf_ratio(data_1, data_2, basline_dim=None, num_comps=None, control=True):
+
+    # Only use two muscle PCs for this task, but use three for the one above
+
+    num_comps = 12 if num_comps is None else num_comps
+    percentile = 90
+
+    if control == True:
+        baseline_dim = data_1.shape[-1] if basline_dim == None else baseline_dim
+        # Create a random manifold as a control
+        random_matrices = np.random.randn(5000, baseline_dim, num_comps)
+        random_bases = np.empty(shape=(5000, num_comps, baseline_dim))
+        for basis in range(5000):
+            q, _ = np.linalg.qr(random_matrices[basis])
+            random_bases[basis] = q.T
+
+    pca1 = PCA()
+    pca2 = PCA()
+
+    task1_data = data_1.reshape((-1, data_1.shape[-1]))
+    task2_data = data_2.reshape((-1, data_2.shape[-1]))
+
+    pca1.fit(task1_data)
+    pca2.fit(task2_data)
+
+    pca1_comps = pca1.components_[:num_comps]
+    pca2_comps = pca2.components_[:num_comps]
+
+    # ------------------------------------ TRUE ACROSS AND WITHIN TASK VAFs
+
+    # Get VAF
+    across_task_vaf_task1 = (pca2_comps @ task1_data.T).T.var(axis=0).sum() / task1_data.var(axis=0).sum()
+    within_task_vaf_task1 = (pca1_comps @ task1_data.T).T.var(axis=0).sum() / task1_data.var(axis=0).sum()
+    ratio = across_task_vaf_task1 / within_task_vaf_task1
+
+
+    if control == True:
+        # ------------------------------------ CONTROL ACROSS TASK VAFs
+
+        # Get random VAFs, only for data_1 rn
+        across_task_vaf = (random_bases @ task1_data.T).var(axis=2).sum(axis=1) / task1_data.var(axis=0).sum()
+        vaf_ratio_control = np.percentile(across_task_vaf, percentile) / within_task_vaf_task1
+    
+    if control == True:
+        return ratio, vaf_ratio_control
+    else:
+        return ratio

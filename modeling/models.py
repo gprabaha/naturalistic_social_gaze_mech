@@ -20,6 +20,7 @@ class Model(nn.Module):
                  batch_first, 
                  spectral_radius,
                  activation="softplus",
+                 output_layer=True,
                  device="cuda"
         ):
         super(Model, self).__init__()
@@ -29,6 +30,7 @@ class Model(nn.Module):
         self.tau = tau
         self.inp_noise = inp_noise
         self.act_noise = act_noise
+        self.output_layer = output_layer
 
         self.mrnn = mRNN(
             config,

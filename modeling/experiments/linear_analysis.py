@@ -9,7 +9,7 @@ sys.path.append(str(root_dir))
 import torch
 import config
 from plt_utils import standard_2d_ax
-from utils import load_hp, get_mean_fixation_data, interactivity_input, save_fig, stim_inp
+from utils import load_hp, get_mean_fixation_data, interactivity_input, save_fig, stim_inp, get_other_regions
 from models import Model
 from mRNNTorch.analysis import linearized_eigendecomposition
 from scipy.special import rel_entr
@@ -20,17 +20,7 @@ from scipy.stats import wasserstein_distance
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
-
-def _get_other_regions(model, region):
-    regions = []
-    for r in model.mrnn.region_dict:
-        if r != region:
-            regions.append(r)
-    return regions
-
-
-def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
+def _get_eigenvalues(model_path, condition, *args, stim_inp=None):
 
     hp = load_hp(model_path)
     
@@ -88,7 +78,7 @@ def _get_max_eigenvalues(model_path, condition, *args, stim_inp=None):
 
 
 
-def _get_ablation_stims(model_path, region):
+def _get_ablation_stims(model_path, region, start_silence=50, end_silence=75):
     
     hp = load_hp(model_path)
     
@@ -118,14 +108,14 @@ def _get_ablation_stims(model_path, region):
     batch, keys, _ = dataset.sample_batch()
     inp = interactivity_input(keys, batch.shape[1])
 
-    regions = _get_other_regions(model, region)
+    regions = get_other_regions(model, region)
 
     stim_list = []
     for s in range(len(regions)):
         stim_list.append(stim_inp(
             model.mrnn, 
-            50, 
-            100,
+            start_silence, 
+            end_silence,
             inp.shape[1],
             0,
             -5,
@@ -146,9 +136,9 @@ def _plot_max_eigs(model_path, region):
     exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
     fig, ax = standard_2d_ax()
-    max_eigs_high_int, _ = _get_max_eigenvalues(model_path, 0, region)
-    max_eigs_low_int, _ = _get_max_eigenvalues(model_path, 1, region)
-    max_eigs_object, _ = _get_max_eigenvalues(model_path, 2, region)
+    max_eigs_high_int, _ = _get_eigenvalues(model_path, 0, region)
+    max_eigs_low_int, _ = _get_eigenvalues(model_path, 1, region)
+    max_eigs_object, _ = _get_eigenvalues(model_path, 2, region)
 
     ax.plot(max_eigs_high_int, linewidth=4, color="red")
     ax.plot(max_eigs_low_int, linewidth=4, color="blue")
@@ -169,9 +159,9 @@ def _plot_eig_dist(model_path, region):
     hp = load_hp(model_path)
     exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
     
-    _, eigs_hi_r, eigs_hi_im = _get_max_eigenvalues(model_path, 0, region)
-    _, eigs_li_r, eigs_li_im = _get_max_eigenvalues(model_path, 1, region)
-    _, eigs_o_r, eigs_o_im = _get_max_eigenvalues(model_path, 2, region)
+    _, eigs_hi_r, eigs_hi_im = _get_eigenvalues(model_path, 0, region)
+    _, eigs_li_r, eigs_li_im = _get_eigenvalues(model_path, 1, region)
+    _, eigs_o_r, eigs_o_im = _get_eigenvalues(model_path, 2, region)
 
     _make_scatters(eigs_hi_r, eigs_hi_im, 0)
     _make_scatters(eigs_li_r, eigs_li_im, 1)
@@ -233,9 +223,9 @@ def _plot_max_eigs_ablation(model_path, region):
     
     for s in range(3):
         fig, ax = standard_2d_ax()
-        max_eigs_high_int, _ = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_list[s])
-        max_eigs_low_int, _ = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_list[s])
-        max_eigs_object, _ = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_list[s])
+        max_eigs_high_int, _ = _get_eigenvalues(model_path, 0, region, stim_inp=stim_list[s])
+        max_eigs_low_int, _ = _get_eigenvalues(model_path, 1, region, stim_inp=stim_list[s])
+        max_eigs_object, _ = _get_eigenvalues(model_path, 2, region, stim_inp=stim_list[s])
 
         ax.plot(max_eigs_high_int, linewidth=4, color="red")
         ax.plot(max_eigs_low_int, linewidth=4, color="blue")
@@ -266,7 +256,7 @@ def run_all_max_eigs_ablation(model_path):
 
 
 
-def _eigs_all_models(region, stim=False):
+def _eigs_all_models(region, stim=False, start_silence=50, end_silence=75):
     
     model_paths = [
         "checkpoints/social_mrnn_0",
@@ -284,7 +274,7 @@ def _eigs_all_models(region, stim=False):
 
         # This is horrible
         if stim:
-            stim_list, regions = _get_ablation_stims(model_path, region)
+            stim_list, regions = _get_ablation_stims(model_path, region, start_silence=start_silence, end_silence=end_silence)
         else:
             _, regions = _get_ablation_stims(model_path, region)
             
@@ -301,9 +291,9 @@ def _eigs_all_models(region, stim=False):
 
             stim_cur = stim_list[s] if stim else None
 
-            _, eigs_high_int_ab, _ = _get_max_eigenvalues(model_path, 0, region, stim_inp=stim_cur)
-            _, eigs_low_int_ab, _ = _get_max_eigenvalues(model_path, 1, region, stim_inp=stim_cur)
-            _, eigs_object_ab, _ = _get_max_eigenvalues(model_path, 2, region, stim_inp=stim_cur)
+            _, eigs_high_int_ab, _ = _get_eigenvalues(model_path, 0, region, stim_inp=stim_cur)
+            _, eigs_low_int_ab, _ = _get_eigenvalues(model_path, 1, region, stim_inp=stim_cur)
+            _, eigs_object_ab, _ = _get_eigenvalues(model_path, 2, region, stim_inp=stim_cur)
 
             all_model_dists_high_int[regions[s]].append(eigs_high_int_ab)
             all_model_dists_low_int[regions[s]].append(eigs_low_int_ab)
