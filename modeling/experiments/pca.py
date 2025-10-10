@@ -60,9 +60,8 @@ def _plot_pca(model_path, data_type):
     hp = load_hp(model_path)
     exp_path = f"results/{hp["model_save_name"]}/pca"
     
-    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
 
-    # Training variables
     model = Model(
         hp["mrnn_config_file"], 
         100, 
@@ -73,11 +72,13 @@ def _plot_pca(model_path, data_type):
         hp["dt"], 
         hp["tau"], 
         hp["inp_noise"], 
-        hp["act_noise"],
-        hp["constrained"],
+        hp["act_noise"], 
+        hp["constrained"], 
         hp["batch_first"],
         hp["spectral_radius"],
-    ).cuda()
+        output_layer=hp["output_layer"],
+        device="cpu"
+    ).cpu()
 
     checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"]+".pth"))
     model.load_state_dict(checkpoint)
@@ -85,15 +86,17 @@ def _plot_pca(model_path, data_type):
     # Start training
     batch, keys, _ = dataset.sample_batch()
     inp = interactivity_input(keys, batch.shape[1])
-    inp = inp.cuda()
+    inp = inp.cpu()
 
-    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cuda")
-    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cuda")
+    if hp["output_layer"]:
+        xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units))
+        hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units))
+    else:
+        xn = batch[:, 0, :].to(dtype=torch.float32)
+        hn = batch[:, 0, :].to(dtype=torch.float32)
+
     with torch.no_grad():
         out, hn = model(inp, xn, hn, noise=False)
-
-    out = out.detach().cpu()
-    hn = hn.detach().cpu()
 
     if data_type == "data":
         plot_all_pcs(model, exp_path, batch, "data")

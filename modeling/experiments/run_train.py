@@ -11,6 +11,14 @@ import config
 def train_def():
     train()
 
+def train_no_out():
+    hp = {
+        "output_layer": False,
+        "save_dir": "checkpoints/social_mrnn_no_out",
+        "model_save_name": "social_mrnn_no_out",
+    }
+    train(hp=hp)
+
 def train_mult_nets():
     for i in range(10):
         hp = {
@@ -27,6 +35,8 @@ if __name__ == "__main__":
 
     if args.experiment == "train_def":
         train_def()
+    elif args.experiment == "train_no_out":
+        train_no_out()
     elif args.experiment == "train_mult_nets":
         train_mult_nets()
     else:

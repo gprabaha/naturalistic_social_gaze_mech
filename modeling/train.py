@@ -30,6 +30,7 @@ DEF_HP = {
     "inp_noise": 0,
     "act_noise": 0,
     "spectral_radius": 1.3,
+    "output_layer": True,
     "save_dir": "checkpoints/social_mrnn",
     "model_save_name": "social_mrnn",
     "model_specifications_path": "checkpoints/model_specifications",
@@ -64,11 +65,15 @@ def train(hp=None):
         hp["act_noise"],
         hp["constrained"],
         hp["batch_first"],
-        hp["spectral_radius"]
+        hp["spectral_radius"],
+        output_layer=hp["output_layer"]
     ).cuda()
 
+    xn_0 = nn.Parameter(torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda"))
+    hn_0 = nn.Parameter(torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda"))
+
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=hp["lr"])
+    optimizer = optim.Adam([*model.parameters(), xn_0, hn_0], lr=hp["lr"])
     cur_loss = 0
     losses = []
 
@@ -83,9 +88,7 @@ def train(hp=None):
         inp = inp.cuda()
         loss_mask = loss_mask.cuda()
 
-        xn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
-        hn = torch.zeros(size=(1, model.mrnn.total_num_units), device="cuda")
-        out, hn = model(inp, xn, hn)
+        out, hn = model(inp, xn_0, hn_0)
 
         out = out * loss_mask
 
@@ -104,8 +107,14 @@ def train(hp=None):
             # Check if the directory exists, and create it if it doesn't
             if not os.path.exists(directory):
                 os.makedirs(directory)
+            
+            state_dict = {
+                'model_state_dict': model.state_dict(),
+                'xn_0': xn_0,
+                'hn_0': hn_0
+            }
 
-            torch.save(model.state_dict(), os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
+            torch.save(state_dict, os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
 
             mean_loss = cur_loss / 100
             losses.append(mean_loss)

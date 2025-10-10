@@ -85,13 +85,13 @@ def get_mean_fixation_data(path):
 def interactivity_input(key, timesteps):
     input_series = []
     for cond in key:
-        inp = torch.zeros(size=(1, timesteps, 2))
+        inp = torch.zeros(size=(1, timesteps, 3))
         if cond == "high_interactivity_face":
-            inp[..., 0] = 0.7
+            inp[..., 0] = 1
         if cond == "low_interactivity_face":
-            inp[..., 0] = 0.8
+            inp[..., 1] = 1
         if cond == "object":
-            inp[..., 1] = 0.25
+            inp[..., 2] = 1
         input_series.append(inp)
     input_series = torch.cat(input_series, dim=0)
     return input_series
