@@ -1,0 +1,66 @@
+# config/datasets.yaml
+
+datasets:
+
+  dal_monte_2016:
+    root: "/gpfs/milgram/project/chang/pg496/data_dir/dal_monte_2016"
+    description: "Positions, pupil, time, ROI rects. No neural spikes."
+    agent_mode: "joint_file"         # data file contains both m1 & m2
+    session_layout: "flat"           # files sit under fixed subfolders, no per-day dir
+    available_modalities: ["gaze", "pupil", "time", "roi"]
+    tokens:
+      # how to render tokens used below
+      date: "{date}"                 # e.g., 20161205
+      session: "{session}"           # e.g., S01
+    # All files share the 'position' token in filename in this dataset
+    path_templates:
+      gaze_mat:   "{root}/eyetracking/aligned_raw_samples/position/{date}_position_{session}.mat"
+      pupil_mat:  "{root}/eyetracking/aligned_raw_samples/pupil_size/{date}_position_{session}.mat"
+      time_mat:   "{root}/eyetracking/aligned_raw_samples/time/{date}_position_{session}.mat"
+      roi_mat:    "{root}/eyetracking/roi_rects/{date}_position_{session}.mat"
+    parsing:
+      # how to parse date/session from filenames if needed
+      filename_regex: "^(?P<date>\\d{8})_position_(?P<session>[^.]+)\\.mat$"
+
+  dal_monte_2022:
+    root: "/gpfs/milgram/project/chang/pg496/data_dir/dal_monte_2022"
+    description: "Like 2016 but also has spike times."
+    agent_mode: "joint_file"
+    session_layout: "flat"
+    available_modalities: ["gaze", "pupil", "time", "roi", "spikes"]
+    tokens:
+      date: "{date}"
+      session: "{session}"
+    path_templates:
+      gaze_mat:   "{root}/eyetracking/aligned_raw_samples/position/{date}_position_{session}.mat"
+      pupil_mat:  "{root}/eyetracking/aligned_raw_samples/pupil_size/{date}_position_{session}.mat"
+      time_mat:   "{root}/eyetracking/aligned_raw_samples/time/{date}_position_{session}.mat"
+      roi_mat:    "{root}/eyetracking/roi_rects/{date}_position_{session}.mat"
+      # adjust this to your real spike file naming; placeholder below:
+      spikes_mat: "{root}/neural/spikes/{date}_spikes_{session}.mat"
+    parsing:
+      filename_regex: "^(?P<date>\\d{8})_position_(?P<session>[^.]+)\\.mat$"
+
+  putnam_2026:  # rename to putnam_2022 if that’s the actual dataset name
+    root: "/gpfs/milgram/project/chang/pg496/data_dir/putnam_2026"
+    description: "Per-day folder OTNAL_FV_<date>; per-agent files. Gaze files include position & time; ROIs in farPlaneCal. Spikes also under each day."
+    agent_mode: "per_agent_file"     # files are distinct for M1 vs M2
+    session_layout: "per_day_folder"
+    available_modalities: ["gaze", "time", "roi", "spikes"]
+    agent_map: { m1: "1", m2: "2" }  # how to render agent in filenames
+    tokens:
+      date: "{date}"                 # e.g., 20250915
+      day_folder: "{root}/data_source_7point3/OTNAL_FV_{date}"
+      # Often folder_name_prefix == day folder name; keep separate so you can change later if needed
+      folder_prefix: "OTNAL_FV_{date}"
+      agent_digit: "{agent_digit}"   # resolved via agent_map
+    path_templates:
+      # Gaze contains both position & time per file here
+      gaze_mat: "{day_folder}/{folder_prefix}_M{agent_digit}_gaze.mat"
+      time_mat: "{day_folder}/{folder_prefix}_M{agent_digit}_gaze.mat"   # same file as gaze_mat
+      roi_mat:  "{day_folder}/{folder_prefix}_M{agent_digit}_farPlaneCal.mat"
+      # If spikes are bundled per agent, use a template; if a subfolder/varies, replace with a glob
+      spikes_glob: "{day_folder}/spikes/*M{agent_digit}*.mat"
+    parsing:
+      # Example: extract date from folder "OTNAL_FV_<date>"
+      day_folder_regex: "^OTNAL_FV_(?P<date>\\d{8})$"
