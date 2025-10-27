@@ -19,6 +19,7 @@ from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 import imageio.v2 as imageio
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import shutil
 
 import matplotlib.pyplot as plt
@@ -421,13 +422,51 @@ def analyze_and_plot_neural_response_to_face_and_object_fixations(
         total_count = len(face_vs_object_set | high_vs_low_set)
         overlap_percentage = (overlap_count / total_count) * 100 if total_count > 0 else 0
         logger.info(f"{region}: {overlap_count} overlapping units ({overlap_percentage:.2f}% overlap)")
+
+    fix_response_path = os.path.join(processed_data_dir, "mean_fixation_response_df.pkl")
+    mean_fixation_response_df = create_interactivity_dataframe(merged_high_density_counts, merged_low_density_counts, merged_object_counts)
+    mean_fixation_response_df.to_pickle(fix_response_path)
     
     # Generate and save summary plots
     # generate_summary_plots(merged_sig_units, merged_high_density_counts, merged_low_density_counts, timeline, root_dir)
     plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, merged_object_counts, timeline, root_dir, available_cpus)
+
     
     return merged_sig_units, merged_non_sig_units, merged_face_vs_object_sig_units
 
+
+
+def create_interactivity_dataframe(merged_high_density_counts, merged_low_density_counts, merged_object_counts):
+    rows = []
+    for region in merged_high_density_counts.keys():
+        high_data = merged_high_density_counts[region]
+        low_data = merged_low_density_counts[region]
+        obj_data = merged_object_counts[region]
+        # Create maps from uuid to data for safe matching
+        low_dict = {t[0]: t[1] for t in low_data}
+        obj_dict = {t[0]: t[1] for t in obj_data}
+        for high_entry in high_data:
+            uuid = high_entry[0]
+            high_fr_array = high_entry[1]
+            # Verify the UUID exists in all sets
+            if uuid not in low_dict or uuid not in obj_dict:
+                continue  # skip mismatched entries
+            low_fr_array = low_dict[uuid]
+            obj_fr_array = obj_dict[uuid]
+            high_fr = np.mean(high_fr_array, axis=0)
+            low_fr = np.mean(low_fr_array, axis=0)
+            object_fr = np.mean(obj_fr_array, axis=0)
+            face_fr = np.mean(np.vstack((high_fr_array, low_fr_array)), axis=0)
+            row = {
+                'region': region,
+                'uuid': uuid,
+                'high_interactivity_face': high_fr,
+                'low_interactivity_face': low_fr,
+                'face': face_fr,
+                'object': object_fr
+            }
+            rows.append(row)
+    return pd.DataFrame(rows)
 
 
 
@@ -808,18 +847,25 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
 
             ax.set_title(region, fontsize=12, fontweight='bold')
             for i, (label, color) in enumerate(colors.items()):
-                projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
-                for j in range(len(timeline) - 1):
-                    alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
-                                    ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
-                    ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                            color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == len(timeline) // 2 else "")
-
+                projected = projected_data[i * (len(timeline) - 1):(i + 1) * (len(timeline) - 1)]
+                # Get the segments for the trajectory
+                segments = np.stack([projected[:-1], projected[1:]], axis=1)  # (N-1, 2, 3)
+                # Generate colormap gradients
+                norm_values = np.linspace(0.3, 1.0, len(timeline) - 1)  # Normalize color scaling
+                colors_array = [color(v) for v in norm_values]
+                # Set alpha based on label condition
+                alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
+                            ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
+                # Create the Line3DCollection
+                lc = Line3DCollection(segments, colors=colors_array, linewidth=2, alpha=alpha)
+                ax.add_collection3d(lc)
+                # Only label the trajectory once for the legend
+                ax.plot([], [], [], color=color(0.7), linewidth=2, label=label)
+                # Add Markers
                 for marker_idx, marker in enumerate(markers):
                     marker_style = ['o', '*', 's'][marker_idx]
                     label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None
                     ax.scatter(*projected[marker], color='black', marker=marker_style, s=80, label=label)
-
             ax.set_xlabel("PC1")
             ax.set_ylabel("PC2")
             ax.set_zlabel("PC3")
@@ -914,6 +960,7 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
         data_matrices[region] = {
             "high_low": np.hstack([all_high_density, all_low_density, all_face, all_object]),
             "face_object": np.hstack([all_face, all_object, all_high_density, all_low_density]),
+            "face_object": np.hstack([all_face, all_object]),
             "combined": np.hstack([all_high_density, all_low_density, all_face, all_object]),
             "indices": np.hstack([high_low_index, face_obj_index])
         }
@@ -921,7 +968,8 @@ def plot_pca_trajectory(merged_high_density_counts, merged_low_density_counts, m
     
     colors_dict = {
         "high_low": {"High-density": high_density_cmap, "Low-density": low_density_cmap, "Face": face_cmap, "Object": object_cmap},
-        "face_object": {"Face": face_cmap, "Object": object_cmap, "High-density": high_density_cmap, "Low-density": low_density_cmap},
+        # "face_object": {"Face": face_cmap, "Object": object_cmap, "High-density": high_density_cmap, "Low-density": low_density_cmap},
+        "face_object": {"Face": face_cmap, "Object": object_cmap},
         "combined": {"High-density": high_density_cmap, "Low-density": low_density_cmap, "Face": face_cmap, "Object": object_cmap},
         "indices": {"High-Low Index": high_low_index_cmap, "Face-Object Index": face_object_index_cmap},
     }
@@ -958,13 +1006,21 @@ def generate_pca_frame(frame, timeline, markers, projected_data_dict, colors, ti
         ax.set_title(region, fontsize=12, fontweight='bold')
 
         for i, (label, color) in enumerate(colors.items()):
-            projected = projected_data[i * len(timeline):(i + 1) * len(timeline)]
-            for j in range(len(timeline) - 1):
-                alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
-                                ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
-                ax.plot(projected[j:j+2, 0], projected[j:j+2, 1], projected[j:j+2, 2],
-                        color=color(0.3 + 0.7 * (j / len(timeline))), alpha=alpha, linewidth=2, label=label if j == len(timeline) // 2 else "")
-
+            projected = projected_data[i * (len(timeline) - 1):(i + 1) * (len(timeline) - 1)]
+            # Get the segments for the trajectory
+            segments = np.stack([projected[:-1], projected[1:]], axis=1)  # (N-1, 2, 3)
+            # Generate colormap gradients
+            norm_values = np.linspace(0.3, 1.0, len(timeline) - 1)  # Normalize color scaling
+            colors_array = [color(v) for v in norm_values]
+            # Set alpha based on label condition
+            alpha = 1.0 if ('High' in label or 'Low' in label and 'High vs Low' in title) or \
+                        ('Face' in label or 'Object' in label and 'Face vs Object' in title) else 0.7
+            # Create the Line3DCollection
+            lc = Line3DCollection(segments, colors=colors_array, linewidth=2, alpha=alpha)
+            ax.add_collection3d(lc)
+            # Only label the trajectory once for the legend
+            ax.plot([], [], [], color=color(0.7), linewidth=2, label=label)
+            # Add Markers
             for marker_idx, marker in enumerate(markers):
                 marker_style = ['o', '*', 's'][marker_idx]
                 label = ['Start (-0.5s)', 'Fixation Initiation (0s)', 'End (1s)'][marker_idx] if i == 0 else None

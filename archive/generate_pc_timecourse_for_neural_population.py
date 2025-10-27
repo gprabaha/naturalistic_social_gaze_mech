@@ -95,6 +95,12 @@ def main():
         logger.info(f"Loading existing firing rate df from: {firing_rate_file}")
         fixation_firing_rate_df = load_data.get_data_df(firing_rate_file)  # Load from file
 
+    fixation_type = params.get('fixation_type_to_process', 'face')
+    mutual_density_filename = f"mutual_fixation_density_{fixation_type}.pkl"
+    mutual_density_file_path = os.path.join(processed_data_dir, mutual_density_filename)
+    logger.info(f"Loading precalculated mutual fixation density data from {mutual_density_file_path}")
+    mutual_behav_density_df = load_data.get_data_df(mutual_density_file_path)
+
     project_and_plot_pcs(fixation_firing_rate_df, params)
 
     logger.info("Script finished running!")

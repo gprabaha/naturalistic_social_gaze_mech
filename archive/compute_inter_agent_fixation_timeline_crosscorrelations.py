@@ -41,7 +41,6 @@ logger = logging.getLogger(__name__)
 # ** Initiation and Main **
 
 
-
 def _initialize_params():
     logger.info("Initializing parameters")
     params = {
