@@ -30,13 +30,13 @@ def plot_pca(act, exp_path, region, data_type):
     fig, ax = ax_3d_no_grid()
 
     label_str = ["high_interactivity_face", "low_interactivity_face", "object"]
-    ax.plot(act[0, :, 0], act[0, :, 1], act[0, :, 2], linewidth=4, label=label_str[0])
-    ax.plot(act[1, :, 0], act[1, :, 1], act[1, :, 2], linewidth=4, label=label_str[1])
-    ax.plot(act[2, :, 0], act[2, :, 1], act[2, :, 2], linewidth=4, label=label_str[2])
-    ax.legend(loc="best")
+    ax.plot(act[0, :, 0], act[0, :, 1], act[0, :, 2], linewidth=4, label=label_str[0], color="blue")
+    ax.plot(act[1, :, 0], act[1, :, 1], act[1, :, 2], linewidth=4, label=label_str[1], color="maroon")
+    ax.plot(act[2, :, 0], act[2, :, 1], act[2, :, 2], linewidth=4, label=label_str[2], color="green")
+    #ax.legend(loc="best")
 
     save_path = os.path.join(exp_path, f"{region}_{data_type}_pca")
-    save_fig(save_path)
+    save_fig(save_path, eps=True)
 
 def plot_all_pcs(model, exp_path, x, data_type):
 
@@ -60,7 +60,7 @@ def _plot_pca(model_path, data_type):
     hp = load_hp(model_path)
     exp_path = f"results/{hp["model_save_name"]}/pca"
     
-    dataset = get_mean_fixation_data("/Users/John/naturalistic_social_gaze_mech/social_gaze") 
+    dataset = get_mean_fixation_data("/Users/lazza/naturalistic_social_gaze_mech/social_gaze") 
 
     model = Model(
         hp["mrnn_config_file"], 
@@ -81,7 +81,7 @@ def _plot_pca(model_path, data_type):
     ).cpu()
 
     checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"]+".pth"))
-    model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"])
 
     # Start training
     batch, keys, _ = dataset.sample_batch()
@@ -92,8 +92,8 @@ def _plot_pca(model_path, data_type):
         xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units))
         hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units))
     else:
-        xn = batch[:, 0, :].to(dtype=torch.float32)
-        hn = batch[:, 0, :].to(dtype=torch.float32)
+        xn = checkpoint["xn_0"].cpu()
+        hn = checkpoint["hn_0"].cpu()
 
     with torch.no_grad():
         out, hn = model(inp, xn, hn, noise=False)

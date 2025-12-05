@@ -46,12 +46,12 @@ def _plot_flow(coords, x_vel, y_vel, save_path):
                   x_vel, 
                   y_vel, 
                   color="black", 
-                  linewidth=3, 
+                  linewidth=2, 
                   arrowsize=2, 
                   zorder=0,
     )
 
-    save_fig(save_path)
+    save_fig(save_path, eps=True)
 
     
 def _gen_line_collection(
@@ -110,11 +110,12 @@ def plot_flow_fields(
         hp["constrained"],
         hp["batch_first"],
         hp["spectral_radius"],
+        output_layer=hp["output_layer"],
         device="cpu"
-    )
+    ).cpu()
 
     checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
-    model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"])
 
     # Start training
     batch, keys, _ = dataset.sample_batch()
@@ -122,8 +123,12 @@ def plot_flow_fields(
     inp = inp.cpu()
     batch = batch.cpu()
 
-    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
-    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    if hp["output_layer"]:
+        xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+        hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    else:
+        xn = checkpoint["xn_0"].cpu()
+        hn = checkpoint["hn_0"].cpu()
 
     with torch.no_grad():
         out, hn = model(inp, xn, hn, noise=False)

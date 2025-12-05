@@ -15,6 +15,7 @@ from mRNNTorch.analysis import linearized_eigendecomposition
 from scipy.special import rel_entr
 import numpy as np
 from scipy.stats import wasserstein_distance
+from utils import pvalues
 
 # Supress warnings
 import warnings
@@ -40,18 +41,19 @@ def _get_eigenvalues(model_path, condition, *args, stim_inp=None):
         hp["constrained"], 
         hp["batch_first"],
         hp["spectral_radius"],
+        output_layer=hp["output_layer"],
         device="cpu"
-    )
+    ).cpu()
     
     checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
-    model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     batch, keys, _ = dataset.sample_batch()
     inp = interactivity_input(keys, batch.shape[1])
 
-    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
-    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    xn = checkpoint["xn_0"].cpu()
+    hn = checkpoint["hn_0"].cpu()
 
     with torch.no_grad():
         if stim_inp is not None:
@@ -98,11 +100,12 @@ def _get_ablation_stims(model_path, region, start_silence=50, end_silence=75):
         hp["constrained"], 
         hp["batch_first"],
         hp["spectral_radius"],
+        output_layer=hp["output_layer"],
         device="cpu"
     )
     
     checkpoint = torch.load(os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth"))
-    model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     batch, keys, _ = dataset.sample_batch()
@@ -133,7 +136,8 @@ def _get_ablation_stims(model_path, region, start_silence=50, end_silence=75):
 def _plot_max_eigs(model_path, region):
     
     hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
+    model_save_name = hp["model_save_name"]
+    exp_path = f"results/{model_save_name}/linear_analysis"
     
     fig, ax = standard_2d_ax()
     max_eigs_high_int, _ = _get_eigenvalues(model_path, 0, region)
@@ -154,10 +158,17 @@ def _plot_eig_dist(model_path, region):
         for t, (eigs_r, eigs_im) in enumerate(zip(data_r, data_im)):
             fig, ax = standard_2d_ax()
             ax.scatter(eigs_r, eigs_im, color="red", alpha=0.75, edgecolors="black", s=100)
-            save_fig(os.path.join(exp_path, f"{region}", f"cond{cond}", f"eig_dist_t{t}"))
+            theta = np.linspace(0, 2*np.pi, 500)
+            x = np.cos(theta)
+            y = np.sin(theta)
+            ax.set_xticks([-1, 1])
+            ax.set_yticks([-1, 1])
+            ax.plot(x, y, linewidth=1, color="black")
+            save_fig(os.path.join(exp_path, f"{region}", f"cond{cond}", f"eig_dist_t{t}"), eps=True)
 
     hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
+    model_save_name = hp["model_save_name"]
+    exp_path = f"results/{model_save_name}/linear_analysis"
     
     _, eigs_hi_r, eigs_hi_im = _get_eigenvalues(model_path, 0, region)
     _, eigs_li_r, eigs_li_im = _get_eigenvalues(model_path, 1, region)
@@ -218,7 +229,8 @@ def run_all_eigs_dist(model_path):
 def _plot_max_eigs_ablation(model_path, region):
     
     hp = load_hp(model_path)
-    exp_path = f"results/{hp["model_save_name"]}/linear_analysis"
+    model_save_name = hp["model_save_name"]
+    exp_path = f"results/{model_save_name}/linear_analysis"
     stim_list, regions = _get_ablation_stims(model_path, region)
     
     for s in range(3):
@@ -259,11 +271,7 @@ def run_all_max_eigs_ablation(model_path):
 def _eigs_all_models(region, stim=False, start_silence=50, end_silence=75):
     
     model_paths = [
-        "checkpoints/social_mrnn_0",
-        "checkpoints/social_mrnn_1",
-        "checkpoints/social_mrnn_2",
-        "checkpoints/social_mrnn_3",
-        "checkpoints/social_mrnn_4"
+        "checkpoints/social_mrnn_no_out",
     ]
 
     all_model_dists_high_int = {}
@@ -295,9 +303,9 @@ def _eigs_all_models(region, stim=False, start_silence=50, end_silence=75):
             _, eigs_low_int_ab, _ = _get_eigenvalues(model_path, 1, region, stim_inp=stim_cur)
             _, eigs_object_ab, _ = _get_eigenvalues(model_path, 2, region, stim_inp=stim_cur)
 
-            all_model_dists_high_int[regions[s]].append(eigs_high_int_ab)
-            all_model_dists_low_int[regions[s]].append(eigs_low_int_ab)
-            all_model_dists_object[regions[s]].append(eigs_object_ab)
+            all_model_dists_high_int[regions[s]].append(eigs_high_int_ab[start_silence:end_silence])
+            all_model_dists_low_int[regions[s]].append(eigs_low_int_ab[start_silence:end_silence])
+            all_model_dists_object[regions[s]].append(eigs_object_ab[start_silence:end_silence])
     
     for r in regions:
 
@@ -343,11 +351,14 @@ def _plot_eigs_ablation_all_models(region):
             ys.append(np.mean(kl_divs[r]))
             errs.append(np.std(kl_divs[r]))
         ax.bar(regions, ys, yerr=errs, capsize=10)
-        save_fig(os.path.join(exp_path, f"{region}_kl_div_ablation_cond{cond}"))
+        save_fig(os.path.join(exp_path, f"{region}_kl_div_ablation_cond{cond}"), eps=True)
 
     hi_kl_divs = _kl_div_regions(hi_eigs_stim, hi_eigs_ctrl)
     li_kl_divs = _kl_div_regions(li_eigs_stim, li_eigs_ctrl)
     o_kl_divs = _kl_div_regions(o_eigs_stim, o_eigs_ctrl)
+    
+    # Only doing hi for now
+    pvalues(regions, hi_kl_divs)
 
     _make_bar_plot(hi_kl_divs, 0)
     _make_bar_plot(li_kl_divs, 1)

@@ -76,7 +76,7 @@ class Model(nn.Module):
         if self.output_layer == False:
             # Define all recurrent regions
             for region in self.connection_props:
-                self.mrnn.add_recurrent_region(region, self.region_units[region], learnable_bias=True)
+                self.mrnn.add_recurrent_region(region, self.region_units[region])
             
             # Define input region
             self.mrnn.add_input_region("input", 3)

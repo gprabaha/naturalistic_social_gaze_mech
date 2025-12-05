@@ -15,6 +15,8 @@ import pickle
 from matplotlib import rcParams
 import numpy as np
 from sklearn.decomposition import PCA
+import itertools
+import scipy
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -237,3 +239,24 @@ def vaf_ratio(data_1, data_2, basline_dim=None, num_comps=None, control=True):
         return ratio, vaf_ratio_control
     else:
         return ratio
+
+
+
+
+def pvalues(label_list, data_dict):
+    combination_labels = list(itertools.combinations(label_list, 2))
+    print("\n")
+    # Print out significance here
+    for combination in combination_labels:
+        result = scipy.stats.mannwhitneyu(data_dict[combination[0]], data_dict[combination[1]])
+        pvalue = result[1]
+        if pvalue < 0.001:
+            pvalue_str = f"***, {pvalue}"
+        elif pvalue < 0.01:
+            pvalue_str = f"**, {pvalue}"
+        elif pvalue < 0.05:
+            pvalue_str = f"*, {pvalue}"
+        else:
+            pvalue_str = "Not Significant"
+        print(f"pvalue for {combination[0]} and {combination[1]} is: {pvalue_str}")
+    print("\n")
