@@ -8,11 +8,11 @@ sys.path.append(str(root_dir))
 
 import torch
 import config
-from plt_utils import standard_2d_ax
-from utils import load_hp, get_mean_fixation_data, interactivity_input, save_fig, stim_inp, get_other_regions
+from utils.plt_utils import standard_2d_ax
+from utils.exp_utils import load_hp, get_mean_fixation_data, interactivity_input, save_fig, stim_inp, get_other_regions
 from models import Model
 import numpy as np
-from utils import vaf_ratio
+from utils.exp_utils import vaf_ratio
 
 # Supress warnings
 import warnings
@@ -70,6 +70,7 @@ def _get_act(model_path, condition, stim_inp=None):
 
 
 
+
 def _get_ablation_stim(model_path, region, start_silence=50, end_silence=75, stim_strength=-5):
     
     hp = load_hp(model_path)
@@ -114,6 +115,7 @@ def _get_ablation_stim(model_path, region, start_silence=50, end_silence=75, sti
     )
     
     return stim
+
 
 
 

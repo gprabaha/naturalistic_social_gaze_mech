@@ -49,7 +49,7 @@
 
     "input_regions": [
       {
-        "num_units": 2,
+        "num_units": 3,
         "name": "input"
       }
     ],

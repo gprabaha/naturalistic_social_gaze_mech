@@ -1,2 +1,2 @@
 model_path="checkpoints/social_mrnn"
-experiment="train_def"
+experiment="train_latent"

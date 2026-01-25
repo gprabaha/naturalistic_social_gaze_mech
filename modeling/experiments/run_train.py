@@ -5,11 +5,22 @@ from pathlib import Path
 root_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(root_dir))
 
-from train import train
+from utils.train_utils import train
 import config
+
 
 def train_def():
     train()
+
+
+def train_latent():
+    hp = {
+        "latent_training": True,
+        "save_dir": "checkpoints/social_mrnn_latent",
+        "model_save_name": "social_mrnn_latent",
+    }
+    train(hp=hp)
+
 
 def train_no_out():
     hp = {
@@ -19,6 +30,7 @@ def train_no_out():
     }
     train(hp=hp)
 
+
 def train_mult_nets():
     for i in range(10):
         hp = {
@@ -27,14 +39,16 @@ def train_mult_nets():
         }
         train(hp=hp)
 
+
 if __name__ == "__main__":
-    
     ### PARAMETERS ###
     parser = config.config_parser()
     args = parser.parse_args()
 
     if args.experiment == "train_def":
         train_def()
+    elif args.experiment == "train_latent":
+        train_latent()
     elif args.experiment == "train_no_out":
         train_no_out()
     elif args.experiment == "train_mult_nets":
