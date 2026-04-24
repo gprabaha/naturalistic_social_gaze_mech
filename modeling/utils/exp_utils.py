@@ -15,10 +15,63 @@ import numpy as np
 from sklearn.decomposition import PCA
 import itertools
 import scipy
+from modeling.utils.models import Model
 
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
+
+def control_trial(model_path, condition, stim_inp=None):
+    hp = load_hp(model_path)
+
+    dataset = get_mean_fixation_data(
+        "/Users/lazza/naturalistic_social_gaze_mech/social_gaze"
+    )
+
+    model = Model(
+        hp["mrnn_config_file"],
+        100,
+        dataset.units_per_region["dmpfc"],
+        dataset.units_per_region["accg"],
+        dataset.units_per_region["ofc"],
+        dataset.units_per_region["bla"],
+        hp["dt"],
+        hp["tau"],
+        hp["inp_noise"],
+        hp["act_noise"],
+        hp["constrained"],
+        hp["batch_first"],
+        hp["spectral_radius"],
+        device="cpu",
+    )
+
+    checkpoint = torch.load(
+        os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth")
+    )
+    model.load_state_dict(checkpoint)
+    model.eval()
+
+    batch, keys, _ = dataset.sample_batch()
+    inp = interactivity_input(keys, batch.shape[1])
+
+    xn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+    hn = torch.zeros(size=(batch.shape[0], model.mrnn.total_num_units), device="cpu")
+
+    with torch.no_grad():
+        if stim_inp is not None:
+            out, hn = model(inp, xn, hn, stim_inp, noise=False)
+        else:
+            out, hn = model(inp, xn, hn, noise=False)
+
+    out = out.detach().cpu()
+    hn = hn.detach().cpu()
+
+    hn_cond = hn[condition]
+    out_cond = out[condition]
+
+    # Should be (time, units)
+    return hn_cond, out_cond
 
 
 def create_dir(save_path):
@@ -33,6 +86,49 @@ def load_hp(model_dir):
     with open(fname, "r") as f:
         hp = json.load(f)
     return hp
+
+
+def load_model(hp, dataset):
+    model = Model(
+        hp["mrnn_config_file"],
+        100,
+        dataset.units_per_region["dmpfc"],
+        dataset.units_per_region["accg"],
+        dataset.units_per_region["ofc"],
+        dataset.units_per_region["bla"],
+        hp["dt"],
+        hp["tau"],
+        hp["inp_noise"],
+        hp["act_noise"],
+        hp["rec_constrained"],
+        hp["inp_constrained"],
+        hp["batch_first"],
+        hp["spectral_radius"],
+        output_layer=hp["output_layer"],
+        latent_training=hp["latent_training"],
+        n_components=hp["n_components"],
+        device="cpu",
+    ).cpu()
+
+    checkpoint = torch.load(
+        os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth")
+    )
+    model.load_state_dict(checkpoint["model_state_dict"])
+
+    return model
+
+
+def initial_state(hp, model, batch_size):
+    checkpoint = torch.load(
+        os.path.join(hp["save_dir"], hp["model_save_name"] + ".pth")
+    )
+    if hp["output_layer"]:
+        xn = torch.zeros(size=(batch_size, model.mrnn.total_num_units))
+        hn = torch.zeros(size=(batch_size, model.mrnn.total_num_units))
+    else:
+        xn = checkpoint["xn_0"].cpu()
+        hn = checkpoint["hn_0"].cpu()
+    return xn, hn
 
 
 def save_fig(save_path, eps=False):
@@ -153,7 +249,7 @@ def vaf_ratio(data_1, data_2, basline_dim=None, num_comps=None, control=True):
     num_comps = 12 if num_comps is None else num_comps
     percentile = 90
 
-    if control == True:
+    if control:
         baseline_dim = data_1.shape[-1] if basline_dim == None else baseline_dim
         # Create a random manifold as a control
         random_matrices = np.random.randn(5000, baseline_dim, num_comps)
@@ -185,7 +281,7 @@ def vaf_ratio(data_1, data_2, basline_dim=None, num_comps=None, control=True):
     ).sum() / task1_data.var(axis=0).sum()
     ratio = across_task_vaf_task1 / within_task_vaf_task1
 
-    if control == True:
+    if control:
         # ------------------------------------ CONTROL ACROSS TASK VAFs
 
         # Get random VAFs, only for data_1 rn
@@ -196,7 +292,7 @@ def vaf_ratio(data_1, data_2, basline_dim=None, num_comps=None, control=True):
             np.percentile(across_task_vaf, percentile) / within_task_vaf_task1
         )
 
-    if control == True:
+    if control:
         return ratio, vaf_ratio_control
     else:
         return ratio
@@ -223,7 +319,7 @@ def pvalues(label_list, data_dict):
     print("\n")
 
 
-def pca_batched(act, batch_first=True, n_components=2):
+def pca_batched(act, batch_first=True, n_components=3):
     """
     Performs pca on 3d act
 

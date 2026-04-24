@@ -1,4 +1,5 @@
 import torch
+from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
 import numpy as np
@@ -62,6 +63,9 @@ class MeanFixationDataset:
 
         # Cache total number of units for convenience.
         self.total_num_units = len(self.unit_ids)
+
+    def __len__(self):
+        return len(self.group_by_columns)
 
     def get_region_indices(self, region):
         """Return the [start, end) indices for a region in the concatenated unit list."""
@@ -161,11 +165,3 @@ class MeanFixationDataset:
         # Concatenate units across regions along the feature dimension.
         fr_tensor = torch.cat(fr_tensor, dim=-1)
         return fr_tensor
-
-    def convert_pad_list(self, x):
-        """Convert a list of sequences to a padded tensor batch."""
-        # Convert each list to a tensor to enable padding.
-        tensor_list = [torch.tensor(lst) for lst in x]
-        # Pad to the maximum sequence length across the batch.
-        tensor_list = pad_sequence(tensor_list, batch_first=True)
-        return tensor_list

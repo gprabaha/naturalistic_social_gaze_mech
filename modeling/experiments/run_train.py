@@ -16,6 +16,7 @@ def train_def():
 def train_latent():
     hp = {
         "latent_training": True,
+        "n_components": 10,
         "save_dir": "checkpoints/social_mrnn_latent",
         "model_save_name": "social_mrnn_latent",
     }

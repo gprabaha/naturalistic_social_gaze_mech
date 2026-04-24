@@ -88,14 +88,7 @@ class Model(nn.Module):
             # Add input connections
             for region in self.connection_props:
                 self.mrnn.add_input_connection("input", region)
-
-        # Build fully connected network with proper cell types
-        for src_region in self.connection_props:
-            for dst_region in self.connection_props:
-                self.mrnn.add_recurrent_connection(src_region, dst_region)
-        self.mrnn.finalize_connectivity()
-
-        if self.output_layer:
+        else:
             if latent_training:
                 self.pfc_out = nn.Linear(hid_dim, n_components)
                 self.acc_out = nn.Linear(hid_dim, n_components)
@@ -106,6 +99,14 @@ class Model(nn.Module):
                 self.acc_out = nn.Linear(hid_dim, acc_units)
                 self.ofc_out = nn.Linear(hid_dim, ofc_units)
                 self.bla_out = nn.Linear(hid_dim, bla_units)
+
+        # Build fully connected network with proper cell types
+        for src_region in self.connection_props:
+            for dst_region in self.connection_props:
+                self.mrnn.add_recurrent_connection(src_region, dst_region)
+        self.mrnn.finalize_connectivity()
+
+        self.out_order = ["ofc", "bla", "pfc", "acc"]
 
     def forward(self, xn, inp, *args, noise=True):
         xn, hn = self.mrnn(xn, inp, *args, noise=noise)
